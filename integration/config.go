@@ -21,9 +21,14 @@ type SSHConfig struct {
 }
 
 type ClusterMember struct {
-	Nodes []Node
-	Services []string
-	Directories []string
+	Nodes     []Node
+	Services  []string
+	DiskSpace DiskSpace
+}
+
+type DiskSpace struct {
+	FileSystemUsage []string
+	DirectoryUsage  []string
 }
 
 type Node struct {

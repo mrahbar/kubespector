@@ -9,13 +9,13 @@ import (
 )
 
 const (
-	noType          = ""
-	okType          = "[OK]"
-	errType         = "[ERROR]"
-	skippedType     = "[SKIPPED]"
-	warnType        = "[WARNING]"
-	unreachableType = "[UNREACHABLE]"
-	errIgnoredType  = "[ERROR IGNORED]"
+	noType         = ""
+	okType         = "[OK]"
+	errType        = "[ERROR]"
+	skippedType    = "[SKIPPED]"
+	warnType       = "[WARNING]"
+	unknownType    = "[UNKNOWN]"
+	errIgnoredType = "[ERROR IGNORED]"
 )
 
 var Green = color.New(color.FgGreen)
@@ -49,9 +49,9 @@ func PrettyPrintErrorIgnored(out io.Writer, msg string, a ...interface{}) {
 	print(out, msg, errIgnoredType, a...)
 }
 
-// PrettyPrintUnreachable [UNREACHABLE](Red) with formatted string
-func PrettyPrintUnreachable(out io.Writer, msg string, a ...interface{}) {
-	print(out, msg, unreachableType, a...)
+// PrettyPrintUnknown [UNREACHABLE](Red) with formatted string
+func PrettyPrintUnknown(out io.Writer, msg string, a ...interface{}) {
+	print(out, msg, unknownType, a...)
 }
 
 // PrettyPrintSkipped [SKIPPED](blue) with formatted string
@@ -113,7 +113,7 @@ func print(out io.Writer, msg, status string, a ...interface{}) {
 		switch status {
 		case okType:
 			clr = Green
-		case errType, unreachableType:
+		case errType, unknownType:
 			clr = Red
 		case warnType, errIgnoredType:
 			clr = Orange

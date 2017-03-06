@@ -11,8 +11,12 @@ Cluster:
     Nodes:
     - Host: "ket-stack-secured-instance-jyzmjpyjvgjj"
       IP: "185.56.128.117"
-    Directories:
-    -
+    DiskSpace:
+      FileSystemUsage:
+      - /dev/vda1
+      DirectoryUsage:
+      - /etc/etcd_k8s
+      - /var/log
   Master:
     Services:
     - kube-apiserver
@@ -22,6 +26,13 @@ Cluster:
     Nodes:
     - Host: "ket-stack-secured-instance-jyzmjpyjvgjj"
       IP: "185.56.128.117"
+    DiskSpace:
+      FileSystemUsage:
+      - /dev/vda1
+      DirectoryUsage:
+      - /etc/kubernetes
+      - /etc/etcd_networking
+      - /var/log
   Worker:
     Services:
     - docker
@@ -30,6 +41,13 @@ Cluster:
     Nodes:
     - Host: "ket-stack-secured-instance-jyzmjpyjvgjj"
       IP: "185.56.128.117"
+    DiskSpace:
+      FileSystemUsage:
+      - /dev/vda1
+      DirectoryUsage:
+      - /etc/docker
+      - /var/lib/kubelet
+      - /var/log
 Kubernetes:
   Resources:
   - Type: nodes
