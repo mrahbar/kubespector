@@ -1,0 +1,38 @@
+Ssh:
+  Pty: true
+  User: ubuntu
+  Key: ./syseleven_ssh_key
+  Port: 22
+  Options: -o StrictHostKeyChecking=no
+Cluster:
+  Etcd:
+    Services:
+    - etcd_k8s
+    Nodes:
+    - Host: "ket-stack-secured-instance-jyzmjpyjvgjj"
+      IP: "185.56.128.117"
+    Directories:
+    -
+  Master:
+    Services:
+    - kube-apiserver
+    - kube-controller-manager
+    - kube-scheduler
+    - etcd_networking
+    Nodes:
+    - Host: "ket-stack-secured-instance-jyzmjpyjvgjj"
+      IP: "185.56.128.117"
+  Worker:
+    Services:
+    - docker
+    - kubelet
+    - kube-proxy
+    Nodes:
+    - Host: "ket-stack-secured-instance-jyzmjpyjvgjj"
+      IP: "185.56.128.117"
+Kubernetes:
+  Resources:
+  - Type: nodes
+  - Type: pods
+    Namespace: kube-system
+    Wide: true

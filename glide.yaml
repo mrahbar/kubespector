@@ -1,0 +1,9 @@
+package: github.com/mrahbar/kubernetes-inspector
+import:
+- package: github.com/fatih/color
+  version: ^1.4.0
+- package: github.com/spf13/cobra
+- package: github.com/spf13/viper
+- package: golang.org/x/crypto
+  subpackages:
+  - ssh
