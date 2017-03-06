@@ -6,9 +6,13 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"io"
 )
 
+var VERSION = "0.1.0"
 var cfgFile string
+var out io.Writer = os.Stdout
+var ClusterMembers = []string{"Etcd", "Master", "Worker", "Ingress", "Kubernetes"}
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{

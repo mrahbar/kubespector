@@ -12,6 +12,9 @@ import (
 	"runtime"
 
 	"golang.org/x/crypto/ssh"
+	"strings"
+	"github.com/mrahbar/kubernetes-inspector/util"
+	"io"
 )
 
 var baseSSHArgs = []string{
@@ -24,6 +27,21 @@ var baseSSHArgs = []string{
 	"-o", "ConnectTimeout=10", // timeout after 10 seconds
 	"-o", "ControlMaster=no", // disable ssh multiplexing
 	"-o", "ControlPath=none",
+}
+
+func PerformSSHCmd(out io.Writer, sshOpts *SSHConfig, node *Node, cmd string) (string, error) {
+	client, err := NewClient(node.IP, sshOpts.Port, sshOpts.User, sshOpts.Key,
+		strings.FieldsFunc(sshOpts.Options, func(r rune) bool {
+			return r == ' ' || r == ','
+		}))
+
+	if err != nil {
+		msg := fmt.Sprintf("Error creating SSH client for host %s (%s): %v", node.Host, node.IP, err)
+		util.PrettyPrintErr(out, msg)
+		return "", err
+	}
+
+	return client.Output(sshOpts.Pty, cmd)
 }
 
 type Client interface {
