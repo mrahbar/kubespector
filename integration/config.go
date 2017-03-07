@@ -3,10 +3,11 @@ package integration
 type Config struct {
 	Ssh SSHConfig
 	Cluster struct{
-		Etcd    ClusterMember
-		Master  ClusterMember
-		Worker  ClusterMember
-		Ingress ClusterMember
+		Etcd     ClusterMember
+		Master   ClusterMember
+		Worker   ClusterMember
+		Ingress  ClusterMember
+		Registry ClusterMember
 	}
 	Kubernetes struct{
 		Resources []KubernetesResource

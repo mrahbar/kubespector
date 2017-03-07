@@ -9,13 +9,13 @@ import (
 )
 
 const (
-	noType         = ""
-	okType         = "[OK]"
-	errType        = "[ERROR]"
-	skippedType    = "[SKIPPED]"
-	warnType       = "[WARNING]"
-	unknownType    = "[UNKNOWN]"
-	errIgnoredType = "[ERROR IGNORED]"
+	noType      = ""
+	okType      = "[OK]"
+	errType     = "[ERROR]"
+	skippedType = "[SKIPPED]"
+	warnType    = "[WARNING]"
+	unknownType = "[UNKNOWN]"
+	ignoredType = "[IGNORED]"
 )
 
 var Green = color.New(color.FgGreen)
@@ -44,9 +44,9 @@ func PrettyPrintWarn(out io.Writer, msg string, a ...interface{}) {
 	print(out, msg, warnType, a...)
 }
 
-// PrettyPrintErrorIgnored [ERROR IGNORED](Red) with formatted string
-func PrettyPrintErrorIgnored(out io.Writer, msg string, a ...interface{}) {
-	print(out, msg, errIgnoredType, a...)
+// PrettyPrintIgnored [IGNORED](Red) with formatted string
+func PrettyPrintIgnored(out io.Writer, msg string, a ...interface{}) {
+	print(out, msg, ignoredType, a...)
 }
 
 // PrettyPrintUnknown [UNREACHABLE](Red) with formatted string
@@ -84,7 +84,7 @@ func PrintSkipped(out io.Writer) {
 	PrintColor(out, Blue, skippedType)
 }
 
-// PrintHeader will print header with predifined width
+// PrintHeader will print header with predefined width
 func PrintHeader(out io.Writer, msg string, padding byte) {
 	w := tabwriter.NewWriter(out, 84, 0, 0, padding, 0)
 	fmt.Fprintln(w, "")
@@ -115,7 +115,7 @@ func print(out io.Writer, msg, status string, a ...interface{}) {
 			clr = Green
 		case errType, unknownType:
 			clr = Red
-		case warnType, errIgnoredType:
+		case warnType, ignoredType:
 			clr = Orange
 		case skippedType:
 			clr = Blue

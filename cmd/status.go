@@ -62,6 +62,9 @@ func statusRun(cmd *cobra.Command, args []string) {
 			case "Ingress":
 				checkServiceStatus(&config.Ssh, element, config.Cluster.Ingress.Services, config.Cluster.Ingress.Nodes)
 				checkDiskStatus(&config.Ssh, element, config.Cluster.Ingress.DiskSpace, config.Cluster.Ingress.Nodes)
+			case "Registry":
+				checkServiceStatus(&config.Ssh, element, config.Cluster.Registry.Services, config.Cluster.Registry.Nodes)
+				checkDiskStatus(&config.Ssh, element, config.Cluster.Registry.DiskSpace, config.Cluster.Registry.Nodes)
 			case "Kubernetes":
 				checkKubernetesStatus(&config.Ssh, element, config.Kubernetes.Resources, config.Cluster.Master.Nodes)
 			}
@@ -72,12 +75,12 @@ func statusRun(cmd *cobra.Command, args []string) {
 func checkServiceStatus(sshOpts *integration.SSHConfig, element string, services []string, nodes []integration.Node) {
 	util.PrintHeader(out, fmt.Sprintf("Checking service status of group [%s] ", element), '=')
 	if nodes == nil || len(nodes) == 0  {
-		util.PrettyPrintErr(out, "No host configured for [%s]", element)
-		os.Exit(1)
+		util.PrettyPrintIgnored(out, "No host configured for [%s]", element)
+		return
 	}
 	if services == nil || len(services) == 0   {
-		util.PrettyPrintErr(out, "No services configured for [%s]", element)
-		os.Exit(1)
+		util.PrettyPrintIgnored(out, "No services configured for [%s]", element)
+		return
 	}
 
 	for _, node := range nodes {
@@ -95,12 +98,13 @@ func checkServiceStatus(sshOpts *integration.SSHConfig, element string, services
 		util.PrettyPrint(out, "On host %s%s", host_msg, ip_msg)
 
 		for _, service := range services {
-			o, err := integration.PerformSSHCmd(out, sshOpts, &node, fmt.Sprintf("sudo systemctl is-active %s", service))
+			o, err := integration.PerformSSHCmd(out, sshOpts, &node,
+				fmt.Sprintf("sudo systemctl is-active %s", service), RootOpts.Debug)
+			result := strings.TrimSpace(o)
 
 			if err != nil {
-				util.PrettyPrintErr(out, "Error checking status of %s: %v", service, err)
+				util.PrettyPrintErr(out, "Error checking status of %s: %s, %s", service, result, err)
 			} else {
-				result := strings.TrimSpace(o)
 
 				if result == "active" {
 					util.PrettyPrintOk(out, "Service %s is active", service)
@@ -121,8 +125,8 @@ func checkServiceStatus(sshOpts *integration.SSHConfig, element string, services
 func checkDiskStatus(sshOpts *integration.SSHConfig, element string, diskSpace integration.DiskSpace, nodes []integration.Node) {
 	util.PrintHeader(out, fmt.Sprintf("Checking disk status of group [%s] ", element), '=')
 	if nodes == nil || len(nodes) == 0 {
-		util.PrettyPrintErr(out, "No host configured for [%s]", element)
-		os.Exit(1)
+		util.PrettyPrintIgnored(out, "No host configured for [%s]", element)
+		return
 	}
 
 	for _, node := range nodes {
@@ -141,24 +145,26 @@ func checkDiskStatus(sshOpts *integration.SSHConfig, element string, diskSpace i
 
 		if len(diskSpace.FileSystemUsage) > 0 {
 			for _, fsUsage := range diskSpace.FileSystemUsage {
-				o, err := integration.PerformSSHCmd(out, sshOpts, &node, fmt.Sprintf("df -h | grep %s", fsUsage))
+				o, err := integration.PerformSSHCmd(out, sshOpts, &node,
+					fmt.Sprintf("df -h | grep %s", fsUsage), RootOpts.Debug)
+				result := strings.TrimSpace(o)
 
 				if err != nil {
-					util.PrettyPrintErr(out, "Error estimating file system usage for %s: %v", fsUsage, err)
+					util.PrettyPrintErr(out, "Error estimating file system usage for %s: %s, %s", fsUsage, result, err)
 				} else {
-					splits := regexp.MustCompile("\\s+").Split(o, 6)
+					splits := regexp.MustCompile("\\s+").Split(result, 6)
 					fsUsed := splits[2]
 					fsAvail := splits[3]
 					fsUsePercent := splits[4]
 					fsUsePercentVal, err := strconv.Atoi(strings.Replace(fsUsePercent, "%", "", 1))
 
 					if err != nil {
-						util.PrettyPrintErr(out, "Error determining file system usage percent for %s: %v", fsUsage, err)
+						util.PrettyPrintErr(out, "Error determining file system usage percent for %s: %s, %s", fsUsage, o, err)
 					} else {
-						if fsUsePercentVal < 60 {
+						if fsUsePercentVal < 65 {
 							util.PrettyPrintOk(out, "File system usage of %s amounts to Used: %s Available: %s (%s)",
 								fsUsage, fsUsed, fsAvail, fsUsePercent)
-						} else if fsUsePercentVal < 80 {
+						} else if fsUsePercentVal < 85 {
 							util.PrettyPrintWarn(out, "File system usage of %s amounts to Used: %s Available: %s (%s)",
 								fsUsage, fsUsed, fsAvail, fsUsePercent)
 						} else {
@@ -172,12 +178,15 @@ func checkDiskStatus(sshOpts *integration.SSHConfig, element string, diskSpace i
 
 		if len(diskSpace.DirectoryUsage) > 0 {
 			for _, dirUsage := range diskSpace.DirectoryUsage {
-				o, err := integration.PerformSSHCmd(out, sshOpts, &node, fmt.Sprintf("sudo du -h -d 0 --exclude=/proc --exclude=/run %s | grep %s", dirUsage, dirUsage))
+				o, err := integration.PerformSSHCmd(out, sshOpts, &node,
+					fmt.Sprintf("sudo du -h -d 0 --exclude=/proc --exclude=/run %s | grep %s", dirUsage, dirUsage),
+					RootOpts.Debug)
+				result := strings.TrimSpace(o)
 
 				if err != nil {
-					util.PrettyPrintErr(out, "Error estimating directory usage for %s: %v", dirUsage, err)
+					util.PrettyPrintErr(out, "Error estimating directory usage for %s: %s, %s", dirUsage, result, err)
 				} else {
-					splits := regexp.MustCompile("\\s+").Split(o, 2)
+					splits := regexp.MustCompile("\\s+").Split(result, 2)
 					dirUse := splits[0]
 
 					util.PrettyPrintOk(out, "Directory usage of %s amounts to %s", dirUsage, dirUse)
@@ -208,7 +217,7 @@ func checkKubernetesStatus(sshOpts *integration.SSHConfig, element string,
 		namespace_msg := ""
 		command := fmt.Sprintf("sudo kubectl get %s", resource.Type)
 		if resource.Namespace != "" {
-			namespace_msg += " in namespace: " + resource.Namespace
+			namespace_msg += " in namespace " + resource.Namespace
 			command += " -n " + resource.Namespace
 		}
 		if resource.Wide {
@@ -216,12 +225,13 @@ func checkKubernetesStatus(sshOpts *integration.SSHConfig, element string,
 		}
 
 		util.PrettyPrint(out, msg+namespace_msg+"\n")
-		o, err := integration.PerformSSHCmd(out, sshOpts, &node, command)
+		o, err := integration.PerformSSHCmd(out, sshOpts, &node, command, RootOpts.Debug)
+		result := strings.TrimSpace(o)
 
 		if err != nil {
-			util.PrettyPrintErr(out, "Error checking %s%s: %v", resource.Type, namespace_msg, err)
+			util.PrettyPrintErr(out, "Error checking %s%s: %s, %s", resource.Type, namespace_msg, result, err)
 		} else {
-			util.PrettyPrintOk(out, o)
+			util.PrettyPrintOk(out, result)
 		}
 	}
 }

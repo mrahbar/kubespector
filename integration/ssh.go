@@ -15,6 +15,7 @@ import (
 	"strings"
 	"github.com/mrahbar/kubernetes-inspector/util"
 	"io"
+	"path/filepath"
 )
 
 var baseSSHArgs = []string{
@@ -29,11 +30,11 @@ var baseSSHArgs = []string{
 	"-o", "ControlPath=none",
 }
 
-func PerformSSHCmd(out io.Writer, sshOpts *SSHConfig, node *Node, cmd string) (string, error) {
+func PerformSSHCmd(out io.Writer, sshOpts *SSHConfig, node *Node, cmd string, debug bool) (string, error) {
 	client, err := NewClient(node.IP, sshOpts.Port, sshOpts.User, sshOpts.Key,
 		strings.FieldsFunc(sshOpts.Options, func(r rune) bool {
 			return r == ' ' || r == ','
-		}))
+		}), debug)
 
 	if err != nil {
 		msg := fmt.Sprintf("Error creating SSH client for host %s (%s): %v", node.Host, node.IP, err)
@@ -41,11 +42,11 @@ func PerformSSHCmd(out io.Writer, sshOpts *SSHConfig, node *Node, cmd string) (s
 		return "", err
 	}
 
-	return client.Output(sshOpts.Pty, cmd)
+	return client.Output(sshOpts.Pty, debug, cmd)
 }
 
 type Client interface {
-	Output(pty bool, args ...string) (string, error)
+	Output(pty bool, debug bool, args ...string) (string, error)
 	Shell(pty bool, args ...string) error
 }
 
@@ -56,8 +57,9 @@ type ExternalClient struct {
 }
 
 // NewClient verifies ssh is available in the PATH and returns an SSH client
-func NewClient(host string, port int, user string, key string, options []string) (Client, error) {
-	if err := ValidUnencryptedPrivateKey(key); err != nil {
+func NewClient(host string, port int, user string, key string, options []string, debug bool) (Client, error) {
+	key, err := ValidUnencryptedPrivateKey(key, debug)
+	if err != nil {
 		return nil, err
 	}
 
@@ -88,9 +90,17 @@ func newExternalClient(sshBinaryPath string, user string, host string, port int,
 }
 
 // Output runs the ssh command and returns the output
-func (client *ExternalClient) Output(pty bool, args ...string) (string, error) {
+func (client *ExternalClient) Output(pty bool, debug bool, args ...string) (string, error) {
 	args = append(client.BaseArgs, args...)
 	cmd := getSSHCmd(client.BinaryPath, pty, args...)
+	if debug {
+		cmdDebug := args
+		if pty {
+			cmdDebug = append([]string{"-t"}, cmdDebug...)
+		}
+		cmdDebug = append([]string{client.BinaryPath}, cmdDebug...)
+		fmt.Printf("Executing command: %s\n", cmdDebug)
+	}
 	// for pseudo-tty and sudo to work correctly Stdin must be set to os.Stdin
 	if pty {
 		cmd.Stdin = os.Stdin
@@ -117,31 +127,36 @@ func getSSHCmd(binaryPath string, pty bool, args ...string) *exec.Cmd {
 }
 
 // ValidUnencryptedPrivateKey parses SSH private key
-func ValidUnencryptedPrivateKey(file string) error {
+func ValidUnencryptedPrivateKey(file string, debug bool) (string, error) {
 	// Check private key before use it
 	fi, err := os.Stat(file)
 	if err != nil {
 		// Abort if key not accessible
-		return err
+		return "", err
 	}
 
 	buffer, err := ioutil.ReadFile(file)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	isEncrypted, err := isEncrypted(buffer)
 	if err != nil {
-		return fmt.Errorf("Parse SSH key error")
+		return "", fmt.Errorf("Parse SSH key error")
 	}
 
 	if isEncrypted {
-		return fmt.Errorf("Encrypted SSH key is not permitted")
+		return "", fmt.Errorf("Encrypted SSH key is not permitted")
 	}
 
+	// Check if x/crypto/ssh can parse the key
 	_, err = ssh.ParsePrivateKey(buffer)
 	if err != nil {
-		return fmt.Errorf("Parse SSH key error: %v", err)
+		//return fmt.Errorf("Parse SSH key error: %v", err)
+		file, _ = convertBerToDerFormat(buffer, debug)
+		if err != nil {
+			fi, err = os.Stat(file)
+		}
 	}
 
 	if runtime.GOOS != "windows" {
@@ -150,14 +165,14 @@ func ValidUnencryptedPrivateKey(file string) error {
 		// Private key file should have strict permissions
 		perm := mode.Perm()
 		if perm&0400 == 0 {
-			return fmt.Errorf("'%s' is not readable", file)
+			return "", fmt.Errorf("'%s' is not readable", file)
 		}
 		if perm&0077 != 0 {
-			return fmt.Errorf("permissions %#o for '%s' are too open", perm, file)
+			return "", fmt.Errorf("permissions %#o for '%s' are too open", perm, file)
 		}
 	}
 
-	return nil
+	return file, nil
 }
 
 func isEncrypted(buffer []byte) (bool, error) {
@@ -169,4 +184,47 @@ func isEncrypted(buffer []byte) (bool, error) {
 	}
 
 	return x509.IsEncryptedPEMBlock(block), nil
+}
+
+// Work around for https://github.com/mitchellh/packer/issues/2526
+func convertBerToDerFormat(ber []byte, debug bool) (string, error) {
+	if debug {
+		// Can't parse the key, maybe it's BER encoded. Try to convert it with OpenSSL.
+		fmt.Println("Couldn't parse SSH key, trying work around for [GH-2526].")
+	}
+
+	derFilePath := filepath.Join(".", "kubernetes-inspector-privatekey-formated.der")
+	if _, err := os.Stat(derFilePath); err == nil {
+		if debug {
+			fmt.Println("DER formated private key file already exists.")
+		}
+		return derFilePath, nil
+	}
+
+	openSslPath, err := exec.LookPath("openssl")
+	if err != nil {
+		return "", fmt.Errorf("Couldn't find OpenSSL, aborting work around: %s\n", err)
+	}
+
+	berFormattedKey, err := ioutil.TempFile("", "kubernetes-inspector-ber-privatekey-")
+	defer os.Remove(berFormattedKey.Name())
+	if err != nil {
+		return "", err
+	}
+	ioutil.WriteFile(berFormattedKey.Name(), ber, os.ModeAppend)
+	derFormattedKey, err := os.OpenFile(derFilePath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		return "", err
+	}
+
+	args := []string{"rsa", "-in", berFormattedKey.Name(), "-out", derFormattedKey.Name()}
+	if debug {
+		fmt.Printf("Executing: %s %v\n", openSslPath, args)
+
+	}
+	if err := exec.Command(openSslPath, args...).Run(); err != nil {
+		return "", fmt.Errorf("OpenSSL failed with error: %s\n", err)
+	}
+
+	return derFormattedKey.Name(), nil
 }

@@ -24,7 +24,8 @@ var restartOpts = &restartCliOpts{}
 var restartCmd = &cobra.Command{
 	Use:   "restart",
 	Short: "Restarts a Kubernetes service on a target group or node",
-	Long:  `TODO`,
+	Long: `Service name is mandatory. Either specify node or group in which the service should be restarted.
+	When a target group is specified all nodes inside that group will be targeted for service restart.`,
 	Run:   restartRun,
 }
 
@@ -87,6 +88,8 @@ func restartRun(cmd *cobra.Command, args []string) {
 				nodes = config.Cluster.Worker.Nodes
 			case "Ingress":
 				nodes = config.Cluster.Ingress.Nodes
+			case "Registry":
+				nodes = config.Cluster.Registry.Nodes
 			}
 
 			if nodes == nil {
@@ -110,13 +113,13 @@ func restartService(sshOpts *integration.SSHConfig, service string, node integra
 	}
 	if node.IP == "" {
 		util.PrettyPrintErr(out, "Current node%s has no IP configured", host_msg)
-		os.Exit(1)
+		return
 	}
 
 	ip_msg += "(" + node.IP + "):\n"
 	util.PrettyPrint(out, fmt.Sprintf("Restarting service %v on node%s%s", restartOpts.serviceArg, restartOpts.nodeArg, ip_msg))
 
-	o, err := integration.PerformSSHCmd(out, sshOpts, &node, fmt.Sprintf("sudo systemctl restart %s", service))
+	o, err := integration.PerformSSHCmd(out, sshOpts, &node, fmt.Sprintf("sudo systemctl restart %s", service), RootOpts.Debug)
 
 	if err != nil {
 		util.PrettyPrintErr(out, "Error checking status of %s: %v", service, err)
