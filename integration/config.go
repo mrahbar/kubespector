@@ -2,24 +2,25 @@ package integration
 
 type Config struct {
 	Ssh SSHConfig
-	Cluster struct{
+	Cluster struct {
 		Etcd     ClusterMember
 		Master   ClusterMember
 		Worker   ClusterMember
 		Ingress  ClusterMember
 		Registry ClusterMember
 	}
-	Kubernetes struct{
+	Kubernetes struct {
 		Resources []KubernetesResource
 	}
 }
 
 type SSHConfig struct {
-	Pty  bool
-	User string
-	Key  string
-	Port int
-	Options  string
+	User    string
+	Key     string
+	Port    int
+	Pty     bool
+	Sudo    bool
+	Options string
 }
 
 type ClusterMember struct {
@@ -39,7 +40,7 @@ type Node struct {
 }
 
 type KubernetesResource struct {
-	Type string
+	Type      string
 	Namespace string
-	Wide bool
+	Wide      bool
 }

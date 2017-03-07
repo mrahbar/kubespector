@@ -42,6 +42,10 @@ func PerformSSHCmd(out io.Writer, sshOpts *SSHConfig, node *Node, cmd string, de
 		return "", err
 	}
 
+	if sshOpts.Sudo && !strings.HasPrefix(cmd, "sudo") {
+		cmd = "sudo " + cmd
+	}
+
 	return client.Output(sshOpts.Pty, debug, cmd)
 }
 

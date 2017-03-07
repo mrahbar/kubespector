@@ -95,11 +95,11 @@ func checkServiceStatus(sshOpts *integration.SSHConfig, element string, services
 		}
 
 		ip_msg += "(" + node.IP + "):\n"
-		util.PrettyPrint(out, "On host %s%s", host_msg, ip_msg)
+		util.PrettyPrint(out, "\nOn host%s%s", host_msg, ip_msg)
 
 		for _, service := range services {
 			o, err := integration.PerformSSHCmd(out, sshOpts, &node,
-				fmt.Sprintf("sudo systemctl is-active %s", service), RootOpts.Debug)
+				fmt.Sprintf("systemctl is-active %s", service), RootOpts.Debug)
 			result := strings.TrimSpace(o)
 
 			if err != nil {
@@ -123,7 +123,7 @@ func checkServiceStatus(sshOpts *integration.SSHConfig, element string, services
 }
 
 func checkDiskStatus(sshOpts *integration.SSHConfig, element string, diskSpace integration.DiskSpace, nodes []integration.Node) {
-	util.PrintHeader(out, fmt.Sprintf("Checking disk status of group [%s] ", element), '=')
+	util.PrintHeader(out, fmt.Sprintf("Checking disk status of group [%s] ", element), '-')
 	if nodes == nil || len(nodes) == 0 {
 		util.PrettyPrintIgnored(out, "No host configured for [%s]", element)
 		return
@@ -141,7 +141,7 @@ func checkDiskStatus(sshOpts *integration.SSHConfig, element string, diskSpace i
 		}
 
 		ip_msg += "(" + node.IP + "):\n"
-		util.PrettyPrint(out, "On host%s%s", host_msg, ip_msg)
+		util.PrettyPrint(out, "\nOn host%s%s", host_msg, ip_msg)
 
 		if len(diskSpace.FileSystemUsage) > 0 {
 			for _, fsUsage := range diskSpace.FileSystemUsage {
@@ -162,13 +162,13 @@ func checkDiskStatus(sshOpts *integration.SSHConfig, element string, diskSpace i
 						util.PrettyPrintErr(out, "Error determining file system usage percent for %s: %s, %s", fsUsage, o, err)
 					} else {
 						if fsUsePercentVal < 65 {
-							util.PrettyPrintOk(out, "File system usage of %s amounts to Used: %s Available: %s (%s)",
+							util.PrettyPrintOk(out, "File system usage of %s amounts to:\n Used: %s Available: %s (%s)",
 								fsUsage, fsUsed, fsAvail, fsUsePercent)
 						} else if fsUsePercentVal < 85 {
-							util.PrettyPrintWarn(out, "File system usage of %s amounts to Used: %s Available: %s (%s)",
+							util.PrettyPrintWarn(out, "File system usage of %s amounts to:\n Used: %s Available: %s (%s)",
 								fsUsage, fsUsed, fsAvail, fsUsePercent)
 						} else {
-							util.PrettyPrintErr(out, "File system usage of %s amounts to Used: %s Available: %s (%s)",
+							util.PrettyPrintErr(out, "File system usage of %s amounts to:\n Used: %s Available: %s (%s)",
 								fsUsage, fsUsed, fsAvail, fsUsePercent)
 						}
 					}
@@ -179,7 +179,7 @@ func checkDiskStatus(sshOpts *integration.SSHConfig, element string, diskSpace i
 		if len(diskSpace.DirectoryUsage) > 0 {
 			for _, dirUsage := range diskSpace.DirectoryUsage {
 				o, err := integration.PerformSSHCmd(out, sshOpts, &node,
-					fmt.Sprintf("sudo du -h -d 0 --exclude=/proc --exclude=/run %s | grep %s", dirUsage, dirUsage),
+					fmt.Sprintf("du -h -d 0 --exclude=/proc --exclude=/run %s | grep %s", dirUsage, dirUsage),
 					RootOpts.Debug)
 				result := strings.TrimSpace(o)
 
@@ -215,7 +215,7 @@ func checkKubernetesStatus(sshOpts *integration.SSHConfig, element string,
 	for _, resource := range resources {
 		msg := fmt.Sprintf("Status of %s", resource.Type)
 		namespace_msg := ""
-		command := fmt.Sprintf("sudo kubectl get %s", resource.Type)
+		command := fmt.Sprintf("kubectl get %s", resource.Type)
 		if resource.Namespace != "" {
 			namespace_msg += " in namespace " + resource.Namespace
 			command += " -n " + resource.Namespace

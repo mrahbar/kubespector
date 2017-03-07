@@ -86,7 +86,7 @@ func PrintSkipped(out io.Writer) {
 
 // PrintHeader will print header with predefined width
 func PrintHeader(out io.Writer, msg string, padding byte) {
-	w := tabwriter.NewWriter(out, 84, 0, 0, padding, 0)
+	w := tabwriter.NewWriter(out, 104, 0, 0, padding, 0)
 	fmt.Fprintln(w, "")
 	format := msg + "\t\n"
 	fmt.Fprintf(w, format)
@@ -101,7 +101,7 @@ func PrintColor(out io.Writer, clr *color.Color, msg string, a ...interface{}) {
 }
 
 func print(out io.Writer, msg, status string, a ...interface{}) {
-	w := tabwriter.NewWriter(out, 80, 0, 0, ' ', 0)
+	w := tabwriter.NewWriter(out, 100, 0, 0, ' ', 0)
 	// print message
 	format := msg + "\t"
 	fmt.Fprintf(w, format, a...)
