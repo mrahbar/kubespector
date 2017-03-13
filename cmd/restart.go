@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/viper"
 	"github.com/mrahbar/kubernetes-inspector/integration"
 	"os"
-	"github.com/mrahbar/kubernetes-inspector/util"
 	"reflect"
 	"strings"
 )
@@ -42,11 +41,11 @@ func restartRun(cmd *cobra.Command, args []string) {
 	err := viper.Unmarshal(&config)
 
 	if err != nil {
-		util.PrettyPrintErr(out, "Unable to decode config: %v", err)
+		integration.PrettyPrintErr(out, "Unable to decode config: %v", err)
 		os.Exit(1)
 	} else {
 		if restartOpts.serviceArg == "" {
-			util.PrettyPrintErr(out, "Command restart has to be called with a service name.")
+			integration.PrettyPrintErr(out, "Command restart has to be called with a service name.")
 			os.Exit(1)
 		}
 
@@ -67,13 +66,13 @@ func restartRun(cmd *cobra.Command, args []string) {
 			if node.IP != "" {
 				restartService(&config.Ssh, restartOpts.serviceArg, node)
 			} else {
-				util.PrettyPrintErr(out, "No node found for %v in config", restartOpts.nodeArg)
+				integration.PrettyPrintErr(out, "No node found for %v in config", restartOpts.nodeArg)
 				os.Exit(1)
 			}
 
 		} else {
 			if restartOpts.groupArg == "" {
-				util.PrettyPrintErr(out, "Command restart has to be called with a group name")
+				integration.PrettyPrintErr(out, "Command restart has to be called with a group name")
 				os.Exit(1)
 			}
 
@@ -93,11 +92,12 @@ func restartRun(cmd *cobra.Command, args []string) {
 			}
 
 			if nodes == nil {
-				util.PrettyPrintErr(out, "Group name is not in list of available groups: %s", ClusterMembers)
+				integration.PrettyPrintErr(out, "Group name is not in list of available groups: %s", ClusterMembers)
 				os.Exit(1)
 			}
 
-			util.PrintHeader(out, fmt.Sprintf("Restarting service %v in group [%s] ", restartOpts.serviceArg, restartOpts.groupArg), '=')
+			integration.PrintHeader(out, fmt.Sprintf("Restarting service %v in group [%s] ",
+				restartOpts.serviceArg, restartOpts.groupArg), '=')
 			for _, node := range nodes {
 				restartService(&config.Ssh, restartOpts.serviceArg, node)
 			}
@@ -112,18 +112,20 @@ func restartService(sshOpts *integration.SSHConfig, service string, node integra
 		host_msg += node.Host
 	}
 	if node.IP == "" {
-		util.PrettyPrintErr(out, "Current node%s has no IP configured", host_msg)
+		integration.PrettyPrintErr(out, "Current node%s has no IP configured", host_msg)
 		return
 	}
 
 	ip_msg += "(" + node.IP + "):\n"
-	util.PrettyPrint(out, fmt.Sprintf("Restarting service %v on node%s%s", restartOpts.serviceArg, restartOpts.nodeArg, ip_msg))
+	integration.PrettyPrint(out, fmt.Sprintf("Restarting service %v on node%s%s",
+		restartOpts.serviceArg, host_msg, ip_msg))
 
 	o, err := integration.PerformSSHCmd(out, sshOpts, &node, fmt.Sprintf("sudo systemctl restart %s", service), RootOpts.Debug)
 
 	if err != nil {
-		util.PrettyPrintErr(out, "Error checking status of %s: %v", service, err)
+		integration.PrettyPrintErr(out, "Error checking status of %s: %v", service, err)
 	} else {
-		util.PrettyPrintOk(out, "Service %s restarted. %s", service, strings.TrimSpace(o))
+		integration.PrettyPrintOk(out, "Service %s restarted. %s", service, strings.TrimSpace(o))
 	}
+	integration.PrettyPrint(out, "\n")
 }

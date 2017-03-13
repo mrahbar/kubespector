@@ -4,6 +4,7 @@ Ssh:
   Key: ./syseleven_ssh_key
   Port: 22
   Options: -o StrictHostKeyChecking=no
+  Sudo: true
 Cluster:
   Etcd:
     Services:
@@ -38,6 +39,7 @@ Cluster:
     - docker
     - kubelet
     - kube-proxy
+    - flanneld
     Nodes:
     - Host: "ket-stack-secured-instance-jyzmjpyjvgjj"
       IP: "185.56.128.117"
