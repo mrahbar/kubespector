@@ -13,7 +13,6 @@ import (
 
 	"golang.org/x/crypto/ssh"
 	"strings"
-	"github.com/mrahbar/kubernetes-inspector/util"
 	"io"
 	"path/filepath"
 )
@@ -38,7 +37,7 @@ func PerformSSHCmd(out io.Writer, sshOpts *SSHConfig, node *Node, cmd string, de
 
 	if err != nil {
 		msg := fmt.Sprintf("Error creating SSH client for host %s (%s): %v", node.Host, node.IP, err)
-		util.PrettyPrintErr(out, msg)
+		PrettyPrintErr(out, msg)
 		return "", err
 	}
 
