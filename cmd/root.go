@@ -2,11 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"io"
 )
 
 type rootCliOpts struct {
@@ -55,8 +55,10 @@ func initConfig() {
 	if RootOpts.ConfigFile != "" { // enable ability to specify config file via flag
 		fmt.Printf("Set config file to: %v\n", RootOpts.ConfigFile)
 		viper.SetConfigFile(RootOpts.ConfigFile)
+	} else {
+		viper.SetConfigName("kubernetes-inspector") // name of config file (without extension)
 	}
-	viper.SetConfigName("kubernetes-inspector") // name of config file (without extension)
+
 	viper.AddConfigPath("$HOME")  // adding home directory as first search path
 	viper.AddConfigPath(".")  // adding home directory as first search path
 	viper.AutomaticEnv()          // read in environment variables that match
