@@ -2,6 +2,10 @@ package main
 
 import "github.com/mrahbar/kubernetes-inspector/cmd"
 
+// Set via linker flag
+var version string
+var buildDate string
+
 func main() {
-	cmd.Execute()
+	cmd.Execute(version, buildDate)
 }

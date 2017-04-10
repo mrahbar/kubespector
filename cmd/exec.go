@@ -39,18 +39,19 @@ func initializeExec(target string, node integration.Node, group string) {
 	} else {
 		integration.PrintHeader(out, "Executing", '=')
 	}
+	integration.PrettyPrint(out, "\n")
 }
 
 func exec(sshOpts *integration.SSHConfig, command string, node integration.Node) {
 	integration.PrettyPrint(out, fmt.Sprintf("Executing '%v' on node %s (%s):\n",
 		execOpts.targetArg, node.Host, node.IP))
 
-	o, err := integration.PerformSSHCmd(out, sshOpts, &node, fmt.Sprintf("sudo %s", command), RootOpts.Debug)
+	o, err := integration.PerformSSHCmd(out, sshOpts, &node, fmt.Sprintf("%s", command), RootOpts.Debug)
 
 	if err != nil {
-		integration.PrettyPrintErr(out, "Error executing command '%v': %v", command, err)
+		integration.PrettyPrintErr(out, "Error executing command: %v", command, err)
 	} else {
-		integration.PrettyPrintOk(out, "Command '%v' executed. %s", command, strings.TrimSpace(o))
+		integration.PrettyPrintOk(out, "Result:\n%s", command, strings.TrimSpace(o))
 	}
 
 	integration.PrettyPrint(out, "\n")

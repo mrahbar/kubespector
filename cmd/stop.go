@@ -39,6 +39,7 @@ func initializeStopService(service string, node integration.Node, group string) 
 	} else {
 		integration.PrintHeader(out, "Stopping", '=')
 	}
+	integration.PrettyPrint(out, "\n")
 }
 
 func stopService(sshOpts *integration.SSHConfig, service string, node integration.Node) {
