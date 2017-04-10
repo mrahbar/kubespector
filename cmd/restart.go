@@ -39,6 +39,7 @@ func initializeRestartService(service string, node integration.Node, group strin
 	} else {
 		integration.PrintHeader(out, "Restarting", '=')
 	}
+	integration.PrettyPrint(out, "\n")
 }
 
 func restartService(sshOpts *integration.SSHConfig, service string, node integration.Node) {

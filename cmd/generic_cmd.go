@@ -3,6 +3,8 @@ package cmd
 import (
 	"os"
 	"reflect"
+	"strings"
+
 	"github.com/mrahbar/kubernetes-inspector/integration"
 	"github.com/mrahbar/kubernetes-inspector/util"
 	"github.com/spf13/viper"
@@ -14,7 +16,9 @@ type CliOpts struct {
 	targetArg string
 }
 
-type Initializer func(target string, integration.Node, selectedGroup string)
+var cmdGroups = ClusterMembers[:len(ClusterMembers)-1]
+
+type Initializer func(target string, node integration.Node, selectedGroup string)
 type Processor func(*integration.SSHConfig, string, integration.Node)
 
 func Run(opts *CliOpts, initializer Initializer, processor Processor) {
@@ -57,38 +61,39 @@ func Run(opts *CliOpts, initializer Initializer, processor Processor) {
 			}
 
 		} else {
-			if opts.groupArg == "" {
-				integration.PrettyPrintErr(out, "Command has to be called with a group name")
-				os.Exit(1)
+			if statusOpts.groupsArg != "" {
+				cmdGroups = strings.Split(statusOpts.groupsArg, ",")
 			}
 
 			var nodes []integration.Node
 
-			switch opts.groupArg {
-			case "Etcd":
-				nodes = config.Cluster.Etcd.Nodes
-			case "Master":
-				nodes = config.Cluster.Master.Nodes
-			case "Worker":
-				nodes = config.Cluster.Worker.Nodes
-			case "Ingress":
-				nodes = config.Cluster.Ingress.Nodes
-			case "Registry":
-				nodes = config.Cluster.Registry.Nodes
-			}
-
-			if nodes == nil {
-				integration.PrettyPrintErr(out, "Group name is not in list of available groups: %s", ClusterMembers)
-				os.Exit(1)
-			}
-
-			initializer(opts.targetArg, integration.Node{}, opts.groupArg)
-			for _, node := range nodes {
-				if !util.IsNodeAddressValid(node) {
-					integration.PrettyPrintErr(out, "Current node %q has no valid address", node)
-					break
+			for _, element := range cmdGroups {
+				switch element {
+				case "Etcd":
+					nodes = config.Cluster.Etcd.Nodes
+				case "Master":
+					nodes = config.Cluster.Master.Nodes
+				case "Worker":
+					nodes = config.Cluster.Worker.Nodes
+				case "Ingress":
+					nodes = config.Cluster.Ingress.Nodes
+				case "Registry":
+					nodes = config.Cluster.Registry.Nodes
 				}
-				processor(&config.Ssh, opts.targetArg, node)
+
+				if nodes == nil {
+					integration.PrettyPrintErr(out, "Group name is not in list of available groups: %s", ClusterMembers)
+					os.Exit(1)
+				}
+
+				initializer(opts.targetArg, integration.Node{}, element)
+				for _, node := range nodes {
+					if !util.IsNodeAddressValid(node) {
+						integration.PrettyPrintErr(out, "Current node %q has no valid address", node)
+						break
+					}
+					processor(&config.Ssh, opts.targetArg, node)
+				}
 			}
 		}
 	}

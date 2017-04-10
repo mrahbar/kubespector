@@ -15,7 +15,6 @@ import (
 
 type statusCliOpts struct {
 	groupsArg string
-	nodeArg   string
 }
 
 var groups = ClusterMembers
@@ -32,7 +31,6 @@ var statusCmd = &cobra.Command{
 func init() {
 	RootCmd.AddCommand(statusCmd)
 	statusCmd.Flags().StringVarP(&statusOpts.groupsArg, "groups", "g", "", "Comma-separated list of group names")
-	statusCmd.Flags().StringVarP(&statusOpts.nodeArg, "node", "n", "", "Name of target node")
 }
 
 func statusRun(cmd *cobra.Command, args []string) {
