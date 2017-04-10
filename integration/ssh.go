@@ -1,20 +1,18 @@
 package integration
 
-
-
 import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
+	"strings"
 
 	"golang.org/x/crypto/ssh"
-	"strings"
-	"io"
-	"path/filepath"
 )
 
 var baseSSHArgs = []string{
@@ -30,13 +28,18 @@ var baseSSHArgs = []string{
 }
 
 func PerformSSHCmd(out io.Writer, sshOpts *SSHConfig, node *Node, cmd string, debug bool) (string, error) {
-	client, err := NewClient(node.IP, sshOpts.Port, sshOpts.User, sshOpts.Key,
+	nodeAddress := node.IP
+	if nodeAddress == "" {
+		nodeAddress = node.Host
+	}
+
+	client, err := NewClient(nodeAddress, sshOpts.Port, sshOpts.User, sshOpts.Key,
 		strings.FieldsFunc(sshOpts.Options, func(r rune) bool {
 			return r == ' ' || r == ','
 		}), debug)
 
 	if err != nil {
-		msg := fmt.Sprintf("Error creating SSH client for host %s (%s): %v", node.Host, node.IP, err)
+		msg := fmt.Sprintf("Error creating SSH client for host %s (%s): %v", node.Host, nodeAddress, err)
 		PrettyPrintErr(out, msg)
 		return "", err
 	}

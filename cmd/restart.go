@@ -2,13 +2,14 @@ package cmd
 
 import (
 	"fmt"
-
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"github.com/mrahbar/kubernetes-inspector/integration"
 	"os"
 	"reflect"
 	"strings"
+
+	"github.com/mrahbar/kubernetes-inspector/integration"
+	"github.com/mrahbar/kubernetes-inspector/util"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 type restartCliOpts struct {
@@ -45,7 +46,7 @@ func restartRun(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	} else {
 		if restartOpts.serviceArg == "" {
-			integration.PrettyPrintErr(out, "Command restart has to be called with a service name.")
+			integration.PrettyPrintErr(out, "Command has to be called with a service name.")
 			os.Exit(1)
 		}
 
@@ -72,7 +73,7 @@ func restartRun(cmd *cobra.Command, args []string) {
 
 		} else {
 			if restartOpts.groupArg == "" {
-				integration.PrettyPrintErr(out, "Command restart has to be called with a group name")
+				integration.PrettyPrintErr(out, "Command has to be called with a group name")
 				os.Exit(1)
 			}
 
@@ -106,19 +107,13 @@ func restartRun(cmd *cobra.Command, args []string) {
 }
 
 func restartService(sshOpts *integration.SSHConfig, service string, node integration.Node) {
-	host_msg := " "
-	ip_msg := " "
-	if node.Host != "" {
-		host_msg += node.Host
-	}
-	if node.IP == "" {
-		integration.PrettyPrintErr(out, "Current node%s has no IP configured", host_msg)
+	if !util.IsNodeAddressValid(node) {
+		integration.PrettyPrintErr(out, "Current node %q has no valid address", node)
 		return
 	}
 
-	ip_msg += "(" + node.IP + "):\n"
-	integration.PrettyPrint(out, fmt.Sprintf("Restarting service %v on node%s%s",
-		restartOpts.serviceArg, host_msg, ip_msg))
+	integration.PrettyPrint(out, fmt.Sprintf("Restarting service %v on node %s (%s):\n",
+		restartOpts.serviceArg, node.Host, node.IP))
 
 	o, err := integration.PerformSSHCmd(out, sshOpts, &node, fmt.Sprintf("sudo systemctl restart %s", service), RootOpts.Debug)
 
