@@ -15,7 +15,7 @@ type rootCliOpts struct {
 }
 
 var RootOpts = &rootCliOpts{}
-var VERSION = "1.0.0-SNAPSHOT"
+var VERSION = "1.0.1-SNAPSHOT"
 var out io.Writer = os.Stdout
 var ClusterMembers = []string{"Etcd", "Master", "Worker", "Ingress", "Registry", "Kubernetes"}
 
