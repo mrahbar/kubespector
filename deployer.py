@@ -92,10 +92,10 @@ class Deployer(object):
     def package_dist(self, args):
         start_time = time.time()
         output_name = "%s-%s" % (args.artifact_name, args.artifact_version)
-        output_filename = "%s.tar.bz2" % output_name
+        output_filename = "%s.tar.gz" % output_name
         print_info("Packaging artifact %s" % output_filename)
 
-        with tarfile.open(os.path.join(os.getcwd(), output_filename), "w:bz2") as tar:
+        with tarfile.open(os.path.join(os.getcwd(), output_filename), "w:gz") as tar:
             for r in args.project_resources:
                 tar.add(r)
 
@@ -138,7 +138,7 @@ class Deployer(object):
                                                 "-DartifactId=%(current_repo)s " \
                                                 "-Dversion=%(nexus_version)s " \
                                                 "-DgeneratePom=true " \
-                                                "-Dpackaging=tar.bz2 " \
+                                                "-Dpackaging=tar.gz " \
                                                 "-Durl=%(nexus_path)s " \
                                                 "-Dfile=%(artifact_name)s " \
                                                 "-l %(nexus_logfile)s" % {

@@ -2,14 +2,15 @@ package cmd
 
 import (
 	"fmt"
-
-	"github.com/spf13/viper"
-	"github.com/spf13/cobra"
-	"github.com/mrahbar/kubernetes-inspector/integration"
-	"strings"
+	"os"
 	"regexp"
 	"strconv"
-	"os"
+	"strings"
+
+	"github.com/mrahbar/kubernetes-inspector/integration"
+	"github.com/mrahbar/kubernetes-inspector/util"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 type statusCliOpts struct {
@@ -85,18 +86,12 @@ func checkServiceStatus(sshOpts *integration.SSHConfig, element string, services
 	}
 
 	for _, node := range nodes {
-		host_msg := " "
-		ip_msg := " "
-		if node.Host != "" {
-			host_msg += node.Host
-		}
-		if node.IP == "" {
-			integration.PrettyPrintWarn(out, "Current node%s has no IP configured", host_msg)
+		if !util.IsNodeAddressValid(node) {
+			integration.PrettyPrintErr(out, "Current node %q has no valid address", node)
 			break
 		}
 
-		ip_msg += "(" + node.IP + "):\n"
-		integration.PrettyPrint(out, "\nOn host%s%s", host_msg, ip_msg)
+		integration.PrettyPrint(out, "\nOn node %s (%s):\n", node.Host, node.IP)
 
 		for _, service := range services {
 			o, err := integration.PerformSSHCmd(out, sshOpts, &node,
@@ -131,18 +126,13 @@ func checkDiskStatus(sshOpts *integration.SSHConfig, element string, diskSpace i
 	}
 
 	for _, node := range nodes {
-		host_msg := " "
-		ip_msg := " "
-		if node.Host != "" {
-			host_msg += node.Host
-		}
-		if node.IP == "" {
-			integration.PrettyPrintWarn(out, "Current node%s has no IP configured", host_msg)
+		if !util.IsNodeAddressValid(node) {
+			integration.PrettyPrintErr(out, "Current node %q has no valid address", node)
 			break
 		}
 
-		ip_msg += "(" + node.IP + "):\n"
-		integration.PrettyPrint(out, "\nOn host%s%s", host_msg, ip_msg)
+		integration.PrettyPrint(out, "\nOn node %s (%s):\n", node.Host, node.IP)
+
 
 		if len(diskSpace.FileSystemUsage) > 0 {
 			for _, fsUsage := range diskSpace.FileSystemUsage {
