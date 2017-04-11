@@ -22,7 +22,7 @@ var restartCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(restartCmd)
-	restartCmd.Flags().StringVarP(&restartOpts.groupArg, "group", "g", "", "Name of target group")
+	restartCmd.Flags().StringVarP(&restartOpts.groupArg, "group", "g", "", "Comma-separated list of group names")
 	restartCmd.Flags().StringVarP(&restartOpts.nodeArg, "node", "n", "", "Name of target node")
 	restartCmd.Flags().StringVarP(&restartOpts.targetArg, "service", "s", "", "Name of target service")
 
@@ -37,19 +37,19 @@ func initializeRestartService(service string, node integration.Node, group strin
 		integration.PrintHeader(out, fmt.Sprintf("Restarting service %v in group [%s] ",
 			service, group), '=')
 	} else {
-		integration.PrintHeader(out, "Restarting", '=')
+		integration.PrintHeader(out, fmt.Sprintf("Restarting service %v on node %s (%s):\n",
+			restartOpts.targetArg, node.Host, node.IP), '=')
 	}
 	integration.PrettyPrint(out, "\n")
 }
 
 func restartService(sshOpts *integration.SSHConfig, service string, node integration.Node) {
-	integration.PrettyPrint(out, fmt.Sprintf("Restarting service %v on node %s (%s):\n",
-		restartOpts.targetArg, node.Host, node.IP))
-
 	o, err := integration.PerformSSHCmd(out, sshOpts, &node, fmt.Sprintf("sudo systemctl restart %s", service), RootOpts.Debug)
 
+	integration.PrettyPrint(out, fmt.Sprintf("Result on node %s (%s):\n", node.Host, node.IP))
+
 	if err != nil {
-		integration.PrettyPrintErr(out, "Error restarting service %s: %v", service, err)
+		integration.PrettyPrintErr(out, "Error: %v\nOut: %s", err, strings.TrimSpace(o))
 	} else {
 		integration.PrettyPrintOk(out, "Service %s restarted. %s", service, strings.TrimSpace(o))
 	}

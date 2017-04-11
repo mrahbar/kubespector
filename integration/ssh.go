@@ -100,11 +100,7 @@ func (client *ExternalClient) Output(pty bool, debug bool, args ...string) (stri
 	args = append(client.BaseArgs, args...)
 	cmd := getSSHCmd(client.BinaryPath, pty, args...)
 	if debug {
-		cmdDebug := args
-		if pty {
-			cmdDebug = append([]string{"-t"}, cmdDebug...)
-		}
-		cmdDebug = append([]string{client.BinaryPath}, cmdDebug...)
+		cmdDebug := append([]string{}, cmd.Args...)
 		fmt.Printf("Executing command: %s\n", cmdDebug)
 	}
 	// for pseudo-tty and sudo to work correctly Stdin must be set to os.Stdin
@@ -127,7 +123,7 @@ func (client *ExternalClient) Shell(pty bool, args ...string) error {
 
 func getSSHCmd(binaryPath string, pty bool, args ...string) *exec.Cmd {
 	if pty {
-		args = append([]string{"-t"}, args...)
+		args = append([]string{"-tt"}, args...)
 	}
 	return exec.Command(binaryPath, args...)
 }
