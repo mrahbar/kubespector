@@ -22,7 +22,7 @@ var stopCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(stopCmd)
-	stopCmd.Flags().StringVarP(&stopOpts.groupArg, "group", "g", "", "Name of target group")
+	stopCmd.Flags().StringVarP(&stopOpts.groupArg, "group", "g", "", "Comma-separated list of group names")
 	stopCmd.Flags().StringVarP(&stopOpts.nodeArg, "node", "n", "", "Name of target node")
 	stopCmd.Flags().StringVarP(&stopOpts.targetArg, "service", "s", "", "Name of target service")
 
@@ -37,19 +37,18 @@ func initializeStopService(service string, node integration.Node, group string) 
 		integration.PrintHeader(out, fmt.Sprintf("Stopping service %v in group [%s] ",
 			service, group), '=')
 	} else {
-		integration.PrintHeader(out, "Stopping", '=')
+		integration.PrintHeader(out, fmt.Sprintf("Stopping service %v on node %s (%s):\n",
+			stopOpts.targetArg, node.Host, node.IP), '=')
 	}
 	integration.PrettyPrint(out, "\n")
 }
 
 func stopService(sshOpts *integration.SSHConfig, service string, node integration.Node) {
-	integration.PrettyPrint(out, fmt.Sprintf("Stopping service %v on node %s (%s):\n",
-		stopOpts.targetArg, node.Host, node.IP))
-
 	o, err := integration.PerformSSHCmd(out, sshOpts, &node, fmt.Sprintf("sudo systemctl stop %s", service), RootOpts.Debug)
 
+	integration.PrettyPrint(out, fmt.Sprintf("Result on node %s (%s):\n", node.Host, node.IP))
 	if err != nil {
-		integration.PrettyPrintErr(out, "Error stopping service %s: %v", service, err)
+		integration.PrettyPrintErr(out, "Error: %v\nOut: %s", err, strings.TrimSpace(o))
 	} else {
 		integration.PrettyPrintOk(out, "Service %s stoped. %s", service, strings.TrimSpace(o))
 	}

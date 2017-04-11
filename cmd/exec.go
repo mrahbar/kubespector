@@ -8,7 +8,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var execOpts = &CliOpts{}
+type execCliOpts struct {
+	groupArg  string
+	nodeArg   string
+	targetArg string
+	sudo      bool
+}
+
+var execOpts = &execCliOpts{}
 
 // execCmd represents the exec command
 var execCmd = &cobra.Command{
@@ -22,14 +29,20 @@ var execCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(execCmd)
-	execCmd.Flags().StringVarP(&execOpts.groupArg, "group", "g", "", "Name of target group")
+	execCmd.Flags().StringVarP(&execOpts.groupArg, "group", "g", "", "Comma-separated list of group names")
 	execCmd.Flags().StringVarP(&execOpts.nodeArg, "node", "n", "", "Name of target node")
 	execCmd.Flags().StringVarP(&execOpts.targetArg, "exec", "e", "", "Command to execute")
-
+	execCmd.Flags().BoolVarP(&execOpts.sudo, "sudo", "s", false, "Run as sudo")
 }
 
 func execRun(cmd *cobra.Command, args []string) {
-	Run(execOpts, initializeExec, exec)
+	opts := &CliOpts{
+		groupArg:  execOpts.groupArg,
+		nodeArg:   execOpts.nodeArg,
+		targetArg: execOpts.targetArg,
+	}
+
+	Run(opts, initializeExec, exec)
 }
 
 func initializeExec(target string, node integration.Node, group string) {
@@ -37,21 +50,26 @@ func initializeExec(target string, node integration.Node, group string) {
 		integration.PrintHeader(out, fmt.Sprintf("Executing '%v' in group [%s] ",
 			target, group), '=')
 	} else {
-		integration.PrintHeader(out, "Executing", '=')
+		integration.PrintHeader(out, fmt.Sprintf("Executing '%v' on node %s (%s):\n",
+			execOpts.targetArg, node.Host, node.IP), '=')
 	}
 	integration.PrettyPrint(out, "\n")
 }
 
 func exec(sshOpts *integration.SSHConfig, command string, node integration.Node) {
-	integration.PrettyPrint(out, fmt.Sprintf("Executing '%v' on node %s (%s):\n",
-		execOpts.targetArg, node.Host, node.IP))
+	command = fmt.Sprintf("bash -c '%s'", command)
 
-	o, err := integration.PerformSSHCmd(out, sshOpts, &node, fmt.Sprintf("%s", command), RootOpts.Debug)
+	if execOpts.sudo {
+		command = "sudo " + command
+	}
 
+	o, err := integration.PerformSSHCmd(out, sshOpts, &node, command, RootOpts.Debug)
+
+	integration.PrettyPrint(out, fmt.Sprintf("Result on node %s (%s):\n", node.Host, node.IP))
 	if err != nil {
-		integration.PrettyPrintErr(out, "Error executing command: %v", command, err)
+		integration.PrettyPrintErr(out, "Error: %v\nOut: %s", err, strings.TrimSpace(o))
 	} else {
-		integration.PrettyPrintOk(out, "Result:\n%s", command, strings.TrimSpace(o))
+		integration.PrettyPrintOk(out, "%s", strings.TrimSpace(o))
 	}
 
 	integration.PrettyPrint(out, "\n")

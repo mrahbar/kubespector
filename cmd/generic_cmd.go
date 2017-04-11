@@ -61,8 +61,8 @@ func Run(opts *CliOpts, initializer Initializer, processor Processor) {
 			}
 
 		} else {
-			if statusOpts.groupsArg != "" {
-				cmdGroups = strings.Split(statusOpts.groupsArg, ",")
+			if opts.groupArg != "" {
+				cmdGroups = strings.Split(opts.groupArg, ",")
 			}
 
 			var nodes []integration.Node
