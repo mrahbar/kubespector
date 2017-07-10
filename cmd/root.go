@@ -1,10 +1,10 @@
 package cmd
 
 import (
-	"fmt"
 	"io"
 	"os"
 
+	"github.com/mrahbar/kubernetes-inspector/integration"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -36,7 +36,7 @@ func Execute(version string, buildDate string) {
 	Version = version
 	BuildDate = buildDate
 	if err := RootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		integration.PrettyPrintErr(out, "Error starting kubernetes-inspector: %s", err.Error())
 		os.Exit(-1)
 	}
 }
@@ -57,7 +57,6 @@ func init() {
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
 	if RootOpts.ConfigFile != "" { // enable ability to specify config file via flag
-		fmt.Printf("Set config file to: %v\n", RootOpts.ConfigFile)
 		viper.SetConfigFile(RootOpts.ConfigFile)
 	} else {
 		viper.SetConfigName("kubernetes-inspector") // name of config file (without extension)
@@ -70,8 +69,8 @@ func initConfig() {
 	// If a config file is found, read it in.
 	err := viper.ReadInConfig()
 	if err == nil {
-		fmt.Println("Loading config file:", viper.ConfigFileUsed())
+		integration.PrettyPrint(out, "Loading config file: %s\n", viper.ConfigFileUsed())
 	} else {
-		fmt.Println("Error loading config file:", err.Error())
+		integration.PrettyPrintErr(out, "Error loading config file: %s", err.Error())
 	}
 }

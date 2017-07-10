@@ -1,0 +1,7 @@
+build/
+*.swp
+*~
+.idea/
+*.iml
+*.tmp
+*.bz2
