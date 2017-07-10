@@ -44,10 +44,9 @@ func clusterStatusRun(cmd *cobra.Command, args []string) {
 	} else {
 		if clusterStatusOpts.groupsArg != "" {
 			groups = strings.Split(clusterStatusOpts.groupsArg, ",")
-			fmt.Printf("Restricted status check to groups: %v\n", strings.Join(groups, " "))
-		} else {
-			fmt.Printf("Performing status check for groups: %v\n", strings.Join(groups, " "))
 		}
+
+		integration.PrettyPrint(out, "Performing status check for groups: %v\n", strings.Join(groups, " "))
 
 		for _, element := range groups {
 			switch element {

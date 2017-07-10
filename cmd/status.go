@@ -13,7 +13,7 @@ var statusOpts = &CliOpts{}
 // statusCmd represents the status command
 var statusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "Stop a Kubernetes service on a target group or node",
+	Short: "Checks the status of a service on a target group or node",
 	Long: `Service name is mandatory. Either specify node or group in which the service status should be checked.
 	When a target group is specified all nodes inside that group will be targeted.`,
 	Run: statusRun,
