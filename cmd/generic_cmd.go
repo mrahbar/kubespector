@@ -16,8 +16,6 @@ type CliOpts struct {
 	targetArg string
 }
 
-var cmdGroups = ClusterMembers[:len(ClusterMembers)-1]
-
 type Initializer func(target string, node integration.Node, selectedGroup string)
 type Processor func(*integration.SSHConfig, string, integration.Node)
 
@@ -30,7 +28,7 @@ func Run(opts *CliOpts, initializer Initializer, processor Processor) {
 		os.Exit(1)
 	} else {
 		if opts.targetArg == "" {
-			integration.PrettyPrintErr(out, "Command has to be called with a service name.")
+			integration.PrettyPrintErr(out, "Command has been called with insufficient parameters.")
 			os.Exit(1)
 		}
 
@@ -61,8 +59,12 @@ func Run(opts *CliOpts, initializer Initializer, processor Processor) {
 			}
 
 		} else {
+			var cmdGroups []string
+
 			if opts.groupArg != "" {
 				cmdGroups = strings.Split(opts.groupArg, ",")
+			} else {
+				cmdGroups = ClusterMembers[:len(ClusterMembers)-1]
 			}
 
 			var nodes []integration.Node
@@ -81,18 +83,17 @@ func Run(opts *CliOpts, initializer Initializer, processor Processor) {
 					nodes = config.Cluster.Registry.Nodes
 				}
 
-				if nodes == nil {
-					integration.PrettyPrintErr(out, "Group name is not in list of available groups: %s", ClusterMembers)
-					os.Exit(1)
-				}
-
-				initializer(opts.targetArg, integration.Node{}, element)
-				for _, node := range nodes {
-					if !util.IsNodeAddressValid(node) {
-						integration.PrettyPrintErr(out, "Current node %q has no valid address", node)
-						break
+				if nodes != nil {
+					initializer(opts.targetArg, integration.Node{}, element)
+					for _, node := range nodes {
+						if !util.IsNodeAddressValid(node) {
+							integration.PrettyPrintErr(out, "Current node %q has no valid address", node)
+							break
+						}
+						processor(&config.Ssh, opts.targetArg, node)
 					}
-					processor(&config.Ssh, opts.targetArg, node)
+				} else {
+					integration.PrettyPrintErr(out, "No Nodes found for group: %s", element)
 				}
 			}
 		}

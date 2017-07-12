@@ -25,9 +25,9 @@ var ClusterMembers = []string{"Etcd", "Master", "Worker", "Ingress", "Registry",
 var RootCmd = &cobra.Command{
 	Use:   "kubernetes-inspector",
 	Short: "Management of Kubernetes services",
-	Long: `Kubernetes-Insepctor will examine the status of the different Kubernetes services running on
+	Long: `Kubernetes-Inspector will examine the status of the different Kubernetes services running on
 	specified hosts e.g. Master, Etcd, Worker, Ingress via ssh. It also provides the option to restart
-	services if the ssh-user has the corresponding priviliges.`,
+	services if the ssh-user has the corresponding privileges.`,
 }
 
 // Execute adds all child commands to the root command sets flags appropriately.
