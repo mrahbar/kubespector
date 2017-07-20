@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/mrahbar/kubernetes-inspector/integration"
+	"github.com/mrahbar/kubernetes-inspector/util"
 	"github.com/spf13/cobra"
 )
 
@@ -24,14 +25,13 @@ var execCmd = &cobra.Command{
 	Long: `Command to execute is mandatory. Either specify node or group on which command should be executed.
 	When a target group is specified all nodes inside that group will be targeted.`,
 	Run: execRun,
-
 }
 
 func init() {
 	RootCmd.AddCommand(execCmd)
 	execCmd.Flags().StringVarP(&execOpts.groupArg, "group", "g", "", "Comma-separated list of group names")
 	execCmd.Flags().StringVarP(&execOpts.nodeArg, "node", "n", "", "Name of target node")
-	execCmd.Flags().StringVarP(&execOpts.targetArg, "exec", "e", "", "Command to execute")
+	execCmd.Flags().StringVarP(&execOpts.targetArg, "cmd", "c", "", "Command to execute")
 	execCmd.Flags().BoolVarP(&execOpts.sudo, "sudo", "s", false, "Run as sudo")
 }
 
@@ -45,14 +45,17 @@ func execRun(cmd *cobra.Command, args []string) {
 	Run(opts, initializeExec, exec)
 }
 
-func initializeExec(target string, node integration.Node, group string) {
+func initializeExec(target string, node string, group string) {
 	if group != "" {
 		integration.PrintHeader(out, fmt.Sprintf("Executing '%v' in group [%s] ",
 			target, group), '=')
-	} else {
-		integration.PrintHeader(out, fmt.Sprintf("Executing '%v' on node %s (%s):\n",
-			execOpts.targetArg, node.Host, node.IP), '=')
 	}
+
+	if node != "" {
+		integration.PrintHeader(out, fmt.Sprintf("Executing '%v' on node %s :\n",
+			execOpts.targetArg, node), '=')
+	}
+
 	integration.PrettyPrint(out, "\n")
 }
 
@@ -65,7 +68,7 @@ func exec(sshOpts *integration.SSHConfig, command string, node integration.Node)
 
 	o, err := integration.PerformSSHCmd(out, sshOpts, &node, command, RootOpts.Debug)
 
-	integration.PrettyPrint(out, fmt.Sprintf("Result on node %s (%s):\n", node.Host, node.IP))
+	integration.PrettyPrint(out, fmt.Sprintf("Result on node %s:\n", util.ToNodeLabel(node)))
 	if err != nil {
 		integration.PrettyPrintErr(out, "Error: %v\nOut: %s", err, strings.TrimSpace(o))
 	} else {
