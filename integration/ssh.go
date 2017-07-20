@@ -39,7 +39,7 @@ func PerformSSHCmd(out io.Writer, sshOpts *SSHConfig, node *Node, cmd string, de
 		}), debug)
 
 	if err != nil {
-		msg := fmt.Sprintf("Error creating SSH client for host %s (%s): %v", node.Host, nodeAddress, err)
+		msg := fmt.Sprintf("Error creating SSH client for host %s: %v", nodeAddress, err)
 		PrettyPrintErr(out, msg)
 		return "", err
 	}

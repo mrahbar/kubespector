@@ -5,45 +5,42 @@ Ssh:
   Port: 22
   Options: -o StrictHostKeyChecking=no
   Sudo: true
-Cluster:
-  Etcd:
+ClusterGroups:
+  - Name: Etcd
     Services:
     - etcd_k8s
     Nodes:
-    - Host: "ket-stack-secured-instance-jyzmjpyjvgjj"
-      IP: "185.56.128.117"
-    DiskSpace:
+    - Host: "ket-stack"
+    DiskUsage:
       FileSystemUsage:
       - /dev/vda1
       DirectoryUsage:
       - /etc/etcd_k8s
       - /var/log
-  Master:
+  - Name: Master
     Services:
     - kube-apiserver
     - kube-controller-manager
     - kube-scheduler
     - etcd_networking
     Nodes:
-    - Host: "ket-stack-secured-instance-jyzmjpyjvgjj"
-      IP: "185.56.128.117"
-    DiskSpace:
+    - Host: "ket-stack"
+    DiskUsage:
       FileSystemUsage:
       - /dev/vda1
       DirectoryUsage:
       - /etc/kubernetes
       - /etc/etcd_networking
       - /var/log
-  Worker:
+  - Name: Worker
     Services:
     - docker
     - kubelet
     - kube-proxy
     - flanneld
     Nodes:
-    - Host: "ket-stack-secured-instance-jyzmjpyjvgjj"
-      IP: "185.56.128.117"
-    DiskSpace:
+    - Host: "ket-stack"
+    DiskUsage:
       FileSystemUsage:
       - /dev/vda1
       DirectoryUsage:

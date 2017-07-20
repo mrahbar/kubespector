@@ -1,14 +1,11 @@
 package integration
 
+const KUBERNETES_GROUPNAME = "Kubernetes"
+const MASTER_GROUPNAME = "Master"
+
 type Config struct {
-	Ssh SSHConfig
-	Cluster struct {
-		Etcd     ClusterMember
-		Master   ClusterMember
-		Worker   ClusterMember
-		Ingress  ClusterMember
-		Registry ClusterMember
-	}
+	Ssh           SSHConfig
+	ClusterGroups []ClusterGroup
 	Kubernetes struct {
 		Resources []KubernetesResource
 	}
@@ -23,13 +20,15 @@ type SSHConfig struct {
 	Options string
 }
 
-type ClusterMember struct {
-	Nodes     []Node
-	Services  []string
-	DiskSpace DiskSpace
+type ClusterGroup struct {
+	Name       string
+	Nodes      []Node
+	Services   []string
+	Containers []string
+	DiskUsage  DiskUsage
 }
 
-type DiskSpace struct {
+type DiskUsage struct {
 	FileSystemUsage []string
 	DirectoryUsage  []string
 }

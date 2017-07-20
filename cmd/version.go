@@ -7,12 +7,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-
 // versionCmd represents the version command
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Prints the current version of kubernetes-inspector",
-	Long: `The version is aligned with the SemVer specification, e.q. 1.0.0`,
+	Long:  `The version is aligned with the SemVer specification, e.q. 1.0.0`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Fprintln(out, "kubernetes-inspector:")
 		fmt.Fprintf(out, "  Version: %s\n", Version)

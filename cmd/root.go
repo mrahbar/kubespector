@@ -19,7 +19,6 @@ var BuildDate string
 
 var RootOpts = &rootCliOpts{}
 var out io.Writer = os.Stdout
-var ClusterMembers = []string{"Etcd", "Master", "Worker", "Ingress", "Registry", "Kubernetes"}
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
@@ -62,9 +61,9 @@ func initConfig() {
 		viper.SetConfigName("kubernetes-inspector") // name of config file (without extension)
 	}
 
-	viper.AddConfigPath("$HOME")  // adding home directory as first search path
-	viper.AddConfigPath(".")  // adding home directory as first search path
-	viper.AutomaticEnv()          // read in environment variables that match
+	viper.AddConfigPath("$HOME") // adding home directory as first search path
+	viper.AddConfigPath(".")     // adding home directory as first search path
+	viper.AutomaticEnv()         // read in environment variables that match
 
 	// If a config file is found, read it in.
 	err := viper.ReadInConfig()

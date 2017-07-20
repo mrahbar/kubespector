@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/mrahbar/kubernetes-inspector/integration"
+	"github.com/mrahbar/kubernetes-inspector/util"
 	"github.com/spf13/cobra"
 )
 
@@ -17,7 +18,6 @@ var statusCmd = &cobra.Command{
 	Long: `Service name is mandatory. Either specify node or group in which the service status should be checked.
 	When a target group is specified all nodes inside that group will be targeted.`,
 	Run: statusRun,
-
 }
 
 func init() {
@@ -32,21 +32,24 @@ func statusRun(cmd *cobra.Command, args []string) {
 	Run(statusOpts, initializeStatusService, statusService)
 }
 
-func initializeStatusService(service string, node integration.Node, group string) {
+func initializeStatusService(service string, node string, group string) {
 	if group != "" {
 		integration.PrintHeader(out, fmt.Sprintf("Checking status of service %v in group [%s] ",
 			service, group), '=')
-	} else {
-		integration.PrintHeader(out, fmt.Sprintf("Checking status of service %v on node %s (%s):\n",
-			statusOpts.targetArg, node.Host, node.IP), '=')
 	}
+
+	if node != "" {
+		integration.PrintHeader(out, fmt.Sprintf("Checking status of service %v on node %s:\n",
+			statusOpts.targetArg, node), '=')
+	}
+
 	integration.PrettyPrint(out, "\n")
 }
 
 func statusService(sshOpts *integration.SSHConfig, service string, node integration.Node) {
 	o, err := integration.PerformSSHCmd(out, sshOpts, &node, fmt.Sprintf("sudo systemctl status %s -l", service), RootOpts.Debug)
 
-	integration.PrettyPrint(out, fmt.Sprintf("Result on node %s (%s):\n", node.Host, node.IP))
+	integration.PrettyPrint(out, fmt.Sprintf("Result on node %s:\n", util.ToNodeLabel(node)))
 	if err != nil {
 		integration.PrettyPrintErr(out, "Error: %v\nOut: %s", err, strings.TrimSpace(o))
 	} else {

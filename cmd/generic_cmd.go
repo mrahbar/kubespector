@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"os"
-	"reflect"
 	"strings"
 
 	"github.com/mrahbar/kubernetes-inspector/integration"
@@ -16,7 +15,7 @@ type CliOpts struct {
 	targetArg string
 }
 
-type Initializer func(target string, node integration.Node, selectedGroup string)
+type Initializer func(target string, node string, selectedGroup string)
 type Processor func(*integration.SSHConfig, string, integration.Node)
 
 func Run(opts *CliOpts, initializer Initializer, processor Processor) {
@@ -33,12 +32,10 @@ func Run(opts *CliOpts, initializer Initializer, processor Processor) {
 		}
 
 		if opts.nodeArg != "" {
-			v := reflect.ValueOf(config.Cluster)
 			node := integration.Node{}
 
-			for i := 0; i < v.NumField(); i++ {
-				nodes := v.Field(i).FieldByName("Nodes").Interface().([]integration.Node)
-				for _, n := range nodes {
+			for _, group := range config.ClusterGroups {
+				for _, n := range group.Nodes {
 					if n.Host == opts.nodeArg || n.IP == opts.nodeArg {
 						node = n
 						break
@@ -46,51 +43,48 @@ func Run(opts *CliOpts, initializer Initializer, processor Processor) {
 				}
 			}
 
-			if node.IP != "" {
-				if !util.IsNodeAddressValid(node) {
-					integration.PrettyPrintErr(out, "Node %q has no valid address", node)
-					os.Exit(1)
-				}
-				initializer(opts.targetArg, node, "")
-				processor(&config.Ssh, opts.targetArg, node)
-			} else {
+			if !util.IsNodeAddressValid(node) {
 				integration.PrettyPrintErr(out, "No node found for %v in config", opts.nodeArg)
 				os.Exit(1)
+			} else {
+				initializer(opts.targetArg, util.ToNodeLabel(node), "")
+				processor(&config.Ssh, opts.targetArg, node)
 			}
-
 		} else {
-			var cmdGroups []string
+			var groups = []string{}
+			var nodes = []string{}
 
 			if opts.groupArg != "" {
-				cmdGroups = strings.Split(opts.groupArg, ",")
+				groups = strings.Split(opts.groupArg, ",")
 			} else {
-				cmdGroups = ClusterMembers[:len(ClusterMembers)-1]
+				for _, group := range config.ClusterGroups {
+					groups = append(groups, group.Name)
+				}
 			}
 
-			var nodes []integration.Node
+			for _, element := range groups {
+				group := util.FindGroupByName(config.ClusterGroups, element)
 
-			for _, element := range cmdGroups {
-				switch element {
-				case "Etcd":
-					nodes = config.Cluster.Etcd.Nodes
-				case "Master":
-					nodes = config.Cluster.Master.Nodes
-				case "Worker":
-					nodes = config.Cluster.Worker.Nodes
-				case "Ingress":
-					nodes = config.Cluster.Ingress.Nodes
-				case "Registry":
-					nodes = config.Cluster.Registry.Nodes
-				}
-
-				if nodes != nil {
-					initializer(opts.targetArg, integration.Node{}, element)
-					for _, node := range nodes {
+				if group.Nodes != nil {
+					initializer(opts.targetArg, util.ToNodeLabel(integration.Node{}), element)
+					for _, node := range group.Nodes {
 						if !util.IsNodeAddressValid(node) {
 							integration.PrettyPrintErr(out, "Current node %q has no valid address", node)
-							break
+							continue
+						} else {
+							alreadyProcessed := false
+							for _, v := range nodes {
+								if v == node.Host {
+									alreadyProcessed = true
+									break
+								}
+							}
+
+							if !alreadyProcessed {
+								processor(&config.Ssh, opts.targetArg, node)
+								nodes = append(nodes, node.Host)
+							}
 						}
-						processor(&config.Ssh, opts.targetArg, node)
 					}
 				} else {
 					integration.PrettyPrintErr(out, "No Nodes found for group: %s", element)
