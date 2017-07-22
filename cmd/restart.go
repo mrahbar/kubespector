@@ -21,7 +21,7 @@ var restartCmd = &cobra.Command{
 }
 
 func init() {
-	RootCmd.AddCommand(restartCmd)
+	ServiceCmd.AddCommand(restartCmd)
 	restartCmd.Flags().StringVarP(&restartOpts.groupArg, "group", "g", "", "Comma-separated list of group names")
 	restartCmd.Flags().StringVarP(&restartOpts.nodeArg, "node", "n", "", "Name of target node")
 	restartCmd.Flags().StringVarP(&restartOpts.targetArg, "service", "s", "", "Name of target service")

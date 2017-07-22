@@ -21,7 +21,7 @@ var stopCmd = &cobra.Command{
 }
 
 func init() {
-	RootCmd.AddCommand(stopCmd)
+	ServiceCmd.AddCommand(stopCmd)
 	stopCmd.Flags().StringVarP(&stopOpts.groupArg, "group", "g", "", "Comma-separated list of group names")
 	stopCmd.Flags().StringVarP(&stopOpts.nodeArg, "node", "n", "", "Name of target node")
 	stopCmd.Flags().StringVarP(&stopOpts.targetArg, "service", "s", "", "Name of target service")

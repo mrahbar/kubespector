@@ -21,7 +21,7 @@ var statusCmd = &cobra.Command{
 }
 
 func init() {
-	RootCmd.AddCommand(statusCmd)
+	ServiceCmd.AddCommand(statusCmd)
 	statusCmd.Flags().StringVarP(&statusOpts.groupArg, "group", "g", "", "Comma-separated list of group names")
 	statusCmd.Flags().StringVarP(&statusOpts.nodeArg, "node", "n", "", "Name of target node")
 	statusCmd.Flags().StringVarP(&statusOpts.targetArg, "service", "s", "", "Name of target service")

@@ -1,4 +1,4 @@
-all: push
+cobrall: push
 
 TAG = 1.1.2-SNAPSHOT
 PREFIX = kubernetes-inspector
