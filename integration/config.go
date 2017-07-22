@@ -3,6 +3,11 @@ package integration
 const KUBERNETES_GROUPNAME = "Kubernetes"
 const MASTER_GROUPNAME = "Master"
 
+const SERVICES_CHECKNAME = "Services"
+const CONTAINERS_CHECKNAME = "Containers"
+const CERTIFICATES_CHECKNAME = "Certificates"
+const DISKUSAGE_CHECKNAME = "DiskUsage"
+
 type Config struct {
 	Ssh           SSHConfig
 	ClusterGroups []ClusterGroup
@@ -21,11 +26,12 @@ type SSHConfig struct {
 }
 
 type ClusterGroup struct {
-	Name       string
-	Nodes      []Node
-	Services   []string
-	Containers []string
-	DiskUsage  DiskUsage
+	Name         string
+	Nodes        []Node
+	Services     []string
+	Containers   []string
+	Certificates []string
+	DiskUsage    DiskUsage
 }
 
 type DiskUsage struct {

@@ -72,15 +72,7 @@ func Run(opts *CliOpts, initializer Initializer, processor Processor) {
 							integration.PrettyPrintErr(out, "Current node %q has no valid address", node)
 							continue
 						} else {
-							alreadyProcessed := false
-							for _, v := range nodes {
-								if v == node.Host {
-									alreadyProcessed = true
-									break
-								}
-							}
-
-							if !alreadyProcessed {
+							if !util.ElementInArray(nodes, node.Host) {
 								processor(&config.Ssh, opts.targetArg, node)
 								nodes = append(nodes, node.Host)
 							}

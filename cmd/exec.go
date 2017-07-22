@@ -35,7 +35,7 @@ func init() {
 	execCmd.Flags().BoolVarP(&execOpts.sudo, "sudo", "s", false, "Run as sudo")
 }
 
-func execRun(cmd *cobra.Command, args []string) {
+func execRun(_ *cobra.Command, _ []string) {
 	opts := &CliOpts{
 		groupArg:  execOpts.groupArg,
 		nodeArg:   execOpts.nodeArg,
@@ -61,10 +61,6 @@ func initializeExec(target string, node string, group string) {
 
 func exec(sshOpts *integration.SSHConfig, command string, node integration.Node) {
 	command = fmt.Sprintf("bash -c '%s'", command)
-
-	if execOpts.sudo {
-		command = "sudo " + command
-	}
 
 	o, err := integration.PerformSSHCmd(out, sshOpts, &node, command, RootOpts.Debug)
 

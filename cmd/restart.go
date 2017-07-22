@@ -28,7 +28,7 @@ func init() {
 
 }
 
-func restartRun(cmd *cobra.Command, args []string) {
+func restartRun(_ *cobra.Command, _ []string) {
 	Run(restartOpts, initializeRestartService, restartService)
 }
 

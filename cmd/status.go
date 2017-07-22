@@ -28,7 +28,7 @@ func init() {
 
 }
 
-func statusRun(cmd *cobra.Command, args []string) {
+func statusRun(_ *cobra.Command, _ []string) {
 	Run(statusOpts, initializeStatusService, statusService)
 }
 
