@@ -20,7 +20,7 @@ var kubectlOpts = &kubectlCliOpts{}
 var kubectlCmd = &cobra.Command{
 	Use:     "kubectl",
 	Aliases: []string{"k"},
-	Short:   "Wrapper for kubectl running Masters",
+	Short:   "Wrapper for kubectl",
 	Long:    `For a full documentation of available commands visit official website: https://kubernetes.io/docs/user-guide/kubectl-overview/`,
 	Run:     kubectlRun,
 }

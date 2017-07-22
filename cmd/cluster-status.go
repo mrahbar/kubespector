@@ -33,8 +33,8 @@ var clusterStatusOpts = &clusterStatusCliOpts{}
 var clusterStatusCmd = &cobra.Command{
 	Use:     "cluster-status",
 	Aliases: []string{"cs"},
-	Short:   "Checks the clusterStatus of Kubernetes nodes (services, disk space) defined in configuration file",
-	Long:    `When called without arguments all hosts in configuration will be examined.`,
+	Short:   "Performs various checks on the cluster defined in the configuration file",
+	Long:    `When called without arguments all hosts and checks in configuration will be executed.`,
 	Run:     clusterStatusRun,
 }
 

@@ -23,10 +23,8 @@ var out io.Writer = os.Stdout
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
 	Use:   "kubernetes-inspector",
-	Short: "Management of Kubernetes services",
-	Long: `Kubernetes-Inspector will examine the status of the different Kubernetes services running on
-	specified hosts e.g. Master, Etcd, Worker, Ingress via ssh. It also provides the option to restart
-	services if the ssh-user has the corresponding privileges.`,
+	Short: "Management tool for Kubernetes",
+	Long:  `Kubernetes-Inspector can perform various actions on a Kubernetes cluster via ssh.`,
 }
 
 // Execute adds all child commands to the root command sets flags appropriately.
@@ -35,7 +33,6 @@ func Execute(version string, buildDate string) {
 	Version = version
 	BuildDate = buildDate
 	if err := RootCmd.Execute(); err != nil {
-		integration.PrettyPrintErr(out, "Error starting kubernetes-inspector: %s", err.Error())
 		os.Exit(-1)
 	}
 }
