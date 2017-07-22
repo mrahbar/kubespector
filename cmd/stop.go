@@ -28,7 +28,7 @@ func init() {
 
 }
 
-func stopRun(cmd *cobra.Command, args []string) {
+func stopRun(_ *cobra.Command, _ []string) {
 	Run(stopOpts, initializeStopService, stopService)
 }
 

@@ -1,6 +1,6 @@
 all: push
 
-TAG = 1.1.1-SNAPSHOT
+TAG = 1.1.2-SNAPSHOT
 PREFIX = kubernetes-inspector
 BUILD_DATE := $(shell date -u)
 
