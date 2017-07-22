@@ -26,11 +26,6 @@ func Run(opts *CliOpts, initializer Initializer, processor Processor) {
 		integration.PrettyPrintErr(out, "Unable to decode config: %v", err)
 		os.Exit(1)
 	} else {
-		if opts.targetArg == "" {
-			integration.PrettyPrintErr(out, "Command has been called with insufficient parameters.")
-			os.Exit(1)
-		}
-
 		if opts.nodeArg != "" {
 			node := integration.Node{}
 

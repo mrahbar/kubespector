@@ -17,7 +17,8 @@ var statusCmd = &cobra.Command{
 	Short: "Checks the status of a service on a target group or node",
 	Long: `Service name is mandatory. Either specify node or group in which the service status should be checked.
 	When a target group is specified all nodes inside that group will be targeted.`,
-	Run: statusRun,
+	PreRunE: util.CheckRequiredFlags,
+	Run:     statusRun,
 }
 
 func init() {
@@ -25,7 +26,7 @@ func init() {
 	statusCmd.Flags().StringVarP(&statusOpts.groupArg, "group", "g", "", "Comma-separated list of group names")
 	statusCmd.Flags().StringVarP(&statusOpts.nodeArg, "node", "n", "", "Name of target node")
 	statusCmd.Flags().StringVarP(&statusOpts.targetArg, "service", "s", "", "Name of target service")
-
+	statusCmd.MarkFlagRequired("service")
 }
 
 func statusRun(_ *cobra.Command, _ []string) {

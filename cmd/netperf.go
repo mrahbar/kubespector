@@ -68,7 +68,7 @@ func netperfRun(_ *cobra.Command, _ []string) {
 	}
 
 	sshOpts = &config.Ssh
-	node = util.RetrieveKubectlNode(group.Nodes, RootOpts.Debug)
+	node = util.GetFirstAccessibleNode(group.Nodes, RootOpts.Debug)
 
 	if !util.IsNodeAddressValid(node) {
 		integration.PrettyPrintErr(out, "No master available for Kubernetes status check")

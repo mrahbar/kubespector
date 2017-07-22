@@ -24,7 +24,8 @@ var execCmd = &cobra.Command{
 	Short: "Executes a command on a target group or node",
 	Long: `Command to execute is mandatory. Either specify node or group on which command should be executed.
 	When a target group is specified all nodes inside that group will be targeted.`,
-	Run: execRun,
+	PreRunE: util.CheckRequiredFlags,
+	Run:     execRun,
 }
 
 func init() {
@@ -33,6 +34,8 @@ func init() {
 	execCmd.Flags().StringVarP(&execOpts.nodeArg, "node", "n", "", "Name of target node")
 	execCmd.Flags().StringVarP(&execOpts.targetArg, "cmd", "c", "", "Command to execute")
 	execCmd.Flags().BoolVarP(&execOpts.sudo, "sudo", "s", false, "Run as sudo")
+
+	execCmd.MarkFlagRequired("cmd")
 }
 
 func execRun(_ *cobra.Command, _ []string) {
