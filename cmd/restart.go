@@ -17,7 +17,8 @@ var restartCmd = &cobra.Command{
 	Short: "Restarts a Kubernetes service on a target group or node",
 	Long: `Service name is mandatory. Either specify node or group in which the service should be restarted.
 	When a target group is specified all nodes inside that group will be targeted for service restart.`,
-	Run: restartRun,
+	PreRunE: util.CheckRequiredFlags,
+	Run:     restartRun,
 }
 
 func init() {
@@ -25,7 +26,7 @@ func init() {
 	restartCmd.Flags().StringVarP(&restartOpts.groupArg, "group", "g", "", "Comma-separated list of group names")
 	restartCmd.Flags().StringVarP(&restartOpts.nodeArg, "node", "n", "", "Name of target node")
 	restartCmd.Flags().StringVarP(&restartOpts.targetArg, "service", "s", "", "Name of target service")
-
+	restartCmd.MarkFlagRequired("service")
 }
 
 func restartRun(_ *cobra.Command, _ []string) {

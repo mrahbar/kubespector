@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/mrahbar/kubernetes-inspector/integration"
 	"strings"
+	"github.com/spf13/pflag"
+	"github.com/spf13/cobra"
 )
 
 func IsNodeAddressValid(node integration.Node) bool {
@@ -50,7 +52,7 @@ func ElementInArray(array []string, element string) bool {
 	return contains
 }
 
-func RetrieveKubectlNode(nodes []integration.Node, debug bool) integration.Node {
+func GetFirstAccessibleNode(nodes []integration.Node, debug bool) integration.Node {
 	var node integration.Node
 
 	for _, n := range nodes {
@@ -70,4 +72,30 @@ func RetrieveKubectlNode(nodes []integration.Node, debug bool) integration.Node 
 	}
 
 	return node
+}
+
+func CheckRequiredFlags(cmd *cobra.Command, _ []string) error {
+	f := cmd.Flags()
+	requiredError := false
+	flagName := ""
+
+	f.VisitAll(func(flag *pflag.Flag) {
+		requiredAnnotation := flag.Annotations[cobra.BashCompOneRequiredFlag]
+		if len(requiredAnnotation) == 0 {
+			return
+		}
+
+		flagRequired := requiredAnnotation[0] == "true"
+
+		if flagRequired && !flag.Changed {
+			requiredError = true
+			flagName = flag.Name
+		}
+	})
+
+	if requiredError {
+		return fmt.Errorf("Required flag `%s` has not been set", flagName)
+	}
+
+	return nil
 }

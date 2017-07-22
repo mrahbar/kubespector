@@ -17,7 +17,8 @@ var stopCmd = &cobra.Command{
 	Short: "Stop a Kubernetes service on a target group or node",
 	Long: `Service name is mandatory. Either specify node or group in which the service should be stoped.
 	When a target group is specified all nodes inside that group will be targeted for service stop.`,
-	Run: stopRun,
+	PreRunE: util.CheckRequiredFlags,
+	Run:     stopRun,
 }
 
 func init() {
@@ -25,7 +26,7 @@ func init() {
 	stopCmd.Flags().StringVarP(&stopOpts.groupArg, "group", "g", "", "Comma-separated list of group names")
 	stopCmd.Flags().StringVarP(&stopOpts.nodeArg, "node", "n", "", "Name of target node")
 	stopCmd.Flags().StringVarP(&stopOpts.targetArg, "service", "s", "", "Name of target service")
-
+	stopCmd.MarkFlagRequired("service")
 }
 
 func stopRun(_ *cobra.Command, _ []string) {

@@ -22,12 +22,14 @@ var kubectlCmd = &cobra.Command{
 	Aliases: []string{"k"},
 	Short:   "Wrapper for kubectl",
 	Long:    `For a full documentation of available commands visit official website: https://kubernetes.io/docs/user-guide/kubectl-overview/`,
+	PreRunE: util.CheckRequiredFlags,
 	Run:     kubectlRun,
 }
 
 func init() {
 	RootCmd.AddCommand(kubectlCmd)
 	kubectlCmd.Flags().StringVarP(&kubectlOpts.command, "command", "c", "", "Command to execute")
+	kubectlCmd.MarkFlagRequired("command")
 }
 
 func kubectlRun(_ *cobra.Command, _ []string) {
@@ -39,11 +41,6 @@ func kubectlRun(_ *cobra.Command, _ []string) {
 		os.Exit(1)
 	}
 
-	if kubectlOpts.command == "" {
-		integration.PrettyPrintErr(out, "Command is empty.")
-		os.Exit(1)
-	}
-
 	group := util.FindGroupByName(config.ClusterGroups, integration.MASTER_GROUPNAME)
 
 	if group.Nodes == nil || len(group.Nodes) == 0 {
@@ -51,7 +48,7 @@ func kubectlRun(_ *cobra.Command, _ []string) {
 		os.Exit(1)
 	}
 
-	node := util.RetrieveKubectlNode(group.Nodes, RootOpts.Debug)
+	node := util.GetFirstAccessibleNode(group.Nodes, RootOpts.Debug)
 
 	if !util.IsNodeAddressValid(node) {
 		integration.PrettyPrintErr(out, "No master available for Kubernetes status check")
