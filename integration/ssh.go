@@ -5,7 +5,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,7 +12,15 @@ import (
 	"strings"
 
 	"golang.org/x/crypto/ssh"
+
+	"io/ioutil"
 )
+
+type SecureShellBinary struct {
+	binaryName string
+	binaryPath string
+	portArg    string
+}
 
 var baseSSHArgs = []string{
 	"-F", "/dev/null",
@@ -27,13 +34,21 @@ var baseSSHArgs = []string{
 	"-o", "ControlPath=none",
 }
 
-func PerformSSHCmd(out io.Writer, sshOpts *SSHConfig, node *Node, cmd string, debug bool) (string, error) {
-	nodeAddress := node.IP
-	if nodeAddress == "" {
-		nodeAddress = node.Host
-	}
+type Client interface {
+	Output(pty bool, debug bool, args ...string) (string, error)
+	Shell(pty bool, args ...string) error
+}
 
-	client, err := NewClient(nodeAddress, sshOpts.Port, sshOpts.User, sshOpts.Key,
+type ExternalClient struct {
+	BaseArgs   []string
+	BinaryPath string
+	cmd        *exec.Cmd
+}
+
+func PerformSSHCmd(out io.Writer, sshOpts SSHConfig, node Node, cmd string, debug bool) (string, error) {
+	nodeAddress := GetNodeAddress(node)
+
+	client, err := newSSHClient(fmt.Sprintf("%s@%s", sshOpts.User, nodeAddress), sshOpts.Port, sshOpts.Key,
 		strings.FieldsFunc(sshOpts.Options, func(r rune) bool {
 			return r == ' ' || r == ','
 		}), debug)
@@ -51,44 +66,61 @@ func PerformSSHCmd(out io.Writer, sshOpts *SSHConfig, node *Node, cmd string, de
 	return client.Output(sshOpts.Pty, debug, cmd)
 }
 
-type Client interface {
-	Output(pty bool, debug bool, args ...string) (string, error)
-	Shell(pty bool, args ...string) error
+func PerformSCPCmd(out io.Writer, sshOpts SSHConfig, node Node, remotePath string, localPath string, debug bool) (string, error) {
+	nodeAddress := GetNodeAddress(node)
+
+	client, err := newSCPClient(fmt.Sprintf("%s@%s:%s", sshOpts.User, nodeAddress, remotePath),
+		sshOpts.Port, sshOpts.Key, strings.FieldsFunc(sshOpts.Options, func(r rune) bool {
+			return r == ' ' || r == ','
+		}), debug)
+
+	if err != nil {
+		msg := fmt.Sprintf("Error creating SCP client for host %s: %v", nodeAddress, err)
+		PrettyPrintErr(out, msg)
+		return "", err
+	}
+
+	return client.Output(false, debug, localPath)
 }
 
-type ExternalClient struct {
-	BaseArgs   []string
-	BinaryPath string
-	cmd        *exec.Cmd
+// newSSHClient verifies ssh is available in the PATH and returns an SSH client
+func newSCPClient(remoteHost string, port int, key string, options []string, debug bool) (Client, error) {
+	return newClient(SecureShellBinary{binaryName: "scp", portArg: "-P"}, remoteHost, port, key, options, debug)
 }
 
-// NewClient verifies ssh is available in the PATH and returns an SSH client
-func NewClient(host string, port int, user string, key string, options []string, debug bool) (Client, error) {
+// newSSHClient verifies ssh is available in the PATH and returns an SSH client
+func newSSHClient(remoteHost string, port int, key string, options []string, debug bool) (Client, error) {
+	return newClient(SecureShellBinary{binaryName: "ssh", portArg: "-p"}, remoteHost, port, key, options, debug)
+}
+
+// newClient verifies ssh is available in the PATH and returns an SSH client
+func newClient(binary SecureShellBinary, remoteHost string, port int, key string, options []string, debug bool) (Client, error) {
 	key, err := ValidUnencryptedPrivateKey(key, debug)
 	if err != nil {
 		return nil, err
 	}
 
-	sshBinaryPath, err := exec.LookPath("ssh")
+	binaryPath, err := exec.LookPath(binary.binaryName)
 	if err != nil {
-		return nil, fmt.Errorf("command not found: ssh")
+		return nil, fmt.Errorf("command not found: %s", binary)
 	}
 
-	return newExternalClient(sshBinaryPath, user, host, port, key, options)
+	binary.binaryPath = binaryPath
+	return newExternalClient(binary, remoteHost, port, key, options)
 }
 
-func newExternalClient(sshBinaryPath string, user string, host string, port int, key string, options []string) (*ExternalClient, error) {
+func newExternalClient(binary SecureShellBinary, remoteHost string, port int, key string, options []string) (*ExternalClient, error) {
 	// Get default args with user and host
 	args := append(baseSSHArgs, options...)
 	// set port
-	args = append(args, fmt.Sprintf("%s@%s", user, host))
-	// set port
-	args = append(args, "-p", fmt.Sprintf("%d", port))
+	args = append(args, binary.portArg, fmt.Sprintf("%d", port))
 	// set key
 	args = append(args, "-i", key)
+	// set remote host
+	args = append(args, remoteHost)
 
 	client := &ExternalClient{
-		BinaryPath: sshBinaryPath,
+		BinaryPath: binary.binaryPath,
 		BaseArgs:   args,
 	}
 
@@ -98,7 +130,7 @@ func newExternalClient(sshBinaryPath string, user string, host string, port int,
 // Output runs the ssh command and returns the output
 func (client *ExternalClient) Output(pty bool, debug bool, args ...string) (string, error) {
 	args = append(client.BaseArgs, args...)
-	cmd := getSSHCmd(client.BinaryPath, pty, args...)
+	cmd := executeCmd(client.BinaryPath, pty, args...)
 	if debug {
 		cmdDebug := append([]string{}, cmd.Args...)
 		fmt.Printf("Executing command: %s\n", cmdDebug)
@@ -114,14 +146,14 @@ func (client *ExternalClient) Output(pty bool, debug bool, args ...string) (stri
 // Shell runs the ssh command, binding Stdin, Stdout and Stderr
 func (client *ExternalClient) Shell(pty bool, args ...string) error {
 	args = append(client.BaseArgs, args...)
-	cmd := getSSHCmd(client.BinaryPath, pty, args...)
+	cmd := executeCmd(client.BinaryPath, pty, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
-func getSSHCmd(binaryPath string, pty bool, args ...string) *exec.Cmd {
+func executeCmd(binaryPath string, pty bool, args ...string) *exec.Cmd {
 	if pty {
 		args = append([]string{"-tt"}, args...)
 	}
@@ -195,7 +227,7 @@ func convertBerToDerFormat(ber []byte, debug bool) (string, error) {
 		fmt.Println("Couldn't parse SSH key, trying work around for [GH-2526].")
 	}
 
-	derFilePath := filepath.Join(".", "kubernetes-inspector-privatekey-formated.der")
+	derFilePath := filepath.Join(".", ".kubernetes-inspector-privatekey-formated.der")
 	if _, err := os.Stat(derFilePath); err == nil {
 		if debug {
 			fmt.Println("DER formated private key file already exists.")
@@ -213,6 +245,7 @@ func convertBerToDerFormat(ber []byte, debug bool) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	ioutil.WriteFile(berFormattedKey.Name(), ber, os.ModeAppend)
 	derFormattedKey, err := os.OpenFile(derFilePath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {

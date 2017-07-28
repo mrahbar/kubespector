@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/mrahbar/kubernetes-inspector/integration"
-	"github.com/mrahbar/kubernetes-inspector/util"
+
 	"github.com/spf13/cobra"
 )
 
@@ -24,7 +24,7 @@ var execCmd = &cobra.Command{
 	Short: "Executes a command on a target group or node",
 	Long: `Command to execute is mandatory. Either specify node or group on which command should be executed.
 	When a target group is specified all nodes inside that group will be targeted.`,
-	PreRunE: util.CheckRequiredFlags,
+	PreRunE: integration.CheckRequiredFlags,
 	Run:     execRun,
 }
 
@@ -62,12 +62,12 @@ func initializeExec(target string, node string, group string) {
 	integration.PrettyPrint(out, "\n")
 }
 
-func exec(sshOpts *integration.SSHConfig, command string, node integration.Node) {
+func exec(sshOpts integration.SSHConfig, command string, node integration.Node) {
 	command = fmt.Sprintf("bash -c '%s'", command)
 
-	o, err := integration.PerformSSHCmd(out, sshOpts, &node, command, RootOpts.Debug)
+	o, err := integration.PerformSSHCmd(out, sshOpts, node, command, RootOpts.Debug)
 
-	integration.PrettyPrint(out, fmt.Sprintf("Result on node %s:\n", util.ToNodeLabel(node)))
+	integration.PrettyPrint(out, fmt.Sprintf("Result on node %s:\n", integration.ToNodeLabel(node)))
 	if err != nil {
 		integration.PrettyPrintErr(out, "Error: %v\nOut: %s", err, strings.TrimSpace(o))
 	} else {
