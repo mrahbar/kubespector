@@ -2,6 +2,7 @@ package integration
 
 const KUBERNETES_GROUPNAME = "Kubernetes"
 const MASTER_GROUPNAME = "Master"
+const ETCD_GROUPNAME = "Etcd"
 
 const SERVICES_CHECKNAME = "Services"
 const CONTAINERS_CHECKNAME = "Containers"

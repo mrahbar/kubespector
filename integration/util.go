@@ -1,14 +1,22 @@
-package util
+package integration
 
 import (
 	"fmt"
-	"github.com/mrahbar/kubernetes-inspector/integration"
 	"strings"
 	"github.com/spf13/pflag"
 	"github.com/spf13/cobra"
 )
 
-func IsNodeAddressValid(node integration.Node) bool {
+func GetNodeAddress(node Node) string {
+	nodeAddress := node.IP
+	if nodeAddress == "" {
+		nodeAddress = node.Host
+	}
+
+	return nodeAddress
+}
+
+func IsNodeAddressValid(node Node) bool {
 	if node.Host == "" && node.IP == "" {
 		return false
 	} else {
@@ -16,7 +24,7 @@ func IsNodeAddressValid(node integration.Node) bool {
 	}
 }
 
-func ToNodeLabel(node integration.Node) string {
+func ToNodeLabel(node Node) string {
 	if !IsNodeAddressValid(node) {
 		return ""
 	}
@@ -30,14 +38,14 @@ func ToNodeLabel(node integration.Node) string {
 	return label
 }
 
-func FindGroupByName(clustergroups []integration.ClusterGroup, name string) integration.ClusterGroup {
+func FindGroupByName(clustergroups []ClusterGroup, name string) ClusterGroup {
 	for _, group := range clustergroups {
 		if strings.EqualFold(group.Name, name) {
 			return group
 		}
 	}
 
-	return integration.ClusterGroup{}
+	return ClusterGroup{}
 }
 
 func ElementInArray(array []string, element string) bool {
@@ -52,16 +60,13 @@ func ElementInArray(array []string, element string) bool {
 	return contains
 }
 
-func GetFirstAccessibleNode(nodes []integration.Node, debug bool) integration.Node {
-	var node integration.Node
+func GetFirstAccessibleNode(nodes []Node, debug bool) Node {
+	var node Node
 
 	for _, n := range nodes {
-		nodeAddress := n.IP
-		if nodeAddress == "" {
-			nodeAddress = n.Host
-		}
+		nodeAddress := GetNodeAddress(n)
 
-		result, err := integration.Ping(nodeAddress, n.Host)
+		result, err := Ping(nodeAddress, n.Host)
 		if debug {
 			fmt.Printf("Result for ping on %s:\n\tResult: %s\tErr: %s\n", n.Host, result, err)
 		}

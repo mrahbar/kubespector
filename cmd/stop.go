@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/mrahbar/kubernetes-inspector/integration"
-	"github.com/mrahbar/kubernetes-inspector/util"
+
 	"github.com/spf13/cobra"
 )
 
@@ -17,7 +17,7 @@ var stopCmd = &cobra.Command{
 	Short: "Stop a Kubernetes service on a target group or node",
 	Long: `Service name is mandatory. Either specify node or group in which the service should be stoped.
 	When a target group is specified all nodes inside that group will be targeted for service stop.`,
-	PreRunE: util.CheckRequiredFlags,
+	PreRunE: integration.CheckRequiredFlags,
 	Run:     stopRun,
 }
 
@@ -47,10 +47,10 @@ func initializeStopService(service string, node string, group string) {
 	integration.PrettyPrint(out, "\n")
 }
 
-func stopService(sshOpts *integration.SSHConfig, service string, node integration.Node) {
-	o, err := integration.PerformSSHCmd(out, sshOpts, &node, fmt.Sprintf("sudo systemctl stop %s", service), RootOpts.Debug)
+func stopService(sshOpts integration.SSHConfig, service string, node integration.Node) {
+	o, err := integration.PerformSSHCmd(out, sshOpts, node, fmt.Sprintf("sudo systemctl stop %s", service), RootOpts.Debug)
 
-	integration.PrettyPrint(out, fmt.Sprintf("Result on node %s:\n", util.ToNodeLabel(node)))
+	integration.PrettyPrint(out, fmt.Sprintf("Result on node %s:\n", integration.ToNodeLabel(node)))
 	if err != nil {
 		integration.PrettyPrintErr(out, "Error: %v\nOut: %s", err, strings.TrimSpace(o))
 	} else {

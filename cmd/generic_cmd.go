@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/mrahbar/kubernetes-inspector/integration"
-	"github.com/mrahbar/kubernetes-inspector/util"
+
 	"github.com/spf13/viper"
 )
 
@@ -16,7 +16,7 @@ type CliOpts struct {
 }
 
 type Initializer func(target string, node string, selectedGroup string)
-type Processor func(*integration.SSHConfig, string, integration.Node)
+type Processor func(integration.SSHConfig, string, integration.Node)
 
 func Run(opts *CliOpts, initializer Initializer, processor Processor) {
 	var config integration.Config
@@ -38,12 +38,12 @@ func Run(opts *CliOpts, initializer Initializer, processor Processor) {
 				}
 			}
 
-			if !util.IsNodeAddressValid(node) {
+			if !integration.IsNodeAddressValid(node) {
 				integration.PrettyPrintErr(out, "No node found for %v in config", opts.nodeArg)
 				os.Exit(1)
 			} else {
-				initializer(opts.targetArg, util.ToNodeLabel(node), "")
-				processor(&config.Ssh, opts.targetArg, node)
+				initializer(opts.targetArg, integration.ToNodeLabel(node), "")
+				processor(config.Ssh, opts.targetArg, node)
 			}
 		} else {
 			var groups = []string{}
@@ -58,17 +58,17 @@ func Run(opts *CliOpts, initializer Initializer, processor Processor) {
 			}
 
 			for _, element := range groups {
-				group := util.FindGroupByName(config.ClusterGroups, element)
+				group := integration.FindGroupByName(config.ClusterGroups, element)
 
 				if group.Nodes != nil {
-					initializer(opts.targetArg, util.ToNodeLabel(integration.Node{}), element)
+					initializer(opts.targetArg, integration.ToNodeLabel(integration.Node{}), element)
 					for _, node := range group.Nodes {
-						if !util.IsNodeAddressValid(node) {
+						if !integration.IsNodeAddressValid(node) {
 							integration.PrettyPrintErr(out, "Current node %q has no valid address", node)
 							continue
 						} else {
-							if !util.ElementInArray(nodes, node.Host) {
-								processor(&config.Ssh, opts.targetArg, node)
+							if !integration.ElementInArray(nodes, node.Host) {
+								processor(config.Ssh, opts.targetArg, node)
 								nodes = append(nodes, node.Host)
 							}
 						}

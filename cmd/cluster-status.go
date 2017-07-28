@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/mrahbar/kubernetes-inspector/integration"
-	"github.com/mrahbar/kubernetes-inspector/util"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"text/template"
@@ -70,35 +70,35 @@ func clusterStatusRun(_ *cobra.Command, _ []string) {
 
 		for _, element := range groups {
 			if element != integration.KUBERNETES_GROUPNAME {
-				group := util.FindGroupByName(config.ClusterGroups, element)
+				group := integration.FindGroupByName(config.ClusterGroups, element)
 				if group.Nodes != nil {
-					if util.ElementInArray(clusterStatusChecks, integration.SERVICES_CHECKNAME) {
-						checkServiceStatus(&config.Ssh, element, group.Services, group.Nodes)
+					if integration.ElementInArray(clusterStatusChecks, integration.SERVICES_CHECKNAME) {
+						checkServiceStatus(config.Ssh, element, group.Services, group.Nodes)
 					}
 
-					if util.ElementInArray(clusterStatusChecks, integration.CONTAINERS_CHECKNAME) {
-						checkContainerStatus(&config.Ssh, element, group.Containers, group.Nodes)
+					if integration.ElementInArray(clusterStatusChecks, integration.CONTAINERS_CHECKNAME) {
+						checkContainerStatus(config.Ssh, element, group.Containers, group.Nodes)
 					}
 
-					if util.ElementInArray(clusterStatusChecks, integration.CERTIFICATES_CHECKNAME) {
-						checkCertificatesExpiration(&config.Ssh, element, group.Certificates, group.Nodes)
+					if integration.ElementInArray(clusterStatusChecks, integration.CERTIFICATES_CHECKNAME) {
+						checkCertificatesExpiration(config.Ssh, element, group.Certificates, group.Nodes)
 					}
 
-					if util.ElementInArray(clusterStatusChecks, integration.DISKUSAGE_CHECKNAME) {
-						checkDiskStatus(&config.Ssh, element, group.DiskUsage, group.Nodes)
+					if integration.ElementInArray(clusterStatusChecks, integration.DISKUSAGE_CHECKNAME) {
+						checkDiskStatus(config.Ssh, element, group.DiskUsage, group.Nodes)
 					}
 				} else {
 					integration.PrettyPrintErr(out, "No Nodes found for group: %s", element)
 				}
 			} else {
-				group := util.FindGroupByName(config.ClusterGroups, integration.MASTER_GROUPNAME)
-				checkKubernetesStatus(&config.Ssh, element, config.Kubernetes.Resources, group.Nodes)
+				group := integration.FindGroupByName(config.ClusterGroups, integration.MASTER_GROUPNAME)
+				checkKubernetesStatus(config.Ssh, element, config.Kubernetes.Resources, group.Nodes)
 			}
 		}
 	}
 }
 
-func checkServiceStatus(sshOpts *integration.SSHConfig, element string, services []string, nodes []integration.Node) {
+func checkServiceStatus(sshOpts integration.SSHConfig, element string, services []string, nodes []integration.Node) {
 	integration.PrintHeader(out, fmt.Sprintf("Checking service status of group [%s] ", element), '=')
 	if nodes == nil || len(nodes) == 0 {
 		integration.PrettyPrintIgnored(out, "No host configured for [%s]", element)
@@ -110,15 +110,15 @@ func checkServiceStatus(sshOpts *integration.SSHConfig, element string, services
 	}
 
 	for _, node := range nodes {
-		if !util.IsNodeAddressValid(node) {
+		if !integration.IsNodeAddressValid(node) {
 			integration.PrettyPrintErr(out, "Current node %q has no valid address", node)
 			break
 		}
 
-		integration.PrettyPrint(out, "\nOn node %s:\n", util.ToNodeLabel(node))
+		integration.PrettyPrint(out, "\nOn node %s:\n", integration.ToNodeLabel(node))
 
 		for _, service := range services {
-			o, err := integration.PerformSSHCmd(out, sshOpts, &node,
+			o, err := integration.PerformSSHCmd(out, sshOpts, node,
 				fmt.Sprintf("systemctl is-active %s", service), RootOpts.Debug)
 			result := strings.TrimSpace(o)
 
@@ -139,7 +139,7 @@ func checkServiceStatus(sshOpts *integration.SSHConfig, element string, services
 	}
 }
 
-func checkContainerStatus(sshOpts *integration.SSHConfig, element string, containers []string, nodes []integration.Node) {
+func checkContainerStatus(sshOpts integration.SSHConfig, element string, containers []string, nodes []integration.Node) {
 	integration.PrintHeader(out, fmt.Sprintf("Checking container status of group [%s] ", element), '=')
 	if nodes == nil || len(nodes) == 0 {
 		integration.PrettyPrintIgnored(out, "No host configured for [%s]", element)
@@ -151,15 +151,15 @@ func checkContainerStatus(sshOpts *integration.SSHConfig, element string, contai
 	}
 
 	for _, node := range nodes {
-		if !util.IsNodeAddressValid(node) {
+		if !integration.IsNodeAddressValid(node) {
 			integration.PrettyPrintErr(out, "Current node %q has no valid address", node)
 			break
 		}
 
-		integration.PrettyPrint(out, "\nOn node %s:\n", util.ToNodeLabel(node))
+		integration.PrettyPrint(out, "\nOn node %s:\n", integration.ToNodeLabel(node))
 
 		for _, container := range containers {
-			o, err := integration.PerformSSHCmd(out, sshOpts, &node,
+			o, err := integration.PerformSSHCmd(out, sshOpts, node,
 				fmt.Sprintf("bash -c 'docker ps -a --latest -f name=%s* -q | xargs --no-run-if-empty docker inspect -f '{{.State.Status}}''", container), RootOpts.Debug)
 			result := strings.TrimSpace(o)
 
@@ -180,7 +180,7 @@ func checkContainerStatus(sshOpts *integration.SSHConfig, element string, contai
 	}
 }
 
-func checkCertificatesExpiration(sshOpts *integration.SSHConfig, element string, certificates []string, nodes []integration.Node) {
+func checkCertificatesExpiration(sshOpts integration.SSHConfig, element string, certificates []string, nodes []integration.Node) {
 	integration.PrintHeader(out, fmt.Sprintf("Checking certificate status of group [%s] ", element), '=')
 	if nodes == nil || len(nodes) == 0 {
 		integration.PrettyPrintIgnored(out, "No host configured for [%s]", element)
@@ -192,23 +192,23 @@ func checkCertificatesExpiration(sshOpts *integration.SSHConfig, element string,
 	}
 
 	for _, node := range nodes {
-		if !util.IsNodeAddressValid(node) {
+		if !integration.IsNodeAddressValid(node) {
 			integration.PrettyPrintErr(out, "Current node %q has no valid address", node)
 			break
 		}
 
-		integration.PrettyPrint(out, "\nOn node %s:\n", util.ToNodeLabel(node))
+		integration.PrettyPrint(out, "\nOn node %s:\n", integration.ToNodeLabel(node))
 
 		for _, cert := range certificates {
 			cert = parseTemplate(cert, node, RootOpts.Debug)
-			o, err := integration.PerformSSHCmd(out, sshOpts, &node,
+			o, err := integration.PerformSSHCmd(out, sshOpts, node,
 				fmt.Sprintf("bash -c 'openssl x509 -enddate -noout -in %s |cut -d= -f 2'", cert), RootOpts.Debug)
 			result := strings.TrimSpace(o)
 
 			if err != nil {
 				integration.PrettyPrintErr(out, "Error checking expiration of %s: %s, %s", cert, result, err)
 			} else {
-				_, err = integration.PerformSSHCmd(out, sshOpts, &node,
+				_, err = integration.PerformSSHCmd(out, sshOpts, node,
 					fmt.Sprintf("openssl x509 -checkend 86400 -noout -in %s", cert), RootOpts.Debug)
 
 				if err == nil {
@@ -258,7 +258,7 @@ func parseTemplate(value string, node integration.Node, debug bool) string {
 	return value
 }
 
-func checkDiskStatus(sshOpts *integration.SSHConfig, element string, diskSpace integration.DiskUsage, nodes []integration.Node) {
+func checkDiskStatus(sshOpts integration.SSHConfig, element string, diskSpace integration.DiskUsage, nodes []integration.Node) {
 	integration.PrintHeader(out, fmt.Sprintf("Checking disk status of group [%s] ", element), '-')
 	if nodes == nil || len(nodes) == 0 {
 		integration.PrettyPrintIgnored(out, "No host configured for [%s]", element)
@@ -266,16 +266,16 @@ func checkDiskStatus(sshOpts *integration.SSHConfig, element string, diskSpace i
 	}
 
 	for _, node := range nodes {
-		if !util.IsNodeAddressValid(node) {
+		if !integration.IsNodeAddressValid(node) {
 			integration.PrettyPrintErr(out, "Current node %q has no valid address", node)
 			break
 		}
 
-		integration.PrettyPrint(out, "\nOn node %s:\n", util.ToNodeLabel(node))
+		integration.PrettyPrint(out, "\nOn node %s:\n", integration.ToNodeLabel(node))
 
 		if len(diskSpace.FileSystemUsage) > 0 {
 			for _, fsUsage := range diskSpace.FileSystemUsage {
-				o, err := integration.PerformSSHCmd(out, sshOpts, &node,
+				o, err := integration.PerformSSHCmd(out, sshOpts, node,
 					fmt.Sprintf("df -h | grep %s", fsUsage), RootOpts.Debug)
 				result := strings.TrimSpace(o)
 
@@ -308,7 +308,7 @@ func checkDiskStatus(sshOpts *integration.SSHConfig, element string, diskSpace i
 
 		if len(diskSpace.DirectoryUsage) > 0 {
 			for _, dirUsage := range diskSpace.DirectoryUsage {
-				o, err := integration.PerformSSHCmd(out, sshOpts, &node,
+				o, err := integration.PerformSSHCmd(out, sshOpts, node,
 					fmt.Sprintf("du -h -d 0 --exclude=/proc --exclude=/run %s | grep %s", dirUsage, dirUsage),
 					RootOpts.Debug)
 				result := strings.TrimSpace(o)
@@ -326,12 +326,12 @@ func checkDiskStatus(sshOpts *integration.SSHConfig, element string, diskSpace i
 	}
 }
 
-func checkKubernetesStatus(sshOpts *integration.SSHConfig, element string,
+func checkKubernetesStatus(sshOpts integration.SSHConfig, element string,
 	resources []integration.KubernetesResource, nodes []integration.Node) {
 	integration.PrintHeader(out, fmt.Sprintf("Checking status of [%s] ", element), '=')
 
 	if nodes == nil || len(nodes) == 0 {
-		integration.PrettyPrintErr(out, "No master host configured for [%s]", element)
+		integration.PrettyPrintErr(out, "No host configured for [%s]", element)
 		os.Exit(1)
 	}
 	if resources == nil || len(resources) == 0 {
@@ -339,14 +339,14 @@ func checkKubernetesStatus(sshOpts *integration.SSHConfig, element string,
 		os.Exit(1)
 	}
 
-	node := util.GetFirstAccessibleNode(nodes, RootOpts.Debug)
+	node := integration.GetFirstAccessibleNode(nodes, RootOpts.Debug)
 
-	if !util.IsNodeAddressValid(node) {
+	if !integration.IsNodeAddressValid(node) {
 		integration.PrettyPrintErr(out, "No master available for Kubernetes status check")
 		os.Exit(1)
 	}
 
-	integration.PrettyPrint(out, "Running kubectl on node %s\n\n", util.ToNodeLabel(node))
+	integration.PrettyPrint(out, "Running kubectl on node %s\n\n", integration.ToNodeLabel(node))
 
 	for _, resource := range resources {
 		msg := fmt.Sprintf("Status of %s", resource.Type)
@@ -361,7 +361,7 @@ func checkKubernetesStatus(sshOpts *integration.SSHConfig, element string,
 		}
 
 		integration.PrettyPrint(out, msg+namespace_msg+":\n")
-		o, err := integration.PerformSSHCmd(out, sshOpts, &node, command, RootOpts.Debug)
+		o, err := integration.PerformSSHCmd(out, sshOpts, node, command, RootOpts.Debug)
 		result := strings.TrimSpace(o)
 		integration.PrettyPrint(out, "\n")
 
