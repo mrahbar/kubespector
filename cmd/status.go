@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"strings"
-
 	"github.com/mrahbar/kubernetes-inspector/integration"
 
 	"github.com/spf13/cobra"
@@ -52,9 +50,9 @@ func statusService(sshOpts integration.SSHConfig, service string, node integrati
 
 	integration.PrettyPrint(out, fmt.Sprintf("Result on node %s:\n", integration.ToNodeLabel(node)))
 	if err != nil {
-		integration.PrettyPrintErr(out, "Error: %v\nOut: %s", err, strings.TrimSpace(o))
+		integration.PrettyPrintErr(out, "Error: %v\nOut: %s", err, o)
 	} else {
-		integration.PrettyPrintOk(out, "%s", strings.TrimSpace(o))
+		integration.PrettyPrintOk(out, "%s", o)
 	}
 
 	integration.PrettyPrint(out, "\n")

@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"os"
-	"strings"
 )
 
 type kubectlCliOpts struct {
@@ -56,8 +55,7 @@ func kubectlRun(_ *cobra.Command, _ []string) {
 	}
 
 	integration.PrettyPrint(out, "Running kubectl command '%s' on node %s\n\n", kubectlOpts.command, integration.ToNodeLabel(node))
-	o, err := integration.PerformSSHCmd(out, config.Ssh, node, fmt.Sprintf("kubectl %s", kubectlOpts.command), RootOpts.Debug)
-	result := strings.TrimSpace(o)
+	result, err := integration.PerformSSHCmd(out, config.Ssh, node, fmt.Sprintf("kubectl %s", kubectlOpts.command), RootOpts.Debug)
 
 	if err != nil {
 		integration.PrettyPrintErr(out, "Error performing kubectl command %s:\n\tResult: %s\tErr: %s", kubectlOpts.command, result, err)

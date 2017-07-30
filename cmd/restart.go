@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"strings"
-
 	"github.com/mrahbar/kubernetes-inspector/integration"
 
 	"github.com/spf13/cobra"
@@ -53,9 +51,9 @@ func restartService(sshOpts integration.SSHConfig, service string, node integrat
 	integration.PrettyPrint(out, fmt.Sprintf("Result on node %s:\n", integration.ToNodeLabel(node)))
 
 	if err != nil {
-		integration.PrettyPrintErr(out, "Error: %v\nOut: %s", err, strings.TrimSpace(o))
+		integration.PrettyPrintErr(out, "Error: %v\nOut: %s", err, o)
 	} else {
-		integration.PrettyPrintOk(out, "Service %s restarted. %s", service, strings.TrimSpace(o))
+		integration.PrettyPrintOk(out, "Service %s restarted. %s", service, o)
 	}
 
 	integration.PrettyPrint(out, "\n")

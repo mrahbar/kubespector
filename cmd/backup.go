@@ -96,8 +96,7 @@ func backup(ssh integration.SSHConfig, node integration.Node) {
 
 	integration.PrettyPrint(out, "Start backup process\n")
 	backupCmd := fmt.Sprintf("etcdctl %s backup --data-dir %s --backup-dir %s", etcdConnection, etcdBackupOpts.dataDir, localEtcdBackupDir)
-	o, err := integration.PerformSSHCmd(out, ssh, node, backupCmd, RootOpts.Debug)
-	result := strings.TrimSpace(o)
+	result, err := integration.PerformSSHCmd(out, ssh, node, backupCmd, RootOpts.Debug)
 
 	if err != nil {
 		integration.PrettyPrintErr(out, "Error trying to backup etcd:\n\tResult: %s\tErr: %s", result, err)
@@ -114,8 +113,7 @@ func transferBackup(ssh integration.SSHConfig, node integration.Node) {
 	backupArchive := path.Join(localBackupDir, archiveName)
 
 	archiveCmd := fmt.Sprintf("tar -czvf %s -C %s . ", backupArchive, localEtcdBackupDir)
-	o, err := integration.PerformSSHCmd(out, ssh, node, archiveCmd, RootOpts.Debug)
-	result := strings.TrimSpace(o)
+	result, err := integration.PerformSSHCmd(out, ssh, node, archiveCmd, RootOpts.Debug)
 
 	if err != nil {
 		integration.PrettyPrintErr(out, "Error trying to archive backup etcd:\n\tResult: %s\tErr: %s", result, err)
@@ -124,8 +122,7 @@ func transferBackup(ssh integration.SSHConfig, node integration.Node) {
 		cleanUp(ssh, node, localEtcdBackupDir)
 
 		integration.PrettyPrint(out, "Transferring archive\n")
-		o, err = integration.PerformSCPCmd(out, ssh, node, backupArchive, etcdBackupOpts.output, RootOpts.Debug)
-		result = strings.TrimSpace(o)
+		result, err = integration.PerformSCPCmdFromRemote(out, ssh, node, backupArchive, etcdBackupOpts.output, RootOpts.Debug)
 
 		cleanUp(ssh, node, backupArchive)
 
