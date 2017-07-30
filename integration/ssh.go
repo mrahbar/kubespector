@@ -66,28 +66,6 @@ func PerformSSHCmd(out io.Writer, sshOpts SSHConfig, node Node, cmd string, debu
 	return client.Output(sshOpts.Pty, debug, cmd)
 }
 
-func PerformSCPCmd(out io.Writer, sshOpts SSHConfig, node Node, remotePath string, localPath string, debug bool) (string, error) {
-	nodeAddress := GetNodeAddress(node)
-
-	client, err := newSCPClient(fmt.Sprintf("%s@%s:%s", sshOpts.User, nodeAddress, remotePath),
-		sshOpts.Port, sshOpts.Key, strings.FieldsFunc(sshOpts.Options, func(r rune) bool {
-			return r == ' ' || r == ','
-		}), debug)
-
-	if err != nil {
-		msg := fmt.Sprintf("Error creating SCP client for host %s: %v", nodeAddress, err)
-		PrettyPrintErr(out, msg)
-		return "", err
-	}
-
-	return client.Output(false, debug, localPath)
-}
-
-// newSSHClient verifies ssh is available in the PATH and returns an SSH client
-func newSCPClient(remoteHost string, port int, key string, options []string, debug bool) (Client, error) {
-	return newClient(SecureShellBinary{binaryName: "scp", portArg: "-P"}, remoteHost, port, key, options, debug)
-}
-
 // newSSHClient verifies ssh is available in the PATH and returns an SSH client
 func newSSHClient(remoteHost string, port int, key string, options []string, debug bool) (Client, error) {
 	return newClient(SecureShellBinary{binaryName: "ssh", portArg: "-p"}, remoteHost, port, key, options, debug)
@@ -109,15 +87,15 @@ func newClient(binary SecureShellBinary, remoteHost string, port int, key string
 	return newExternalClient(binary, remoteHost, port, key, options)
 }
 
-func newExternalClient(binary SecureShellBinary, remoteHost string, port int, key string, options []string) (*ExternalClient, error) {
+func newExternalClient(binary SecureShellBinary, host string, port int, key string, options []string) (*ExternalClient, error) {
 	// Get default args with user and host
 	args := append(baseSSHArgs, options...)
 	// set port
 	args = append(args, binary.portArg, fmt.Sprintf("%d", port))
 	// set key
 	args = append(args, "-i", key)
-	// set remote host
-	args = append(args, remoteHost)
+	// set host
+	args = append(args, host)
 
 	client := &ExternalClient{
 		BinaryPath: binary.binaryPath,
@@ -140,7 +118,7 @@ func (client *ExternalClient) Output(pty bool, debug bool, args ...string) (stri
 		cmd.Stdin = os.Stdin
 	}
 	output, err := cmd.CombinedOutput()
-	return string(output), err
+	return strings.TrimSpace(string(output)), err
 }
 
 // Shell runs the ssh command, binding Stdin, Stdout and Stderr
