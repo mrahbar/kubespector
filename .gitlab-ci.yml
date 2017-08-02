@@ -1,10 +1,15 @@
-image: docker:latest
+image: golang-glide:1.8
+
+stages:
+  - build
+  - test
 
 before_script:
-- docker info
+  - cp -r /builds/mrahbar/kubernetes-inspector /go/src/github.com/mrahbar/kubernetes-inspector
+  - cd /go/src/github.com/mrahbar/kubernetes-inspector
 
-build:
+build-project:
   stage: build
   script:
-    - docker run --rm -v $(shell pwd):/go/src/github.com/mrahbar/kubernetes-inspector -w /go/src/github.com/mrahbar/kubernetes-inspector -e CGO_ENABLED=0 golang-glide:1.8 glide install
-    - docker run --rm -v $(shell pwd):/go/src/github.com/mrahbar/kubernetes-inspector -w /go/src/github.com/mrahbar/kubernetes-inspector -e CGO_ENABLED=0 golang-glide:1.8 go build -a -installsuffix cgo -ldflags "-w" -o builds/kubernetes-inspector-1.1.3-SNAPSHOT *.go
+    - glide install
+    - go build -a -installsuffix cgo -ldflags "-w" -o builds/kubernetes-inspector-1.1.3-SNAPSHOT *.go
