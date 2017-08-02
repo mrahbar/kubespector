@@ -1,4 +1,4 @@
-image: golang-glide:1.8
+image: endianogino/golang-glide:1.8
 
 stages:
   - build
