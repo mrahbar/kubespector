@@ -4,7 +4,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +13,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"io/ioutil"
+	"github.com/mrahbar/kubernetes-inspector/types"
 )
 
 type SecureShellBinary struct {
@@ -45,7 +45,7 @@ type ExternalClient struct {
 	cmd        *exec.Cmd
 }
 
-func PerformSSHCmd(out io.Writer, sshOpts SSHConfig, node Node, cmd string, debug bool) (string, error) {
+func PerformSSHCmd(sshOpts types.SSHConfig, node types.Node, cmd string, debug bool) (string, error) {
 	nodeAddress := GetNodeAddress(node)
 
 	client, err := newSSHClient(fmt.Sprintf("%s@%s", sshOpts.User, nodeAddress), sshOpts.Port, sshOpts.Key,
@@ -55,7 +55,7 @@ func PerformSSHCmd(out io.Writer, sshOpts SSHConfig, node Node, cmd string, debu
 
 	if err != nil {
 		msg := fmt.Sprintf("Error creating SSH client for host %s: %v", nodeAddress, err)
-		PrettyPrintErr(out, msg)
+		PrettyPrintErr(msg)
 		return "", err
 	}
 

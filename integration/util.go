@@ -2,12 +2,27 @@ package integration
 
 import (
 	"fmt"
-	"strings"
-	"github.com/spf13/pflag"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"strings"
+	"github.com/spf13/viper"
+	"os"
+	"github.com/mrahbar/kubernetes-inspector/types"
 )
 
-func GetNodeAddress(node Node) string {
+func UnmarshalConfig() types.Config {
+	var config types.Config
+	err := viper.Unmarshal(&config)
+
+	if err != nil {
+		PrettyPrintErr("Unable to decode config: %v", err)
+		os.Exit(1)
+	}
+
+	return config
+}
+
+func GetNodeAddress(node types.Node) string {
 	nodeAddress := node.IP
 	if nodeAddress == "" {
 		nodeAddress = node.Host
@@ -16,7 +31,7 @@ func GetNodeAddress(node Node) string {
 	return nodeAddress
 }
 
-func IsNodeAddressValid(node Node) bool {
+func IsNodeAddressValid(node types.Node) bool {
 	if node.Host == "" && node.IP == "" {
 		return false
 	} else {
@@ -24,7 +39,7 @@ func IsNodeAddressValid(node Node) bool {
 	}
 }
 
-func ToNodeLabel(node Node) string {
+func ToNodeLabel(node types.Node) string {
 	if !IsNodeAddressValid(node) {
 		return ""
 	}
@@ -38,14 +53,14 @@ func ToNodeLabel(node Node) string {
 	return label
 }
 
-func FindGroupByName(clustergroups []ClusterGroup, name string) ClusterGroup {
+func FindGroupByName(clustergroups []types.ClusterGroup, name string) types.ClusterGroup {
 	for _, group := range clustergroups {
 		if strings.EqualFold(group.Name, name) {
 			return group
 		}
 	}
 
-	return ClusterGroup{}
+	return types.ClusterGroup{}
 }
 
 func ElementInArray(array []string, element string) bool {
@@ -60,8 +75,8 @@ func ElementInArray(array []string, element string) bool {
 	return contains
 }
 
-func GetFirstAccessibleNode(nodes []Node, debug bool) Node {
-	var node Node
+func GetFirstAccessibleNode(nodes []types.Node, debug bool) types.Node {
+	var node types.Node
 
 	for _, n := range nodes {
 		nodeAddress := GetNodeAddress(n)

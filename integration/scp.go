@@ -3,10 +3,10 @@ package integration
 import (
 	"fmt"
 	"strings"
-	"io"
+	"github.com/mrahbar/kubernetes-inspector/types"
 )
 
-func PerformSCPCmdFromRemote(out io.Writer, sshOpts SSHConfig, node Node, remotePath string, localPath string, debug bool) (string, error) {
+func PerformSCPCmdFromRemote(sshOpts types.SSHConfig, node types.Node, remotePath string, localPath string, debug bool) (string, error) {
 	nodeAddress := GetNodeAddress(node)
 
 	client, err := newSCPClient(fmt.Sprintf("%s@%s:%s", sshOpts.User, nodeAddress, remotePath),
@@ -16,14 +16,14 @@ func PerformSCPCmdFromRemote(out io.Writer, sshOpts SSHConfig, node Node, remote
 
 	if err != nil {
 		msg := fmt.Sprintf("Error creating SCP client for host %s: %v", nodeAddress, err)
-		PrettyPrintErr(out, msg)
+		PrettyPrintErr(msg)
 		return "", err
 	}
 
 	return client.Output(false, debug, localPath)
 }
 
-func PerformSCPCmdToRemote(out io.Writer, sshOpts SSHConfig, node Node, localPath string, remotePath string, debug bool) (string, error) {
+func PerformSCPCmdToRemote(sshOpts types.SSHConfig, node types.Node, localPath string, remotePath string, debug bool) (string, error) {
 	nodeAddress := GetNodeAddress(node)
 
 	client, err := newSCPClient(localPath, sshOpts.Port, sshOpts.Key,
@@ -33,7 +33,7 @@ func PerformSCPCmdToRemote(out io.Writer, sshOpts SSHConfig, node Node, localPat
 
 	if err != nil {
 		msg := fmt.Sprintf("Error creating SCP client for host %s: %v", nodeAddress, err)
-		PrettyPrintErr(out, msg)
+		PrettyPrintErr(msg)
 		return "", err
 	}
 

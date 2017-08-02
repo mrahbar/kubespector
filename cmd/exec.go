@@ -1,20 +1,14 @@
 package cmd
 
 import (
-	"fmt"
 	"github.com/mrahbar/kubernetes-inspector/integration"
 
+	"github.com/mrahbar/kubernetes-inspector/pkg"
+	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/spf13/cobra"
 )
 
-type execCliOpts struct {
-	groupArg  string
-	nodeArg   string
-	targetArg string
-	sudo      bool
-}
-
-var execOpts = &execCliOpts{}
+var execOpts = &types.ExecOpts{}
 
 // execCmd represents the exec command
 var execCmd = &cobra.Command{
@@ -28,49 +22,16 @@ var execCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(execCmd)
-	execCmd.Flags().StringVarP(&execOpts.groupArg, "group", "g", "", "Comma-separated list of group names")
-	execCmd.Flags().StringVarP(&execOpts.nodeArg, "node", "n", "", "Name of target node")
-	execCmd.Flags().StringVarP(&execOpts.targetArg, "cmd", "c", "", "Command to execute")
-	execCmd.Flags().BoolVarP(&execOpts.sudo, "sudo", "s", false, "Run as sudo")
+	execCmd.Flags().StringVarP(&execOpts.GroupArg, "group", "g", "", "Comma-separated list of group names")
+	execCmd.Flags().StringVarP(&execOpts.NodeArg, "node", "n", "", "Name of target node")
+	execCmd.Flags().StringVarP(&execOpts.TargetArg, "cmd", "c", "", "Command to execute")
+	execCmd.Flags().BoolVarP(&execOpts.Sudo, "sudo", "s", false, "Run as sudo")
 
 	execCmd.MarkFlagRequired("cmd")
 }
 
 func execRun(_ *cobra.Command, _ []string) {
-	opts := &CliOpts{
-		groupArg:  execOpts.groupArg,
-		nodeArg:   execOpts.nodeArg,
-		targetArg: execOpts.targetArg,
-	}
-
-	Run(opts, initializeExec, exec)
-}
-
-func initializeExec(target string, node string, group string) {
-	if group != "" {
-		integration.PrintHeader(out, fmt.Sprintf("Executing '%v' in group [%s] ",
-			target, group), '=')
-	}
-
-	if node != "" {
-		integration.PrintHeader(out, fmt.Sprintf("Executing '%v' on node %s :\n",
-			execOpts.targetArg, node), '=')
-	}
-
-	integration.PrettyPrint(out, "\n")
-}
-
-func exec(sshOpts integration.SSHConfig, command string, node integration.Node) {
-	command = fmt.Sprintf("bash -c '%s'", command)
-
-	o, err := integration.PerformSSHCmd(out, sshOpts, node, command, RootOpts.Debug)
-
-	integration.PrettyPrint(out, fmt.Sprintf("Result on node %s:\n", integration.ToNodeLabel(node)))
-	if err != nil {
-		integration.PrettyPrintErr(out, "Error: %v\nOut: %s", err, o)
-	} else {
-		integration.PrettyPrintOk(out, "%s", o)
-	}
-
-	integration.PrettyPrint(out, "\n")
+	config := integration.UnmarshalConfig()
+	execOpts.Debug = RootOpts.Debug
+	pkg.Exec(config, execOpts)
 }
