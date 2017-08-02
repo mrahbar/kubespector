@@ -14,16 +14,14 @@ build-project:
   variables:
     TAG: 1.1.3-SNAPSHOT
     PREFIX: kubernetes-inspector
-    BUILD_DATE: 'date -u'
   script:
-    - echo " $BUILD_DATE"
-    - eval $BUILD_DATE
-    - TEST=$(date -u)
-    - echo "$TEST"
+    - export GOOS=linux
+    - export CGO_ENABLED=0
+    - BUILD_DATE=$(date -u)
     - glide install
-    - go build -a -installsuffix cgo -ldflags "-w -X main.version=$TAG" -o builds/$PREFIX-$TAG *.go
+    - go build -a -installsuffix cgo -ldflags "-w -X main.version=$TAG -X 'main.buildDate=$BUILD_DATE'" -o $PREFIX-$TAG *.go
   artifacts:
     when: on_success
     paths:
-    - builds/
+    - $PREFIX-$TAG
     
