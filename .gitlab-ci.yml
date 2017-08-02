@@ -5,11 +5,16 @@ stages:
   - test
 
 before_script:
+  - mkdir -p /go/src/github.com/mrahbar/kubernetes-inspector
   - cp -r /builds/mrahbar/kubernetes-inspector /go/src/github.com/mrahbar/kubernetes-inspector
   - cd /go/src/github.com/mrahbar/kubernetes-inspector
 
 build-project:
   stage: build
+  variables:
+    TAG: 1.1.3-SNAPSHOT
+    PREFIX: kubernetes-inspector
+    BUILD_DATE: 'date -u'
   script:
     - glide install
-    - go build -a -installsuffix cgo -ldflags "-w" -o builds/kubernetes-inspector-1.1.3-SNAPSHOT *.go
+    - go build -a -installsuffix cgo -ldflags "-w -X main.version=$(TAG)" -o builds/$PREFIX-$TAG *.go
