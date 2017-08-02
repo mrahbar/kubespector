@@ -1,19 +1,14 @@
 package cmd
 
 import (
-	"fmt"
 	"github.com/mrahbar/kubernetes-inspector/integration"
 
+	"github.com/mrahbar/kubernetes-inspector/pkg"
+	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"os"
 )
 
-type kubectlCliOpts struct {
-	command string
-}
-
-var kubectlOpts = &kubectlCliOpts{}
+var kubectlOpts = &types.KubectlOpts{}
 
 // kubectlCmd represents the kubectl command
 var kubectlCmd = &cobra.Command{
@@ -27,41 +22,12 @@ var kubectlCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(kubectlCmd)
-	kubectlCmd.Flags().StringVarP(&kubectlOpts.command, "command", "c", "", "Command to execute")
+	kubectlCmd.Flags().StringVarP(&kubectlOpts.Command, "command", "c", "", "Command to execute")
 	kubectlCmd.MarkFlagRequired("command")
 }
 
 func kubectlRun(_ *cobra.Command, _ []string) {
-	var config integration.Config
-	err := viper.Unmarshal(&config)
-
-	if err != nil {
-		integration.PrettyPrintErr(out, "Unable to decode config: %v", err)
-		os.Exit(1)
-	}
-
-	group := integration.FindGroupByName(config.ClusterGroups, integration.MASTER_GROUPNAME)
-
-	if group.Nodes == nil || len(group.Nodes) == 0 {
-		integration.PrettyPrintErr(out, "No host configured for group [%s]", integration.MASTER_GROUPNAME)
-		os.Exit(1)
-	}
-
-	node := integration.GetFirstAccessibleNode(group.Nodes, RootOpts.Debug)
-
-	if !integration.IsNodeAddressValid(node) {
-		integration.PrettyPrintErr(out, "No master available")
-		os.Exit(1)
-	}
-
-	integration.PrettyPrint(out, "Running kubectl command '%s' on node %s\n\n", kubectlOpts.command, integration.ToNodeLabel(node))
-	result, err := integration.PerformSSHCmd(out, config.Ssh, node, fmt.Sprintf("kubectl %s", kubectlOpts.command), RootOpts.Debug)
-
-	if err != nil {
-		integration.PrettyPrintErr(out, "Error performing kubectl command %s:\n\tResult: %s\tErr: %s", kubectlOpts.command, result, err)
-	} else {
-		integration.PrettyPrintOk(out, result)
-	}
-
-	integration.PrettyPrint(out, "\n")
+	config := integration.UnmarshalConfig()
+	kubectlOpts.Debug = RootOpts.Debug
+	pkg.Kubectl(config, kubectlOpts)
 }

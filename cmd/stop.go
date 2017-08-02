@@ -1,13 +1,14 @@
 package cmd
 
 import (
-	"fmt"
 	"github.com/mrahbar/kubernetes-inspector/integration"
 
+	"github.com/mrahbar/kubernetes-inspector/pkg"
+	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/spf13/cobra"
 )
 
-var stopOpts = &CliOpts{}
+var stopOpts = &types.GenericOpts{}
 
 // stopCmd represents the stop command
 var stopCmd = &cobra.Command{
@@ -21,39 +22,14 @@ var stopCmd = &cobra.Command{
 
 func init() {
 	ServiceCmd.AddCommand(stopCmd)
-	stopCmd.Flags().StringVarP(&stopOpts.groupArg, "group", "g", "", "Comma-separated list of group names")
-	stopCmd.Flags().StringVarP(&stopOpts.nodeArg, "node", "n", "", "Name of target node")
-	stopCmd.Flags().StringVarP(&stopOpts.targetArg, "service", "s", "", "Name of target service")
+	stopCmd.Flags().StringVarP(&stopOpts.GroupArg, "group", "g", "", "Comma-separated list of group names")
+	stopCmd.Flags().StringVarP(&stopOpts.NodeArg, "node", "n", "", "Name of target node")
+	stopCmd.Flags().StringVarP(&stopOpts.TargetArg, "service", "s", "", "Name of target service")
 	stopCmd.MarkFlagRequired("service")
 }
 
 func stopRun(_ *cobra.Command, _ []string) {
-	Run(stopOpts, initializeStopService, stopService)
-}
-
-func initializeStopService(service string, node string, group string) {
-	if group != "" {
-		integration.PrintHeader(out, fmt.Sprintf("Stopping service %v in group [%s] ",
-			service, group), '=')
-	}
-
-	if node != "" {
-		integration.PrintHeader(out, fmt.Sprintf("Stopping service %v on node %s:\n",
-			stopOpts.targetArg, node), '=')
-	}
-
-	integration.PrettyPrint(out, "\n")
-}
-
-func stopService(sshOpts integration.SSHConfig, service string, node integration.Node) {
-	o, err := integration.PerformSSHCmd(out, sshOpts, node, fmt.Sprintf("sudo systemctl stop %s", service), RootOpts.Debug)
-
-	integration.PrettyPrint(out, fmt.Sprintf("Result on node %s:\n", integration.ToNodeLabel(node)))
-	if err != nil {
-		integration.PrettyPrintErr(out, "Error: %v\nOut: %s", err, o)
-	} else {
-		integration.PrettyPrintOk(out, "Service %s stoped. %s", service, o)
-	}
-
-	integration.PrettyPrint(out, "\n")
+	config := integration.UnmarshalConfig()
+	stopOpts.Debug = RootOpts.Debug
+	pkg.Stop(config, stopOpts)
 }

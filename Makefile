@@ -1,6 +1,6 @@
 cobrall: push
 
-TAG = 1.1.2-SNAPSHOT
+TAG = 1.1.3-SNAPSHOT
 PREFIX = kubernetes-inspector
 BUILD_DATE := $(shell date -u)
 

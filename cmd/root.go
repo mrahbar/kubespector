@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"io"
 	"os"
 
 	"github.com/mrahbar/kubernetes-inspector/integration"
@@ -18,7 +17,6 @@ var Version string
 var BuildDate string
 
 var RootOpts = &rootCliOpts{}
-var out io.Writer = os.Stdout
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
@@ -39,14 +37,7 @@ func Execute(version string, buildDate string) {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-
-	// Here you will define your flags and configuration settings.
-	// Cobra supports Persistent Flags, which, if defined here,
-	// will be global for your application.
-
 	RootCmd.PersistentFlags().StringVar(&RootOpts.ConfigFile, "config", "", "config file (default is ./kubernetes-inspector.yaml)")
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
 	RootCmd.PersistentFlags().BoolVarP(&RootOpts.Debug, "debug", "d", false, "Enable debug")
 }
 
@@ -65,8 +56,8 @@ func initConfig() {
 	// If a config file is found, read it in.
 	err := viper.ReadInConfig()
 	if err == nil {
-		integration.PrettyPrint(out, "Loading config file: %s\n", viper.ConfigFileUsed())
+		integration.PrettyPrint("Loading config file: %s\n", viper.ConfigFileUsed())
 	} else {
-		integration.PrettyPrintErr(out, "Error loading config file: %s", err.Error())
+		integration.PrettyPrintErr("Error loading config file: %s", err.Error())
 	}
 }

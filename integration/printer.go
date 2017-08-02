@@ -6,6 +6,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/fatih/color"
+	"os"
 )
 
 const (
@@ -18,6 +19,8 @@ const (
 	ignoredType = "[IGNORED]"
 )
 
+var out io.Writer = os.Stdout
+
 var Green = color.New(color.FgGreen)
 var Red = color.New(color.FgRed)
 var Orange = color.New(color.FgRed, color.FgYellow)
@@ -25,67 +28,67 @@ var Blue = color.New(color.FgCyan)
 var White = color.New(color.FgHiWhite)
 
 // PrettyPrintOk [OK](Green) with formatted string
-func PrettyPrintOk(out io.Writer, msg string, a ...interface{}) {
-	print(out, msg, okType, a...)
+func PrettyPrintOk(msg string, a ...interface{}) {
+	printMsg(msg, okType, a...)
 }
 
 // PrettyPrintErr [ERROR](Red) with formatted string
-func PrettyPrintErr(out io.Writer, msg string, a ...interface{}) {
-	print(out, msg, errType, a...)
+func PrettyPrintErr(msg string, a ...interface{}) {
+	printMsg(msg, errType, a...)
 }
 
 // PrettyPrint no type will be displayed, used for just single line printing
-func PrettyPrint(out io.Writer, msg string, a ...interface{}) {
-	print(out, msg, noType, a...)
+func PrettyPrint(msg string, a ...interface{}) {
+	printMsg(msg, noType, a...)
 }
 
 // PrettyPrintWarn [WARNING](Orange) with formatted string
-func PrettyPrintWarn(out io.Writer, msg string, a ...interface{}) {
-	print(out, msg, warnType, a...)
+func PrettyPrintWarn(msg string, a ...interface{}) {
+	printMsg(msg, warnType, a...)
 }
 
 // PrettyPrintIgnored [IGNORED](Red) with formatted string
-func PrettyPrintIgnored(out io.Writer, msg string, a ...interface{}) {
-	print(out, msg, ignoredType, a...)
+func PrettyPrintIgnored(msg string, a ...interface{}) {
+	printMsg(msg, ignoredType, a...)
 }
 
 // PrettyPrintUnknown [UNREACHABLE](Red) with formatted string
-func PrettyPrintUnknown(out io.Writer, msg string, a ...interface{}) {
-	print(out, msg, unknownType, a...)
+func PrettyPrintUnknown(msg string, a ...interface{}) {
+	printMsg(msg, unknownType, a...)
 }
 
 // PrettyPrintSkipped [SKIPPED](blue) with formatted string
-func PrettyPrintSkipped(out io.Writer, msg string, a ...interface{}) {
-	print(out, msg, skippedType, a...)
+func PrettyPrintSkipped(msg string, a ...interface{}) {
+	printMsg(msg, skippedType, a...)
 }
 
 // PrintOk print whole message in green(Red) format
 func PrintOk(out io.Writer) {
-	PrintColor(out, Green, okType)
+	PrintColor(Green, okType)
 }
 
 // PrintOkln print whole message in green(Red) format
 func PrintOkln(out io.Writer) {
-	PrintColor(out, Green, okType+"\n")
+	PrintColor(Green, okType+"\n")
 }
 
 // PrintError print whole message in error(Red) format
 func PrintError(out io.Writer) {
-	PrintColor(out, Red, errType)
+	PrintColor(Red, errType)
 }
 
 // PrintWarn print whole message in warn(Orange) format
 func PrintWarn(out io.Writer) {
-	PrintColor(out, Orange, warnType)
+	PrintColor(Orange, warnType)
 }
 
 // PrintSkipped print whole message in green(Red) format
 func PrintSkipped(out io.Writer) {
-	PrintColor(out, Blue, skippedType)
+	PrintColor(Blue, skippedType)
 }
 
 // PrintHeader will print header with predefined width
-func PrintHeader(out io.Writer, msg string, padding byte) {
+func PrintHeader(msg string, padding byte) {
 	w := tabwriter.NewWriter(out, 104, 0, 0, padding, 0)
 	fmt.Fprintln(w, "")
 	format := msg + "\t\n"
@@ -94,13 +97,13 @@ func PrintHeader(out io.Writer, msg string, padding byte) {
 }
 
 // PrintColor prints text in color
-func PrintColor(out io.Writer, clr *color.Color, msg string, a ...interface{}) {
+func PrintColor(clr *color.Color, msg string, a ...interface{}) {
 	// Remove any newline, results in only one \n
 	line := fmt.Sprintf("%s", clr.SprintfFunc()(msg, a...))
 	fmt.Fprint(out, line)
 }
 
-func print(out io.Writer, msg, status string, a ...interface{}) {
+func printMsg(msg, status string, a ...interface{}) {
 	w := tabwriter.NewWriter(out, 100, 0, 0, ' ', 0)
 	// print message
 	format := msg + "\t"
@@ -126,11 +129,4 @@ func print(out io.Writer, msg, status string, a ...interface{}) {
 
 	}
 	w.Flush()
-}
-
-// PrintValidationErrors loops through the errors
-func PrintValidationErrors(out io.Writer, errors []error) {
-	for _, err := range errors {
-		PrintColor(out, Red, "- %v\n", err)
-	}
 }

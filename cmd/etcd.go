@@ -4,14 +4,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type EtcdCliOpts struct {
-	clientCertAuth bool
-	endpoint       string
-	caFile         string
-	clientCertFile string
-	clientKeyFile  string
-}
-
 // etcdCmd represents the etcd command
 var EtcdCmd = &cobra.Command{
 	Use:   "etcd",

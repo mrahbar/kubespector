@@ -1,4 +1,4 @@
-package integration
+package types
 
 const KUBERNETES_GROUPNAME = "Kubernetes"
 const MASTER_GROUPNAME = "Master"
