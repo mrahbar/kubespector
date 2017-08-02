@@ -5,9 +5,10 @@ stages:
   - test
 
 before_script:
-  - mkdir -p /go/src/github.com/mrahbar/kubernetes-inspector
-  - cp -r /builds/mrahbar/kubernetes-inspector /go/src/github.com/mrahbar/kubernetes-inspector
+  - mkdir -p /go/src/github.com/mrahbar
+  - cp -r /builds/mrahbar/kubernetes-inspector /go/src/github.com/mrahbar
   - cd /go/src/github.com/mrahbar/kubernetes-inspector
+  - ls -lath .
 
 build-project:
   stage: build
