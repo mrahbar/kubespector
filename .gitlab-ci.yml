@@ -1,6 +1,7 @@
 image: endianogino/golang-glide:1.8
 
 stages:
+  - setup
   - build
 
 before_script:
@@ -8,6 +9,11 @@ before_script:
   - cp -r /builds/mrahbar/kubernetes-inspector /go/src/github.com/mrahbar
   - cd /go/src/github.com/mrahbar/kubernetes-inspector
   - mkdir builds
+  
+prepare:
+  stage: setup
+  script:
+    - glide install
 
 build-project:
   stage: build
@@ -16,11 +22,10 @@ build-project:
     PREFIX: kubernetes-inspector
     BUILD_DATE: 'date -u'
   script:
-    - glide install
-    - echo "$PREFIX - $TAG - BUILD_DATE"
-    - go build -a -installsuffix cgo -ldflags "-w" -o builds/kubernetes-inspector-1.1.3-SNAPSHOT *.go
+    - echo " $BUILD_DATE"
+    - go build -a -installsuffix cgo -ldflags "-w -X main.version=$TAG" -o builds/$PREFIX-$TAG *.go
   artifacts:
     when: on_success
     paths:
-    - binaries/
+    - builds/
     
