@@ -20,6 +20,7 @@ build-project:
     - BUILD_DATE=$(date -u)
     - glide install
     - go build -a -installsuffix cgo -ldflags "-w -X main.version=$TAG -X 'main.buildDate=$BUILD_DATE'" -o $PREFIX-$TAG *.go
+    - ls -lath .
   artifacts:
     when: on_success
     paths:
