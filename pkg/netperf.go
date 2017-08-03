@@ -427,10 +427,11 @@ func displayTestPods() {
 
 func fetchTestResults() {
 	orchestratorPodName := getPodName(orchestratorName)
+	sleep := 30 * time.Second
 
 	for len(orchestratorPodName) == 0 {
-		integration.PrettyPrint("Waiting 15s for orchestrator pod creation\n")
-		time.Sleep(15 * time.Second)
+		integration.PrettyPrint("Waiting %s for orchestrator pod creation\n", sleep)
+		time.Sleep(sleep)
 		orchestratorPodName = getPodName(orchestratorName)
 	}
 	fmt.Println("Orchestrator Pod is", orchestratorPodName)
@@ -440,8 +441,8 @@ func fetchTestResults() {
 		// Monitor the orchestrator pod for the CSV results file
 		csvdata := getCsvResultsFromPod(orchestratorPodName)
 		if csvdata == nil {
-			integration.PrettyPrint("Scanned orchestrator pod filesystem - no results file found yet...waiting 30s for orchestrator to write CSV file...\n")
-			time.Sleep(30 * time.Second)
+			integration.PrettyPrint("Scanned orchestrator pod filesystem - no results file found yet...waiting %s for orchestrator to write CSV file...\n", sleep)
+			time.Sleep(sleep)
 			continue
 		}
 		integration.PrettyPrint("Test concluded - CSV raw data written to %s.csv\n", netperfOpts.Output)
