@@ -117,7 +117,12 @@ func (client *ExternalClient) Output(pty bool, debug bool, args ...string) (stri
 	if pty {
 		cmd.Stdin = os.Stdin
 	}
+
 	output, err := cmd.CombinedOutput()
+	if debug {
+		fmt.Printf("Result of command:\n\tResult: %s\tErr: %s\n", strings.TrimSpace(string(output)), err)
+	}
+
 	return strings.TrimSpace(string(output)), err
 }
 
