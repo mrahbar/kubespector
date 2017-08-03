@@ -1,0 +1,27 @@
+image: endianogino/golang-glide:1.8
+
+stages:
+  - build
+
+before_script:
+  - mkdir -p /go/src/github.com/mrahbar
+  - cp -r /builds/mrahbar/kubernetes-inspector /go/src/github.com/mrahbar
+  - cd /go/src/github.com/mrahbar/kubernetes-inspector
+  - mkdir /builds/mrahbar/kubernetes-inspector/artifacts
+  
+build-project:
+  stage: build
+  script:
+    - export GOOS=linux
+    - export CGO_ENABLED=0
+    - BUILD_DATE=$(date -u)
+    - TAG=$(grep -Po 'TAG\s=\s\K([\d.\-\w]+)' Makefile)
+    - echo "$TAG"
+    - glide install
+    - go build -a -installsuffix cgo -ldflags "-w -X main.version=$TAG -X 'main.buildDate=$BUILD_DATE'" -o kubernetes-inspector-$TAG *.go
+    - mv kubernetes-inspector-$TAG /builds/mrahbar/kubernetes-inspector/artifacts
+  artifacts:
+    when: on_success
+    paths:
+    - artifacts/
+    
