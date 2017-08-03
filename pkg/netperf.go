@@ -312,7 +312,7 @@ func createReplicationControllers() {
 		os.Exit(1)
 	} else {
 		hostIP, err := getServiceIP(orchestratorName)
-		if err != nil {
+		if hostIP == "" || err != nil {
 			integration.PrettyPrintErr("Error getting clusterIP of service %s:\n\tResult: %s\tErr: %s\n", orchestratorName, result, err)
 			os.Exit(1)
 		}
@@ -352,11 +352,6 @@ func createReplicationControllers() {
 
 func runKubectlCommand(args []string) (string, error) {
 	a := strings.Join(args, " ")
-
-	if netperfOpts.Debug {
-		integration.PrettyPrint("Running kubectl command '%s'\n\n", a)
-	}
-
 	return integration.PerformSSHCmd(sshOpts, node, fmt.Sprintf("kubectl %s", a), netperfOpts.Debug)
 }
 
@@ -524,7 +519,7 @@ func getPodName(name string) string {
 
 func getServiceIP(name string) (string, error) {
 	template := "\"{..spec.clusterIP}\""
-	args := []string{"--namespace=" + testNamespace, "get", "service", "-l", "run=" + name, "-o", "jsonpath=" + template}
+	args := []string{"--namespace=" + testNamespace, "get", "service", "-l", "app=" + name, "-o", "jsonpath=" + template}
 	result, err := runKubectlCommand(args)
 
 	if err != nil {
