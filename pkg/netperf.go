@@ -68,6 +68,7 @@ type ReplicationController struct {
 	ContainerMode         string
 	ContainerPort         int
 	ContainerPortProtocol string
+	HostIP                string
 	ClientPod             bool
 }
 
@@ -136,7 +137,7 @@ spec:
             fieldRef:
               fieldPath: metadata.name
         - name: NETPERF_ORCH_SERVICE_HOST
-          value: netperf-orchestrator{{end}}
+          value: {{.HostIP}}{{end}}
 `
 )
 
@@ -310,6 +311,12 @@ func createReplicationControllers() {
 		integration.PrettyPrintErr("Error getting nodes for worker replication controller:\n\tResult: %s\tErr: %s\n", result, err)
 		os.Exit(1)
 	} else {
+		hostIP, err := getServiceIP(orchestratorName)
+		if err != nil {
+			integration.PrettyPrintErr("Error getting clusterIP of service %s:\n\tResult: %s\tErr: %s\n", orchestratorName, result, err)
+			os.Exit(1)
+		}
+
 		lines := strings.SplitN(result, "\n", -1)
 		firstNode := strings.Split(lines[0], ",")[0]
 		secondNode := strings.Split(lines[1], ",")[0]
@@ -322,7 +329,7 @@ func createReplicationControllers() {
 			}
 
 			clientRC := ReplicationController{Name: name, Namespace: testNamespace, Image: netperfImage,
-				ContainerMode:                      "worker", NodeName: kubeNode, ClientPod: true}
+				ContainerMode:                      "worker", HostIP: hostIP, NodeName: kubeNode, ClientPod: true}
 
 			if i > 1 {
 				// Worker W1 is a client-only pod - no ports are exposed
@@ -512,4 +519,16 @@ func getPodName(name string) string {
 	}
 
 	return strings.TrimRight(result, "\n")
+}
+
+func getServiceIP(name string) (string, error) {
+	template := "\"{..spec.clusterIP}\""
+	args := []string{"--namespace=" + testNamespace, "get", "service", "-l", "run=" + name, "-o", "jsonpath=" + template}
+	result, err := runKubectlCommand(args)
+
+	if err != nil {
+		return "", err
+	}
+
+	return strings.Trim(result, " \n"), nil
 }

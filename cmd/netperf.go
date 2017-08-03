@@ -19,9 +19,7 @@ var netperfCmd = &cobra.Command{
 func init() {
 	PerfCmd.AddCommand(netperfCmd)
 	netperfCmd.Flags().StringVarP(&netperfOpts.Output, "output", "o", "./netperf.out", "Full path to the csv file to output")
-	netperfCmd.Flags().IntVarP(&netperfOpts.Iterations, "num", "n", 1000, "Number of times to run netperf")
 	netperfCmd.Flags().BoolVarP(&netperfOpts.Cleanup, "cleanup", "c", true, "Delete test pods when done")
-	netperfCmd.Flags().BoolVarP(&netperfOpts.Verbose, "verbose", "v", true, "Print results to standard out. Use -v=false to turn it off.")
 }
 
 func netperfRun(_ *cobra.Command, _ []string) {

@@ -13,7 +13,7 @@ kubernetes-inspector:
 ifeq ($(BUILD_IN_CONTAINER),1)
 	docker build -t $(GOLANG_CONTAINER) .
 	$(DOCKER_RUN) -e CGO_ENABLED=0 $(GOLANG_CONTAINER) glide install
-	$(DOCKER_RUN) -e CGO_ENABLED=0 $(GOLANG_CONTAINER) go build -a -installsuffix cgo -ldflags "-w -X main.version=$(TAG) -X 'main.buildDate=$(BUILD_DATE)'" -o kubernetes-inspector-$(TAG) *.go
+	$(DOCKER_RUN) -e CGO_ENABLED=0 $(GOLANG_CONTAINER) go build -a -installsuffix cgo -ldflags "-w -X main.version=$(TAG) -X 'main.buildDate=$(BUILD_DATE)'" -o $(PREFIX)-$(TAG) *.go
 else
 	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-w' -o kubernetes-inspector *.go
 endif
