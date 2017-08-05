@@ -6,7 +6,6 @@ type Orchestrator struct {
 }
 
 type Worker struct {
-	Node    string
-	Worker  string
-	Address string
+	Worker string
+	IP     string
 }

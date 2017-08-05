@@ -32,6 +32,9 @@ const (
 	orchestratorName = "netperf-orchestrator"
 	workerName       = "netperf-worker"
 
+	orchestratorMode = "orchestrator"
+	workerMode       = "worker"
+
 	csvDataMarker    = "GENERATING CSV OUTPUT"
 	csvEndDataMarker = "END CSV DATA"
 	netperfImage     = "endianogino/netperf:1.0"
@@ -42,11 +45,17 @@ const (
 	netperfPort      = 12865
 )
 
-type port struct {
+type servicePort struct {
 	Name       string
 	Protocol   string
 	Port       int
 	TargetPort int
+}
+
+type podPort struct {
+	Name     string
+	Protocol string
+	Port     int
 }
 
 type env struct {
@@ -57,19 +66,19 @@ type env struct {
 type service struct {
 	Name      string
 	Namespace string
-	Ports     []port
+	Ports     []servicePort
 }
 
 type ReplicationController struct {
-	Name                  string
-	Namespace             string
-	Image                 string
-	NodeName              string
-	ContainerMode         string
-	ContainerPort         int
-	ContainerPortProtocol string
-	HostIP                string
-	ClientPod             bool
+	Name              string
+	Namespace         string
+	Image             string
+	NodeName          string
+	ContainerMode     string
+	Ports             []podPort
+	HostIP            string
+	ClientPod         bool
+	OrchestratorPodIP string
 }
 
 const (
@@ -118,26 +127,25 @@ spec:
         imagePullPolicy: Always
         args:
         - --mode={{.ContainerMode}}
-        {{- if .ContainerPort }}
-        ports:
-        - containerPort: {{.ContainerPort}}
-          protocol: {{.ContainerPortProtocol}}{{end}}
+        {{- if .Ports }}
+		ports:{{range $i, $a := .Ports}}
+        - name: {{.Name}}
+          protocol: {{.Protocol}}
+          port: {{.Port}}{{end}}{{end}}
 		{{- if .ClientPod }}
         env:
-        - name: kubenode
+        - name: workerPodIP
           valueFrom:
             fieldRef:
-              fieldPath: spec.nodeName
-        - name: worker
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: HOSTNAME
+              fieldPath: status.podIP
+        - name: workerName
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        - name: NETPERF_ORCH_SERVICE_HOST
-          value: {{.HostIP}}{{end}}
+        - name: orchestratorPort
+          value: 5202
+        - name: orchestratorPodIP
+          value: {{.OrchestratorPodIP}}{{end}}
 `
 )
 
@@ -239,7 +247,7 @@ func createTestNamespace() {
 func createServices() {
 	integration.PrettyPrint("Creating services\n")
 	// Host
-	data := service{Name: orchestratorName, Namespace: testNamespace, Ports: []port{
+	data := service{Name: orchestratorName, Namespace: testNamespace, Ports: []servicePort{
 		{
 			Name:       orchestratorName,
 			Port:       orchestratorPort,
@@ -251,7 +259,7 @@ func createServices() {
 
 	// Create the netperf-w2 service that points a clusterIP at the worker 2 pod
 	name := fmt.Sprintf("%s-%d", workerName, 2)
-	data = service{Name: name, Namespace: testNamespace, Ports: []port{
+	data = service{Name: name, Namespace: testNamespace, Ports: []servicePort{
 		{
 			Name:       name,
 			Protocol:   "TCP",
@@ -293,8 +301,15 @@ func createService(name string, serviceData interface{}) {
 func createReplicationControllers() {
 	integration.PrettyPrint("Creating ReplicationControllers\n")
 
-	hostRC := ReplicationController{Name: orchestratorName, Namespace: testNamespace, Image: netperfImage, ContainerMode: "orchestrator",
-		ContainerPort:                    orchestratorPort, ContainerPortProtocol: "TCP"}
+	hostRC := ReplicationController{Name: orchestratorName, Namespace: testNamespace,
+		Image:                            netperfImage, ContainerMode: orchestratorMode, Ports: []podPort{
+			{
+				Name:     "rpc-service-port",
+				Protocol: "TCP",
+				Port:     orchestratorPort,
+			},
+		},
+	}
 	result, err := deployKubernetesResource(RC_TEMPLATE, hostRC)
 
 	if err != nil {
@@ -321,6 +336,10 @@ func createReplicationControllers() {
 		firstNode := strings.Split(lines[0], ",")[0]
 		secondNode := strings.Split(lines[1], ",")[0]
 
+		// wait a little to give orchestrator pod time to start
+		time.Sleep(5 * time.Second)
+		orchestratorPodIP := getPodIP(orchestratorName) //TODO test with service dns instead
+
 		for i := 1; i <= workerCount; i++ {
 			name := fmt.Sprintf("%s-%d", workerName, i)
 			kubeNode := firstNode
@@ -329,12 +348,19 @@ func createReplicationControllers() {
 			}
 
 			clientRC := ReplicationController{Name: name, Namespace: testNamespace, Image: netperfImage,
-				ContainerMode:                      "worker", HostIP: hostIP, NodeName: kubeNode, ClientPod: true}
-
-			if i > 1 {
-				// Worker W1 is a client-only pod - no ports are exposed
-				clientRC.ContainerPort = iperf3Port
-				clientRC.ContainerPortProtocol = "UDP"
+				ContainerMode:                      workerMode, HostIP: hostIP, NodeName: kubeNode, ClientPod: true, OrchestratorPodIP: orchestratorPodIP,
+				Ports: []podPort{
+					{
+						Name:     "iperf3-server-port",
+						Protocol: "UDP",
+						Port:     iperf3Port,
+					},
+					{
+						Name:     "netperf-server-port",
+						Protocol: "TCP",
+						Port:     netperfPort,
+					},
+				},
 			}
 
 			result, err := deployKubernetesResource(RC_TEMPLATE, clientRC)
@@ -508,6 +534,18 @@ func removeReplicationController(name string) {
 
 func getPodName(name string) string {
 	tmpl := "\"{..metadata.name}\""
+	args := []string{"--namespace=" + testNamespace, "get", "pods", "-l", "app=" + name, "-o", "jsonpath=" + tmpl}
+	result, err := runKubectlCommand(args)
+
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimRight(result, "\n")
+}
+
+func getPodIP(name string) string {
+	tmpl := "\"{..status.podIP}\""
 	args := []string{"--namespace=" + testNamespace, "get", "pods", "-l", "app=" + name, "-o", "jsonpath=" + tmpl}
 	result, err := runKubectlCommand(args)
 

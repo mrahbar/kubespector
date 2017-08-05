@@ -9,6 +9,11 @@ const (
 	netperfPath       = "/usr/local/bin/netperf"
 	netperfServerPath = "/usr/local/bin/netserver"
 	parallelStreams   = "8"
+
+	EnvOrchestratorPort  = "orchestratorPort"
+	EnvOrchestratorPodIP = "orchestratorPodIP"
+	EnvWorkerPodIP       = "workerPodIP"
+	EnvWorkerName        = "workerName"
 )
 
 // Orchestrator specific
@@ -19,11 +24,9 @@ const (
 	mssMax            = 1460
 	mssStepSize       = 64
 
-	RpcServicePort = "5202"
-	iperf3Port     = "5201"
-	netperfPort    = "12865"
-
-	netperf_w2_service_host = "netperf-w2"
+	rpcServicePort    = "5202"
+	iperf3ServerPort  = "5201"
+	netperfServerPort = "12865"
 
 	csvDataMarker    = "GENERATING CSV OUTPUT"
 	csvEndDataMarker = "END CSV DATA"
