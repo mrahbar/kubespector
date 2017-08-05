@@ -15,18 +15,21 @@ import (
 var orchestrator types.Orchestrator
 var clientData types.Worker
 
+//Visit sites for iperf and netperf args documentation
+// http://software.es.net/iperf/invoking.html
+// http://www.cs.kent.edu/~farrell/dist/ref/Netperf.html
 func Work(d bool) {
 	debug = d
 
-	orchestrator.Port = os.Getenv("orchestratorPort")
-	orchestrator.Address = os.Getenv("orchestratorAddress")
-	clientData.Address = os.Getenv("workerAddress")
-	clientData.Worker = os.Getenv("workerName")
-	clientData.Node = os.Getenv("nodeName")
+	orchestrator.Port = os.Getenv(EnvOrchestratorPort)
+	orchestrator.Address = os.Getenv(EnvOrchestratorPodIP)
+	clientData.IP = os.Getenv(EnvWorkerPodIP)
+	clientData.Worker = os.Getenv(EnvWorkerName)
 
 	startWork()
 }
 
+// Entry point to the worker infinite loop
 func startWork() {
 	for true {
 		var timeout time.Duration
@@ -63,33 +66,32 @@ func startWork() {
 				continue
 
 			case workItem.IsServerItem == true:
-				integration.PrettyPrintInfo("Orchestrator requests worker run as server")
-				go iperfServer(workItem.ServerItem.ListenPort)
-				go netperfServer()
+				integration.PrettyPrintInfo("Orchestrator requests worker run iperf and netperf server")
+				go iperfServer(iperf3ServerPort)
+				go netperfServer(netperfServerPort)
 				time.Sleep(1 * time.Second)
 
 			case workItem.IsClientItem == true:
-				integration.PrettyPrintInfo("Orchestrator requests worker run as client: %+v", workItem)
+				integration.PrettyPrintInfo("Orchestrator requests worker run as client: %+v", workItem.ClientItem)
 				handleClientWorkItem(client, &workItem)
 			}
 		}
 	}
 }
 
-// startWork : Entry point to the worker infinite loop
 func handleClientWorkItem(client *rpc.Client, workItem *types.WorkItem) {
-	integration.PrettyPrintInfo("Orchestrator requests worker run item Type: %s", workItem.ClientItem.Type)
+	var reply int
 	switch {
 	case workItem.ClientItem.Type == iperfTcpTest || workItem.ClientItem.Type == iperfUdpTest:
+		integration.PrettyPrintInfo("Orchestrator requests worker run item Type: iperfTest")
 		outputString := iperfClient(workItem.ClientItem.Host, workItem.ClientItem.Port, workItem.ClientItem.MSS, workItem.ClientItem.Type)
-		var reply int
 		client.Call("NetPerfRpc.ReceiveOutput", types.WorkerOutput{Output: outputString, Worker: clientData.Worker, Type: workItem.ClientItem.Type}, &reply)
 	case workItem.ClientItem.Type == netperfTest:
+		integration.PrettyPrintInfo("Orchestrator requests worker run item Type: netperfTest")
 		outputString := netperfClient(workItem.ClientItem.Host, workItem.ClientItem.Port)
-		var reply int
 		client.Call("NetPerfRpc.ReceiveOutput", types.WorkerOutput{Output: outputString, Worker: clientData.Worker, Type: workItem.ClientItem.Type}, &reply)
 	}
-	// Client COOLDOWN period before asking for next work item to replenish burst allowance policers etc
+	// Client COOLDOWN period before asking for next work item to replenish burst allowance polices etc
 	time.Sleep(10 * time.Second)
 }
 
@@ -107,9 +109,9 @@ func iperfServer(port string) {
 }
 
 // Invoke and indefinitely run netperf server
-func netperfServer() {
+func netperfServer(port string) {
 	integration.PrettyPrintInfo("Starting netperf server on %s", clientData.Worker)
-	args := []string{"-D"}
+	args := []string{"-D", "-p", port}
 	if debug {
 		args = append(args, "-d")
 	}
@@ -141,6 +143,7 @@ func iperfClient(serverHost, serverPort string, mss int, workItemType int) (rv s
 
 // Invoke and run a netperf client and return the output if successful.
 func netperfClient(serverHost, serverPort string) (rv string) {
+	//measures measure bulk tcp data transfer performance
 	integration.PrettyPrintInfo("Starting netperf client on %s to %s", clientData.Worker, serverHost)
 	output, success := cmdExec(netperfPath, []string{"-H", serverHost, "-p", serverPort})
 	if success {
@@ -169,7 +172,7 @@ func cmdExec(binaryPath string, args []string) (rv string, rc bool) {
 	if err := cmd.Run(); err != nil {
 		outputstr := stdoutput.String()
 		errstr := stderror.String()
-		integration.PrettyPrintInfo("Failed to run '%s': Result: %s Error: %s - %s", binaryPath, outputstr, errstr, err)
+		integration.PrettyPrintErr("Failed to run '%s': Result: %s Error: %s - %s", binaryPath, outputstr, errstr, err)
 		return
 	}
 

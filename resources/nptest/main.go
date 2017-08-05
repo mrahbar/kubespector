@@ -53,15 +53,15 @@ func validateParams() (rv bool) {
 		return false
 	}
 
-	port := os.Getenv("orchestratorPort")
+	port := os.Getenv(pkg.EnvOrchestratorPort)
 	if mode == pkg.WorkerMode && len(port) == 0 {
-		integration.PrettyPrintErr("Invalid orchestratorPort", port)
+		integration.PrettyPrintErr("Invalid %s", pkg.EnvOrchestratorPort, port)
 		return false
 	}
 
-	address := os.Getenv("orchestratorAddress")
+	address := os.Getenv(pkg.EnvOrchestratorPodIP)
 	if mode == pkg.WorkerMode && len(address) == 0 {
-		integration.PrettyPrintErr("Invalid orchestratorAddress", address)
+		integration.PrettyPrintErr("Invalid %s", pkg.EnvOrchestratorPodIP, address)
 		return false
 	}
 

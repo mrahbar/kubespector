@@ -40,18 +40,21 @@ func Orchestrate(d bool) {
 		{SourceNode: "netperf-w1", DestinationNode: "netperf-w2", Label: "2 iperf TCP. Same VM using Virtual IP", Type: iperfTcpTest, ClusterIP: true, MSS: mssMin},
 		{SourceNode: "netperf-w1", DestinationNode: "netperf-w3", Label: "3 iperf TCP. Remote VM using Pod IP", Type: iperfTcpTest, ClusterIP: false, MSS: mssMin},
 		{SourceNode: "netperf-w3", DestinationNode: "netperf-w2", Label: "4 iperf TCP. Remote VM using Virtual IP", Type: iperfTcpTest, ClusterIP: true, MSS: mssMin},
+
 		{SourceNode: "netperf-w2", DestinationNode: "netperf-w2", Label: "5 iperf TCP. Hairpin Pod to own Virtual IP", Type: iperfTcpTest, ClusterIP: true, MSS: mssMin},
+
 		{SourceNode: "netperf-w1", DestinationNode: "netperf-w2", Label: "6 iperf UDP. Same VM using Pod IP", Type: iperfUdpTest, ClusterIP: false, MSS: mssMax},
 		{SourceNode: "netperf-w1", DestinationNode: "netperf-w2", Label: "7 iperf UDP. Same VM using Virtual IP", Type: iperfUdpTest, ClusterIP: true, MSS: mssMax},
 		{SourceNode: "netperf-w1", DestinationNode: "netperf-w3", Label: "8 iperf UDP. Remote VM using Pod IP", Type: iperfUdpTest, ClusterIP: false, MSS: mssMax},
 		{SourceNode: "netperf-w3", DestinationNode: "netperf-w2", Label: "9 iperf UDP. Remote VM using Virtual IP", Type: iperfUdpTest, ClusterIP: true, MSS: mssMax},
+
 		{SourceNode: "netperf-w1", DestinationNode: "netperf-w2", Label: "10 netperf. Same VM using Pod IP", Type: netperfTest, ClusterIP: false},
 		{SourceNode: "netperf-w1", DestinationNode: "netperf-w2", Label: "11 netperf. Same VM using Virtual IP", Type: netperfTest, ClusterIP: true},
 		{SourceNode: "netperf-w1", DestinationNode: "netperf-w3", Label: "12 netperf. Remote VM using Pod IP", Type: netperfTest, ClusterIP: false},
 		{SourceNode: "netperf-w3", DestinationNode: "netperf-w2", Label: "13 netperf. Remote VM using Virtual IP", Type: netperfTest, ClusterIP: true},
 	}
 
-	serveRPCRequests(RpcServicePort)
+	serveRPCRequests(rpcServicePort)
 }
 
 func serveRPCRequests(port string) {
@@ -75,11 +78,11 @@ func (t *NetPerfRpc) RegisterClient(data *types.Worker, reply *types.WorkItem) e
 
 	if !ok {
 		// For new clients, trigger an iperf server start immediately
-		state = &types.WorkerState{SentServerItem: true, Idle: true, IP: data.Address, Worker: data.Worker}
+		state = &types.WorkerState{SentServerItem: true, Idle: true, IP: data.IP, Worker: data.Worker}
 		integration.PrettyPrintOk("Registering new client: %+v", state)
 		workerStateMap[data.Worker] = state
 		reply.IsServerItem = true
-		reply.ServerItem.ListenPort = iperf3Port
+		reply.ServerItem.ListenPort = iperf3ServerPort
 		reply.ServerItem.Timeout = 3600
 		return nil
 	} else {
@@ -136,18 +139,23 @@ func (t *NetPerfRpc) ReceiveOutput(data *types.WorkerOutput, reply *int) error {
 	return nil
 }
 
-func allocateWorkToClient(workerS *types.WorkerState, reply *types.WorkItem) {
+func allocateWorkToClient(worker *types.WorkerState, reply *types.WorkItem) {
 	if !allWorkersIdle() {
 		reply.IsIdle = true
 		return
 	}
 
-	// System is all idle - pick up next work item to allocate to client
+	if debug {
+		integration.PrettyPrintDebug("System is all idle - pick up next work item to allocate to client")
+	}
 	for n, v := range testcases {
+		if debug {
+			integration.PrettyPrintDebug("System is all idle - pick up next work item to allocate to client")
+		}
 		if v.Finished {
 			continue
 		}
-		if v.SourceNode != workerS.Worker {
+		if v.SourceNode != worker.Worker {
 			reply.IsIdle = true
 			return
 		}
@@ -158,7 +166,7 @@ func allocateWorkToClient(workerS *types.WorkerState, reply *types.WorkItem) {
 		integration.PrettyPrintInfo("Requesting job '%s' from %s to %s for MSS %d", v.Label, v.SourceNode, v.DestinationNode, v.MSS)
 		reply.ClientItem.Type = v.Type
 		reply.IsClientItem = true
-		workerS.Idle = false
+		worker.Idle = false
 		currentJobIndex = n
 
 		if v.ClusterIP {
@@ -169,7 +177,7 @@ func allocateWorkToClient(workerS *types.WorkerState, reply *types.WorkItem) {
 
 		switch {
 		case v.Type == iperfTcpTest || v.Type == iperfUdpTest:
-			reply.ClientItem.Port = iperf3Port
+			reply.ClientItem.Port = iperf3ServerPort
 			reply.ClientItem.MSS = v.MSS
 
 			v.MSS = v.MSS + mssStepSize
@@ -179,7 +187,7 @@ func allocateWorkToClient(workerS *types.WorkerState, reply *types.WorkItem) {
 			return
 
 		case v.Type == netperfTest:
-			reply.ClientItem.Port = netperfPort
+			reply.ClientItem.Port = netperfServerPort
 			return
 		}
 	}
@@ -215,6 +223,9 @@ func writeOutputFile(filename, data string) {
 func allWorkersIdle() bool {
 	for _, v := range workerStateMap {
 		if !v.Idle {
+			if debug {
+				integration.PrettyPrintDebug("Client %s is not in idle state", v.Worker)
+			}
 			return false
 		}
 	}
