@@ -127,6 +127,9 @@ func printMsg(msg, status string, a ...interface{}) {
 		sformat := "%s\n"
 		fmt.Fprintf(w, sformat, clr.SprintFunc()(status))
 
+	} else {
+		fmt.Fprint(w, "\n")
 	}
+
 	w.Flush()
 }

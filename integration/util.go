@@ -2,12 +2,12 @@ package integration
 
 import (
 	"fmt"
+	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"strings"
 	"github.com/spf13/viper"
 	"os"
-	"github.com/mrahbar/kubernetes-inspector/types"
+	"strings"
 )
 
 func UnmarshalConfig() types.Config {

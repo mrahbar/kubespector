@@ -2,18 +2,19 @@ package cmd
 
 import (
 	"github.com/mrahbar/kubernetes-inspector/integration"
-	"github.com/spf13/cobra"
-	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/pkg"
+	"github.com/mrahbar/kubernetes-inspector/types"
+	"github.com/spf13/cobra"
 )
 
 var netperfOpts = &types.NetperfOpts{}
 
 var netperfCmd = &cobra.Command{
-	Use:   "net",
-	Short: "Runs netperf tests on a cluster",
-	Long:  `This is a tool for running netperf tests on a cluster. The cluster should have two worker nodes.`,
-	Run:   netperfRun,
+	Use:     "network",
+	Aliases: []string{"net"},
+	Short:   "Runs netperf tests on a cluster",
+	Long:    `This is a tool for running netperf tests on a cluster. The cluster should have two worker nodes.`,
+	Run:     netperfRun,
 }
 
 func init() {

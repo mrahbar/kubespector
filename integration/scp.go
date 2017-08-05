@@ -2,8 +2,8 @@ package integration
 
 import (
 	"fmt"
-	"strings"
 	"github.com/mrahbar/kubernetes-inspector/types"
+	"strings"
 )
 
 func PerformSCPCmdFromRemote(sshOpts types.SSHConfig, node types.Node, remotePath string, localPath string, debug bool) (string, error) {
