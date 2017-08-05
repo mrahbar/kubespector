@@ -6,9 +6,10 @@ import (
 
 // perfCmd represents the perf command
 var PerfCmd = &cobra.Command{
-	Use:   "perf",
-	Short: "Executes various performance tests",
-	Long:  `Root command to call various performance tests. Please use actual subcommands.`,
+	Use:     "performance",
+	Aliases: []string{"perf"},
+	Short:   "Executes various performance tests",
+	Long:    `Root command to call various performance tests. Please use actual subcommands.`,
 }
 
 func init() {

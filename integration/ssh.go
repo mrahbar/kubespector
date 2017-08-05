@@ -12,8 +12,8 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"io/ioutil"
 	"github.com/mrahbar/kubernetes-inspector/types"
+	"io/ioutil"
 )
 
 type SecureShellBinary struct {

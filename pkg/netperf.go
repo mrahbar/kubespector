@@ -1,18 +1,18 @@
 package pkg
 
 import (
-	"fmt"
-	"os"
 	"bytes"
-	"io/ioutil"
-	"path/filepath"
-	"time"
+	"fmt"
 	"github.com/mrahbar/kubernetes-inspector/integration"
 	"github.com/mrahbar/kubernetes-inspector/types"
+	"io/ioutil"
+	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
 )
 
 var (
@@ -124,7 +124,7 @@ spec:
           protocol: {{.ContainerPortProtocol}}{{end}}
 		{{- if .ClientPod }}
         env:
-        - name: kubeNode
+        - name: kubenode
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
@@ -455,6 +455,7 @@ func getCsvResultsFromPod(podName string) *string {
 		return nil
 	}
 
+	// TODO maybe download OutputCaptureFile = "/tmp/output.txt" instead
 	index := strings.Index(logData, csvDataMarker)
 	endIndex := strings.Index(logData, csvEndDataMarker)
 	if index == -1 || endIndex == -1 {
