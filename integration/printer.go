@@ -17,6 +17,8 @@ const (
 	warnType    = "[WARNING]"
 	unknownType = "[UNKNOWN]"
 	ignoredType = "[IGNORED]"
+	infoType    = "[INFO]"
+	debugType   = "[DEBUG]"
 )
 
 var out io.Writer = os.Stdout
@@ -25,6 +27,7 @@ var Green = color.New(color.FgGreen)
 var Red = color.New(color.FgRed)
 var Orange = color.New(color.FgRed, color.FgYellow)
 var Blue = color.New(color.FgCyan)
+var Magenta = color.New(color.FgMagenta)
 var White = color.New(color.FgHiWhite)
 
 // PrettyPrintOk [OK](Green) with formatted string
@@ -52,7 +55,17 @@ func PrettyPrintIgnored(msg string, a ...interface{}) {
 	printMsg(msg, ignoredType, a...)
 }
 
-// PrettyPrintUnknown [UNREACHABLE](Red) with formatted string
+// PrettyPrintInfo [INFO] with formatted string
+func PrettyPrintInfo(msg string, a ...interface{}) {
+	printMsg(msg, infoType, a...)
+}
+
+// PrettyPrintDebug [DEBUG] with formatted string
+func PrettyPrintDebug(msg string, a ...interface{}) {
+	printMsg(msg, debugType, a...)
+}
+
+// PrettyPrintUnknown [UNKNOWN](Red) with formatted string
 func PrettyPrintUnknown(msg string, a ...interface{}) {
 	printMsg(msg, unknownType, a...)
 }
@@ -120,7 +133,9 @@ func printMsg(msg, status string, a ...interface{}) {
 			clr = Red
 		case warnType, ignoredType:
 			clr = Orange
-		case skippedType:
+		case infoType:
+			clr = Magenta
+		case skippedType, debugType:
 			clr = Blue
 		}
 
