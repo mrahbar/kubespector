@@ -23,5 +23,5 @@ build-project:
   artifacts:
     when: on_success
     paths:
-    - artifacts/
+    - artifacts/kubernetes-inspector-$TAG
     
