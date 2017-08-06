@@ -76,7 +76,6 @@ type ReplicationController struct {
 	NodeName          string
 	ContainerMode     string
 	Ports             []podPort
-	HostIP            string
 	ClientPod         bool
 	OrchestratorPodIP string
 }
@@ -326,6 +325,8 @@ func createReplicationControllers() {
 		integration.PrettyPrintErr("Error getting nodes for worker replication controller:\n\tResult: %s\tErr: %s\n", result, err)
 		os.Exit(1)
 	} else {
+		integration.PrettyPrint("Waiting 5s to give orchestrator pod time to start")
+		time.Sleep(5 * time.Second)
 		hostIP, err := getServiceIP(orchestratorName)
 		if hostIP == "" || err != nil {
 			integration.PrettyPrintErr("Error getting clusterIP of service %s:\n\tResult: %s\tErr: %s\n", orchestratorName, result, err)
@@ -336,10 +337,6 @@ func createReplicationControllers() {
 		firstNode := strings.Split(lines[0], ",")[0]
 		secondNode := strings.Split(lines[1], ",")[0]
 
-		// wait a little to give orchestrator pod time to start
-		time.Sleep(5 * time.Second)
-		orchestratorPodIP := getPodIP(orchestratorName) //TODO test with service dns instead
-
 		for i := 1; i <= workerCount; i++ {
 			name := fmt.Sprintf("%s-%d", workerName, i)
 			kubeNode := firstNode
@@ -348,7 +345,7 @@ func createReplicationControllers() {
 			}
 
 			clientRC := ReplicationController{Name: name, Namespace: testNamespace, Image: netperfImage,
-				ContainerMode:                      workerMode, HostIP: hostIP, NodeName: kubeNode, ClientPod: true, OrchestratorPodIP: orchestratorPodIP,
+				ContainerMode:                      workerMode, NodeName: kubeNode, ClientPod: true, OrchestratorPodIP: hostIP,
 				Ports: []podPort{
 					{
 						Name:     "iperf3-server-port",
