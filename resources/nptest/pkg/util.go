@@ -19,7 +19,8 @@ const (
 // Orchestrator specific
 const (
 	OrchestratorMode  = "orchestrator"
-	OutputCaptureFile = "/tmp/output.txt"
+	outputCaptureFile = "/tmp/output.txt"
+	resultCaptureFile = "/tmp/result.csv"
 	mssMin            = 96
 	mssMax            = 1460
 	mssStepSize       = 64

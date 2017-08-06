@@ -16,7 +16,7 @@ import (
 // Regexes to parse the Mbits/sec out of iperf TCP, UDP and netperf output
 var iperfTCPOutputRegexp = regexp.MustCompile("SUM.*\\s+(\\d+)\\sMbits/sec\\s+receiver")
 var iperfUDPOutputRegexp = regexp.MustCompile("\\s+(\\S+)\\sMbits/sec\\s+\\S+\\s+ms\\s+")
-var netperfOutputRegexp = regexp.MustCompile("\\s+\\d+\\s+\\d+\\s+\\d+\\s+\\S+\\s+(\\S+)\\s+")
+var netperfOutputRegexp = regexp.MustCompile("\\s+\\d+\\s+\\d+\\s+\\d+\\s+\\S+\\s+(\\S+)\\s*")
 
 var dataPoints = make(map[string][]types.Point)
 var dataPointKeys []string
@@ -54,7 +54,17 @@ func Orchestrate(d bool) {
 		{SourceNode: "netperf-w3", DestinationNode: "netperf-w2", Label: "13 netperf. Remote VM using Virtual IP", Type: netperfTest, ClusterIP: true},
 	}
 
+	initializeOutputFiles()
 	serveRPCRequests(rpcServicePort)
+}
+
+func initializeOutputFiles() {
+	fd, err := os.OpenFile(outputCaptureFile, os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		integration.PrettyPrintErr("Failed to open output capture file: %s", err)
+		os.Exit(2)
+	}
+	fd.Close()
 }
 
 func serveRPCRequests(port string) {
@@ -114,7 +124,7 @@ func (t *NetPerfRpc) ReceiveOutput(data *types.WorkerOutput, reply *int) error {
 		mss := testcases[currentJobIndex].MSS - mssStepSize
 		outputLog = outputLog + fmt.Sprintln("Received TCP output from worker", data.Worker, "for test", testcase.Label,
 			"from", testcase.SourceNode, "to", testcase.DestinationNode, "MSS:", mss) + data.Output
-		writeOutputFile(OutputCaptureFile, outputLog)
+		writeOutputFile(outputCaptureFile, outputLog)
 		bw = parseIperfTcpBandwidth(data.Output)
 		registerDataPoint(testcase.Label, mss, bw, currentJobIndex)
 
@@ -122,14 +132,14 @@ func (t *NetPerfRpc) ReceiveOutput(data *types.WorkerOutput, reply *int) error {
 		mss := testcases[currentJobIndex].MSS - mssStepSize
 		outputLog = outputLog + fmt.Sprintln("Received UDP output from worker", data.Worker, "for test", testcase.Label,
 			"from", testcase.SourceNode, "to", testcase.DestinationNode, "MSS:", mss) + data.Output
-		writeOutputFile(OutputCaptureFile, outputLog)
+		writeOutputFile(outputCaptureFile, outputLog)
 		bw = parseIperfUdpBandwidth(data.Output)
 		registerDataPoint(testcase.Label, mss, bw, currentJobIndex)
 
 	case netperfTest:
 		outputLog = outputLog + fmt.Sprintln("Received netperf output from worker", data.Worker, "for test", testcase.Label,
 			"from", testcase.SourceNode, "to", testcase.DestinationNode) + data.Output
-		writeOutputFile(OutputCaptureFile, outputLog)
+		writeOutputFile(outputCaptureFile, outputLog)
 		bw = parseNetperfBandwidth(data.Output)
 		registerDataPoint(testcase.Label, 0, bw, currentJobIndex)
 		testcases[currentJobIndex].Finished = true
@@ -199,12 +209,57 @@ func allocateWorkToClient(worker *types.WorkerState, reply *types.WorkItem) {
 	}
 
 	if !datapointsFlushed {
-		integration.PrettyPrintOk("ALL TESTCASES AND MSS RANGES COMPLETE - " + csvDataMarker)
+		integration.PrettyPrint("ALL TESTCASES AND MSS RANGES COMPLETE - " + csvDataMarker)
 		flushDataPointsToCsv()
 		datapointsFlushed = true
 	}
 
 	reply.IsIdle = true
+}
+
+func flushDataPointsToCsv() {
+	var buffer string
+
+	// Write the MSS points for the X-axis before dumping all the testcase datapoints
+	for _, points := range dataPoints {
+		if len(points) == 1 {
+			continue
+		}
+		buffer = fmt.Sprintf("%-45s, Maximum,", "MSS")
+		for _, p := range points {
+			buffer = buffer + fmt.Sprintf(" %d,", p.Mss)
+		}
+		break
+	}
+	integration.PrettyPrint(buffer)
+
+	resultsBuffer := fmt.Sprintf("%s\n",buffer)
+	for _, label := range dataPointKeys {
+		buffer = fmt.Sprintf("%-45s,", label)
+		points := dataPoints[label]
+		buffer = buffer + fmt.Sprintf("%f,", getMax(points))
+		for _, p := range points {
+			buffer = buffer + fmt.Sprintf("%s,", p.Bandwidth)
+		}
+		integration.PrettyPrint(buffer)
+		resultsBuffer += fmt.Sprintf("%s\n",buffer)
+	}
+
+	integration.PrettyPrint(csvEndDataMarker)
+	resultsBuffer += fmt.Sprintf("%s\n",csvEndDataMarker)
+	writeOutputFile(resultCaptureFile, resultsBuffer)
+}
+
+func getMax(points []types.Point) (float64) {
+	var max float64
+	for _, p := range points {
+		fv, _ := strconv.ParseFloat(p.Bandwidth, 64)
+		if fv > max {
+			max = fv
+		}
+	}
+
+	return max
 }
 
 func writeOutputFile(filename, data string) {
@@ -238,41 +293,6 @@ func getWorkerPodName(worker string) string {
 
 func getWorkerPodIP(worker string) string {
 	return workerStateMap[worker].IP
-}
-
-func flushDataPointsToCsv() {
-	var buffer string
-
-	// Write the MSS points for the X-axis before dumping all the testcase datapoints
-	for _, points := range dataPoints {
-		if len(points) == 1 {
-			continue
-		}
-		buffer = fmt.Sprintf("%-45s, Maximum,", "MSS")
-		for _, p := range points {
-			buffer = buffer + fmt.Sprintf(" %d,", p.Mss)
-		}
-		break
-	}
-	integration.PrettyPrintWarn(buffer)
-
-	for _, label := range dataPointKeys {
-		buffer = fmt.Sprintf("%-45s,", label)
-		points := dataPoints[label]
-		var max float64
-		for _, p := range points {
-			fv, _ := strconv.ParseFloat(p.Bandwidth, 64)
-			if fv > max {
-				max = fv
-			}
-		}
-		buffer = buffer + fmt.Sprintf("%f,", max)
-		for _, p := range points {
-			buffer = buffer + fmt.Sprintf("%s,", p.Bandwidth)
-		}
-		integration.PrettyPrintWarn(buffer)
-	}
-	integration.PrettyPrintWarn(csvEndDataMarker)
 }
 
 func registerDataPoint(label string, mss int, value string, index int) {

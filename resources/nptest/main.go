@@ -21,7 +21,6 @@ func init() {
 }
 
 func main() {
-	initializeOutputFiles()
 	flag.Parse()
 	if !validateParams() {
 		integration.PrettyPrintErr("Failed to parse cmdline args - fatal error - bailing out")
@@ -35,15 +34,6 @@ func main() {
 		pkg.Work(debug)
 	}
 	integration.PrettyPrint("Terminating")
-}
-
-func initializeOutputFiles() {
-	fd, err := os.OpenFile(pkg.OutputCaptureFile, os.O_RDWR|os.O_CREATE, 0666)
-	if err != nil {
-		integration.PrettyPrintErr("Failed to open output capture file: %s", err)
-		os.Exit(2)
-	}
-	fd.Close()
 }
 
 func validateParams() (rv bool) {
