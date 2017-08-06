@@ -37,7 +37,7 @@ const (
 
 	csvDataMarker    = "GENERATING CSV OUTPUT"
 	csvEndDataMarker = "END CSV DATA"
-	netperfImage     = "endianogino/netperf:1.0"
+	netperfImage     = "endianogino/netperf:1.1"
 
 	workerCount      = 3
 	orchestratorPort = 5202
