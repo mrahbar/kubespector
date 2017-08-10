@@ -24,7 +24,7 @@ func Backup(config types.Config, opts *types.EtcdBackupOpts) {
 		os.Exit(1)
 	}
 
-	node := integration.GetFirstAccessibleNode(group.Nodes, etcdBackupOpts.Debug)
+	node := integration.GetFirstAccessibleNode(sshOpts.LocalOn, group.Nodes, etcdBackupOpts.Debug)
 
 	if !integration.IsNodeAddressValid(node) {
 		integration.PrettyPrintErr("No node available for etcd backup")

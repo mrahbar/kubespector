@@ -159,7 +159,7 @@ func Netperf(config types.Config, opts *types.NetperfOpts) {
 
 	sshOpts = config.Ssh
 	sshOpts.Sudo = false
-	node = integration.GetFirstAccessibleNode(group.Nodes, netperfOpts.Debug)
+	node = integration.GetFirstAccessibleNode(sshOpts.LocalOn, group.Nodes, netperfOpts.Debug)
 
 	if !integration.IsNodeAddressValid(node) {
 		integration.PrettyPrintErr("No master available")
