@@ -85,12 +85,12 @@ func transferBackup(ssh types.SSHConfig, node types.Node) {
 		cleanUp(ssh, node, localEtcdBackupDir)
 
 		integration.PrettyPrint("Transferring archive\n")
-		result, err = integration.PerformSCPCmdFromRemote(ssh, node, backupArchive, etcdBackupOpts.Output, etcdBackupOpts.Debug)
+		err = integration.PerformSCPCmdFromRemote(ssh, node, backupArchive, etcdBackupOpts.Output, etcdBackupOpts.Debug)
 
 		cleanUp(ssh, node, backupArchive)
 
 		if err != nil {
-			integration.PrettyPrintErr("Error trying transfer backup archive:\n\tResult: %s\tErr: %s", result, err)
+			integration.PrettyPrintErr("Error trying transfer backup archive:\n\tErr: %s", err)
 			os.Exit(1)
 		} else {
 			integration.PrettyPrint("Etcd backup is at %s\n", path.Join(etcdBackupOpts.Output, archiveName))
