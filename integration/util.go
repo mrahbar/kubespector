@@ -76,12 +76,10 @@ func ElementInArray(array []string, element string) bool {
 }
 
 func GetFirstAccessibleNode(localOn string, nodes []types.Node, debug bool) types.Node {
-	var node types.Node
-
 	if localOn != "" {
-		for _, v := range nodes {
-			if v.Host != "" && localOn == node.Host {
-				return v
+		for _, n := range nodes {
+			if n.Host != "" && localOn == n.Host {
+				return n
 			}
 		}
 	}
@@ -94,12 +92,11 @@ func GetFirstAccessibleNode(localOn string, nodes []types.Node, debug bool) type
 			fmt.Printf("Result for ping on %s:\n\tResult: %s\tErr: %s\n", n.Host, result, err)
 		}
 		if err == nil {
-			node = n
-			break
+			return n
 		}
 	}
 
-	return node
+	return nil
 }
 
 func CheckRequiredFlags(cmd *cobra.Command, _ []string) error {
