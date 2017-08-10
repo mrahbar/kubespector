@@ -36,7 +36,6 @@ var baseSSHArgs = []string{
 
 type Client interface {
 	Output(pty bool, debug bool, args ...string) (string, error)
-	Shell(pty bool, args ...string) error
 }
 
 type ExternalClient struct {
@@ -46,6 +45,15 @@ type ExternalClient struct {
 }
 
 func PerformSSHCmd(sshOpts types.SSHConfig, node types.Node, cmd string, debug bool) (string, error) {
+	if sshOpts.Sudo && !strings.HasPrefix(cmd, "sudo") {
+		cmd = "sudo " + cmd
+	}
+
+	if node.Host != "" && sshOpts.LocalOn == node.Host {
+		splits := strings.SplitN(cmd, " ", 1)
+		return shell(splits[0], debug, splits[1])
+	}
+
 	nodeAddress := GetNodeAddress(node)
 
 	client, err := newSSHClient(fmt.Sprintf("%s@%s", sshOpts.User, nodeAddress), sshOpts.Port, sshOpts.Key,
@@ -57,10 +65,6 @@ func PerformSSHCmd(sshOpts types.SSHConfig, node types.Node, cmd string, debug b
 		msg := fmt.Sprintf("Error creating SSH client for host %s: %v", nodeAddress, err)
 		PrettyPrintErr(msg)
 		return "", err
-	}
-
-	if sshOpts.Sudo && !strings.HasPrefix(cmd, "sudo") {
-		cmd = "sudo " + cmd
 	}
 
 	return client.Output(sshOpts.Pty, debug, cmd)
@@ -126,14 +130,23 @@ func (client *ExternalClient) Output(pty bool, debug bool, args ...string) (stri
 	return strings.TrimSpace(string(output)), err
 }
 
-// Shell runs the ssh command, binding Stdin, Stdout and Stderr
-func (client *ExternalClient) Shell(pty bool, args ...string) error {
-	args = append(client.BaseArgs, args...)
-	cmd := executeCmd(client.BinaryPath, pty, args...)
+// Shell runs the command, binding Stdin, Stdout and Stderr
+func shell(binaryPath string, debug bool, args ...string) (string, error) {
+	cmd := exec.Command(binaryPath, args...)
+	if debug {
+		cmdDebug := append([]string{}, cmd.Args...)
+		fmt.Printf("Executing command: %s\n", cmdDebug)
+	}
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	return cmd.Run()
+
+	output, err := cmd.CombinedOutput()
+	if debug {
+		fmt.Printf("Result of command:\n\tResult: %s\tErr: %s\n", strings.TrimSpace(string(output)), err)
+	}
+
+	return strings.TrimSpace(string(output)), err
 }
 
 func executeCmd(binaryPath string, pty bool, args ...string) *exec.Cmd {

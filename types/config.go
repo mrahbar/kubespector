@@ -24,6 +24,7 @@ type SSHConfig struct {
 	Pty     bool
 	Sudo    bool
 	Options string
+	LocalOn string
 }
 
 type ClusterGroup struct {
