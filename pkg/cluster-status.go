@@ -377,7 +377,7 @@ func checkKubernetesStatus(sshOpts types.SSHConfig, element string,
 		os.Exit(1)
 	}
 
-	node := integration.GetFirstAccessibleNode(nodes, clusterStatusOpts.Debug)
+	node := integration.GetFirstAccessibleNode(sshOpts.LocalOn, nodes, clusterStatusOpts.Debug)
 
 	if !integration.IsNodeAddressValid(node) {
 		integration.PrettyPrintErr("No master available for Kubernetes status check")

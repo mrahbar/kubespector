@@ -75,8 +75,16 @@ func ElementInArray(array []string, element string) bool {
 	return contains
 }
 
-func GetFirstAccessibleNode(nodes []types.Node, debug bool) types.Node {
+func GetFirstAccessibleNode(localOn string, nodes []types.Node, debug bool) types.Node {
 	var node types.Node
+
+	if localOn != "" {
+		for _, v := range nodes {
+			if v.Host != "" && localOn == node.Host {
+				return v
+			}
+		}
+	}
 
 	for _, n := range nodes {
 		nodeAddress := GetNodeAddress(n)
