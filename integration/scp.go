@@ -3,36 +3,25 @@ package integration
 import (
 	"fmt"
 	"github.com/mrahbar/kubernetes-inspector/types"
-	"strings"
-	"io"
-	"os"
 )
 
-func PerformSCPCmdFromRemote(sshOpts types.SSHConfig, node types.Node, remotePath string, localPath string, debug bool) error {
+func PerformSCPCmdFromRemote2(sshOpts types.SSHConfig, node types.Node, remotePath string, localPath string, debug bool) error {
 
-	if node.Host != "" && sshOpts.LocalOn == node.Host {
-		remoteFile, err := os.Open(remotePath)
-		defer remoteFile.Close()
-		if err != nil {
-			return err
-		}
-
-		localFile, err := os.Open(localPath)
-		defer localFile.Close()
-		if err != nil {
-			return err
-		}
-
-		_, err = io.Copy(localFile, remoteFile)
-		return err
+	if NodeEquals(sshOpts.LocalOn, node) {
+		return copyFile(remotePath, localPath)
 	}
 
 	nodeAddress := GetNodeAddress(node)
 
-	client, err := newSCPClient(fmt.Sprintf("%s@%s:%s", sshOpts.User, nodeAddress, remotePath),
-		sshOpts.Port, sshOpts.Key, strings.FieldsFunc(sshOpts.Options, func(r rune) bool {
-			return r == ' ' || r == ','
-		}), debug)
+	opts := []string{}
+
+	if IsNodeAddressValid(sshOpts.Bastion.Node) {
+		proxyJump := fmt.Sprintf("-J %s@%s:%s", sshOpts.Bastion.User, GetNodeAddress(sshOpts.Bastion.Node), sshOpts.Bastion.Port)
+		opts = append(opts, proxyJump)
+	}
+
+	client, err := newSCPClient(fmt.Sprintf("%s@%s:%s", sshOpts.Connection.User, nodeAddress, remotePath),
+		sshOpts.Connection.Port, sshOpts.Connection.Key, opts, debug)
 
 	if err != nil {
 		msg := fmt.Sprintf("Error creating SCP client for host %s: %v", nodeAddress, err)
@@ -49,31 +38,22 @@ func PerformSCPCmdFromRemote(sshOpts types.SSHConfig, node types.Node, remotePat
 	}
 }
 
-func PerformSCPCmdToRemote(sshOpts types.SSHConfig, node types.Node, localPath string, remotePath string, debug bool) error {
+func PerformSCPCmdToRemote2(sshOpts types.SSHConfig, node types.Node, localPath string, remotePath string, debug bool) error {
 
-	if node.Host != "" && sshOpts.LocalOn == node.Host {
-		remoteFile, err := os.Open(remotePath)
-		defer remoteFile.Close()
-		if err != nil {
-			return err
-		}
-
-		localFile, err := os.Open(localPath)
-		defer localFile.Close()
-		if err != nil {
-			return err
-		}
-
-		_, err = io.Copy(remoteFile, localFile)
-		return err
+	if NodeEquals(sshOpts.LocalOn, node) {
+		return copyFile(localPath, remotePath)
 	}
 
 	nodeAddress := GetNodeAddress(node)
 
-	client, err := newSCPClient(localPath, sshOpts.Port, sshOpts.Key,
-		strings.FieldsFunc(sshOpts.Options, func(r rune) bool {
-			return r == ' ' || r == ','
-		}), debug)
+	opts := []string{}
+
+	if IsNodeAddressValid(sshOpts.Bastion.Node) {
+		proxyJump := fmt.Sprintf("-J %s@%s:%s", sshOpts.Bastion.User, GetNodeAddress(sshOpts.Bastion.Node), sshOpts.Bastion.Port)
+		opts = append(opts, proxyJump)
+	}
+
+	client, err := newSCPClient(localPath, sshOpts.Connection.Port, sshOpts.Connection.Key, opts, debug)
 
 	if err != nil {
 		msg := fmt.Sprintf("Error creating SCP client for host %s: %v", nodeAddress, err)
@@ -81,7 +61,7 @@ func PerformSCPCmdToRemote(sshOpts types.SSHConfig, node types.Node, localPath s
 		return err
 	}
 
-	result, err := client.Output(false, debug, fmt.Sprintf("%s@%s:%s", sshOpts.User, nodeAddress, remotePath))
+	result, err := client.Output(false, debug, fmt.Sprintf("%s@%s:%s", sshOpts.Connection.User, nodeAddress, remotePath))
 
 	if err != nil {
 		return fmt.Errorf("Result: %s\t%s", result, err)

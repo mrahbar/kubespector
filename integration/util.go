@@ -39,6 +39,20 @@ func IsNodeAddressValid(node types.Node) bool {
 	}
 }
 
+func NodeEquals(n1, n2 types.Node) bool {
+	if IsNodeAddressValid(n1) && IsNodeAddressValid(n2) {
+		if n1.IP != "" && n2.IP != "" {
+			return n1.IP == n2.IP
+		} else if n1.Host != "" && n2.Host != "" {
+			return n1.Host == n2.Host
+		} else {
+			return false
+		}
+	} else {
+		return false
+	}
+}
+
 func ToNodeLabel(node types.Node) string {
 	if !IsNodeAddressValid(node) {
 		return ""
@@ -75,10 +89,10 @@ func ElementInArray(array []string, element string) bool {
 	return contains
 }
 
-func GetFirstAccessibleNode(localOn string, nodes []types.Node, debug bool) types.Node {
-	if localOn != "" {
+func GetFirstAccessibleNode(localOn types.Node, nodes []types.Node, debug bool) types.Node {
+	if IsNodeAddressValid(localOn) {
 		for _, n := range nodes {
-			if n.Host != "" && localOn == n.Host {
+			if NodeEquals(localOn, n) {
 				return n
 			}
 		}
