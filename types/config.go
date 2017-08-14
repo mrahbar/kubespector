@@ -1,5 +1,6 @@
 package types
 
+//TODO make enum of this
 const KUBERNETES_GROUPNAME = "Kubernetes"
 const MASTER_GROUPNAME = "Master"
 const ETCD_GROUPNAME = "Etcd"
@@ -17,14 +18,23 @@ type Config struct {
 	}
 }
 
+//LocalOn and Bastion are mutual exclusive
 type SSHConfig struct {
+	Connection SSHConnection
+	Sudo       bool //TODO make this a per call option not global
+	LocalOn    Node
+	Bastion    BastionSSHConnection
+}
+
+type SSHConnection struct {
 	User    string
 	Key     string
 	Port    int
-	Pty     bool
-	Sudo    bool
-	Options string
-	LocalOn string
+}
+
+type BastionSSHConnection struct {
+	SSHConnection
+	Node Node
 }
 
 type ClusterGroup struct {

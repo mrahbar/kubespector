@@ -44,22 +44,30 @@ type ExternalClient struct {
 	cmd        *exec.Cmd
 }
 
-func PerformSSHCmd(sshOpts types.SSHConfig, node types.Node, cmd string, debug bool) (string, error) {
+func PerformSSHCmd2(sshOpts types.SSHConfig, node types.Node, cmd string, debug bool) (string, error) {
+	return PerformSSHCmdWithPty(sshOpts, false, node, cmd, debug)
+}
+
+func PerformSSHCmdWithPty(sshOpts types.SSHConfig, pty bool, node types.Node, cmd string, debug bool) (string, error) {
 	if sshOpts.Sudo && !strings.HasPrefix(cmd, "sudo") {
 		cmd = "sudo " + cmd
 	}
 
-	if node.Host != "" && sshOpts.LocalOn == node.Host {
+	if NodeEquals(sshOpts.LocalOn, node) {
 		splits := strings.SplitN(cmd, " ", 1)
 		return shell(splits[0], debug, splits[1])
 	}
 
 	nodeAddress := GetNodeAddress(node)
+	opts := []string{}
 
-	client, err := newSSHClient(fmt.Sprintf("%s@%s", sshOpts.User, nodeAddress), sshOpts.Port, sshOpts.Key,
-		strings.FieldsFunc(sshOpts.Options, func(r rune) bool {
-			return r == ' ' || r == ','
-		}), debug)
+	if IsNodeAddressValid(sshOpts.Bastion.Node) {
+		proxyJump := fmt.Sprintf("-J %s@%s:%s", sshOpts.Bastion.User, GetNodeAddress(sshOpts.Bastion.Node), sshOpts.Bastion.Port)
+		opts = append(opts, proxyJump)
+	}
+
+	client, err := newSSHClient(fmt.Sprintf("%s@%s", sshOpts.Connection.User, nodeAddress),
+		sshOpts.Connection.Port, sshOpts.Connection.Key, opts, debug)
 
 	if err != nil {
 		msg := fmt.Sprintf("Error creating SSH client for host %s: %v", nodeAddress, err)
@@ -67,7 +75,7 @@ func PerformSSHCmd(sshOpts types.SSHConfig, node types.Node, cmd string, debug b
 		return "", err
 	}
 
-	return client.Output(sshOpts.Pty, debug, cmd)
+	return client.Output(pty, debug, cmd)
 }
 
 // newSSHClient verifies ssh is available in the PATH and returns an SSH client
@@ -77,7 +85,7 @@ func newSSHClient(remoteHost string, port int, key string, options []string, deb
 
 // newClient verifies ssh is available in the PATH and returns an SSH client
 func newClient(binary SecureShellBinary, remoteHost string, port int, key string, options []string, debug bool) (Client, error) {
-	key, err := ValidUnencryptedPrivateKey(key, debug)
+	key, err := validUnencryptedPrivateKey(key, debug)
 	if err != nil {
 		return nil, err
 	}
@@ -130,25 +138,6 @@ func (client *ExternalClient) Output(pty bool, debug bool, args ...string) (stri
 	return strings.TrimSpace(string(output)), err
 }
 
-// Shell runs the command, binding Stdin, Stdout and Stderr
-func shell(binaryPath string, debug bool, args ...string) (string, error) {
-	cmd := exec.Command(binaryPath, args...)
-	if debug {
-		cmdDebug := append([]string{}, cmd.Args...)
-		fmt.Printf("Executing command: %s\n", cmdDebug)
-	}
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	output, err := cmd.CombinedOutput()
-	if debug {
-		fmt.Printf("Result of command:\n\tResult: %s\tErr: %s\n", strings.TrimSpace(string(output)), err)
-	}
-
-	return strings.TrimSpace(string(output)), err
-}
-
 func executeCmd(binaryPath string, pty bool, args ...string) *exec.Cmd {
 	if pty {
 		args = append([]string{"-tt"}, args...)
@@ -157,7 +146,7 @@ func executeCmd(binaryPath string, pty bool, args ...string) *exec.Cmd {
 }
 
 // ValidUnencryptedPrivateKey parses SSH private key
-func ValidUnencryptedPrivateKey(file string, debug bool) (string, error) {
+func validUnencryptedPrivateKey(file string, debug bool) (string, error) {
 	// Check private key before use it
 	fi, err := os.Stat(file)
 	if err != nil {

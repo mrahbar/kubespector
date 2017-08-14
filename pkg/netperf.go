@@ -16,7 +16,6 @@ import (
 )
 
 var (
-	outputFile *os.File
 	node       types.Node
 	sshOpts    types.SSHConfig
 )
@@ -176,7 +175,7 @@ func Netperf(config types.Config, opts *types.NetperfOpts) {
 	}
 
 	err := error(nil)
-	outputFile, err = os.Create(netperfOpts.Output)
+	_, err = os.Create(netperfOpts.Output)
 	if err != nil {
 		integration.PrettyPrintErr("Failed to open output file for path %s Error: %v", netperfOpts.Output, err)
 		os.Exit(1)
