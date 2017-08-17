@@ -8,6 +8,13 @@ import (
 	"github.com/spf13/viper"
 	"os"
 	"strings"
+	"io/ioutil"
+	"encoding/pem"
+	"path/filepath"
+	"crypto/x509"
+	"runtime"
+	"golang.org/x/crypto/ssh"
+	"os/exec"
 )
 
 func UnmarshalConfig() types.Config {
@@ -89,30 +96,6 @@ func ElementInArray(array []string, element string) bool {
 	return contains
 }
 
-func GetFirstAccessibleNode(localOn types.Node, nodes []types.Node, debug bool) types.Node {
-	if IsNodeAddressValid(localOn) {
-		for _, n := range nodes {
-			if NodeEquals(localOn, n) {
-				return n
-			}
-		}
-	}
-
-	for _, n := range nodes {
-		nodeAddress := GetNodeAddress(n)
-
-		result, err := Ping(nodeAddress, n.Host)
-		if debug {
-			fmt.Printf("Result for ping on %s:\n\tResult: %s\tErr: %s\n", n.Host, result, err)
-		}
-		if err == nil {
-			return n
-		}
-	}
-
-	return nil
-}
-
 func CheckRequiredFlags(cmd *cobra.Command, _ []string) error {
 	f := cmd.Flags()
 	requiredError := false
@@ -137,4 +120,108 @@ func CheckRequiredFlags(cmd *cobra.Command, _ []string) error {
 	}
 
 	return nil
+}
+
+// validUnencryptedPrivateKey parses SSH private key
+func validUnencryptedPrivateKey(file string, debug bool) (string, error) {
+	// Check private key before use it
+	fi, err := os.Stat(file)
+	if err != nil {
+		// Abort if key not accessible
+		return "", err
+	}
+
+	buffer, err := ioutil.ReadFile(file)
+	if err != nil {
+		return "", err
+	}
+
+	isEncrypted, err := isEncrypted(buffer)
+	if err != nil {
+		return "", fmt.Errorf("Parse SSH key error")
+	}
+
+	if isEncrypted {
+		return "", fmt.Errorf("Encrypted SSH key is not permitted")
+	}
+
+	// Check if x/crypto/ssh can parse the key
+	_, err = ssh.ParsePrivateKey(buffer)
+	if err != nil {
+		//return fmt.Errorf("Parse SSH key error: %v", err)
+		file, _ = convertBerToDerFormat(buffer, debug)
+		if err != nil {
+			fi, err = os.Stat(file)
+		}
+	}
+
+	if runtime.GOOS != "windows" {
+		mode := fi.Mode()
+
+		// Private key file should have strict permissions
+		perm := mode.Perm()
+		if perm&0400 == 0 {
+			return "", fmt.Errorf("'%s' is not readable", file)
+		}
+		if perm&0077 != 0 {
+			return "", fmt.Errorf("permissions %#o for '%s' are too open", perm, file)
+		}
+	}
+
+	return file, nil
+}
+
+func isEncrypted(buffer []byte) (bool, error) {
+	// There is no error, just a nil block
+	block, _ := pem.Decode(buffer)
+	// File cannot be decoded, maybe it's some unexpected format
+	if block == nil {
+		return false, fmt.Errorf("Parse SSH key error")
+	}
+
+	return x509.IsEncryptedPEMBlock(block), nil
+}
+
+// Work around for https://github.com/mitchellh/packer/issues/2526
+func convertBerToDerFormat(ber []byte, debug bool) (string, error) {
+	if debug {
+		// Can't parse the key, maybe it's BER encoded. Try to convert it with OpenSSL.
+		fmt.Println("Couldn't parse SSH key, trying work around for [GH-2526].")
+	}
+
+	derFilePath := filepath.Join(".", ".kubernetes-inspector-privatekey-formated.der")
+	if _, err := os.Stat(derFilePath); err == nil {
+		if debug {
+			fmt.Println("DER formated private key file already exists.")
+		}
+		return derFilePath, nil
+	}
+
+	openSslPath, err := exec.LookPath("openssl")
+	if err != nil {
+		return "", fmt.Errorf("Couldn't find OpenSSL, aborting work around: %s\n", err)
+	}
+
+	berFormattedKey, err := ioutil.TempFile("", "kubernetes-inspector-ber-privatekey-")
+	defer os.Remove(berFormattedKey.Name())
+	if err != nil {
+		return "", err
+	}
+
+	ioutil.WriteFile(berFormattedKey.Name(), ber, os.ModeAppend)
+	derFormattedKey, err := os.OpenFile(derFilePath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		return "", err
+	}
+
+	args := []string{"rsa", "-in", berFormattedKey.Name(), "-out", derFormattedKey.Name()}
+	if debug {
+		fmt.Printf("Executing: %s %v\n", openSslPath, args)
+
+	}
+	if err := exec.Command(openSslPath, args...).Run(); err != nil {
+		return "", fmt.Errorf("OpenSSL failed with error: %s\n", err)
+	}
+
+	return derFormattedKey.Name(), nil
 }

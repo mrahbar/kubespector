@@ -20,9 +20,9 @@ var RootOpts = &rootCliOpts{}
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
-	Use:   "kubernetes-inspector",
+	Use:   "kubespector",
 	Short: "Management tool for Kubernetes",
-	Long:  `Kubernetes-Inspector can perform various actions on a Kubernetes cluster via ssh.`,
+	Long:  `Kubespector can perform various actions on a Kubernetes cluster via ssh.`,
 }
 
 // Execute adds all child commands to the root command sets flags appropriately.
@@ -37,7 +37,7 @@ func Execute(version string, buildDate string) {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	RootCmd.PersistentFlags().StringVar(&RootOpts.ConfigFile, "config", "", "config file (default is ./kubernetes-inspector.yaml)")
+	RootCmd.PersistentFlags().StringVarP(&RootOpts.ConfigFile, "config", "f", "./kubespector.yaml", "Path to config file")
 	RootCmd.PersistentFlags().BoolVarP(&RootOpts.Debug, "debug", "d", false, "Enable debug")
 }
 
@@ -46,7 +46,7 @@ func initConfig() {
 	if RootOpts.ConfigFile != "" { // enable ability to specify config file via flag
 		viper.SetConfigFile(RootOpts.ConfigFile)
 	} else {
-		viper.SetConfigName("kubernetes-inspector") // name of config file (without extension)
+		viper.SetConfigName("kubespector") // name of config file (without extension)
 	}
 
 	viper.AddConfigPath("$HOME") // adding home directory as first search path
@@ -56,7 +56,7 @@ func initConfig() {
 	// If a config file is found, read it in.
 	err := viper.ReadInConfig()
 	if err == nil {
-		integration.PrettyPrint("Loading config file: %s\n", viper.ConfigFileUsed())
+		integration.PrettyPrint("Loading config file: %s", viper.ConfigFileUsed())
 	} else {
 		integration.PrettyPrintErr("Error loading config file: %s", err.Error())
 	}

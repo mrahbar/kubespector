@@ -1,21 +1,37 @@
 cobrall: push
 
 TAG = 1.1.3-SNAPSHOT
-PREFIX = kubernetes-inspector
+PREFIX = kubespector
 BUILD_DATE := $(shell date -u)
 
-DOCKER_RUN = docker run --rm -v $(shell pwd):/go/src/github.com/mrahbar/kubernetes-inspector -w /go/src/github.com/mrahbar/kubernetes-inspector
+DOCKER_RUN = docker run --rm -u $(shell id -u):$(shell id -g) -v $(shell pwd):/go/src/github.com/mrahbar/kubernetes-inspector -w /go/src/github.com/mrahbar/kubernetes-inspector
 GOLANG_CONTAINER = golang-glide:1.8
 BUILD_IN_CONTAINER = 1
 
-
-kubernetes-inspector:
+build-container:
 ifeq ($(BUILD_IN_CONTAINER),1)
-	docker build -t $(GOLANG_CONTAINER) .
-	$(DOCKER_RUN) -e CGO_ENABLED=0 $(GOLANG_CONTAINER) glide install
+DOCKER_INSPECT_INFO := $(docker inspect $(GOLANG_CONTAINER) > /dev/null 2>&1; echo $$?)
+ifeq ($(DOCKER_INSPECT_INFO),1)
+docker build -t $(GOLANG_CONTAINER) -f Dockerfile-builder .
+else
+echo "Container $(GOLANG_CONTAINER) already build"
+endif
+else
+echo "Nothing to do"
+endif
+
+deps: build-container
+ifeq ($(BUILD_IN_CONTAINER),1)
+	$(DOCKER_RUN) -e CGO_ENABLED=0 $(GOLANG_CONTAINER) glide update
+else
+	CGO_ENABLED=0 glide install
+endif
+
+kubernetes-inspector: deps
+ifeq ($(BUILD_IN_CONTAINER),1)
 	$(DOCKER_RUN) -e CGO_ENABLED=0 $(GOLANG_CONTAINER) go build -a -installsuffix cgo -ldflags "-w -X main.version=$(TAG) -X 'main.buildDate=$(BUILD_DATE)'" -o $(PREFIX)-$(TAG) *.go
 else
-	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-w' -o kubernetes-inspector *.go
+	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-w' -o $(PREFIX)-$(TAG) *.go
 endif
 
 test:
@@ -32,4 +48,4 @@ push: container
 	docker push $(PREFIX):$(TAG)
 
 clean:
-	rm -f kubernetes-inspector
+	rm -f $(PREFIX)-$(TAG)

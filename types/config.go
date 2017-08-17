@@ -21,7 +21,6 @@ type Config struct {
 //LocalOn and Bastion are mutual exclusive
 type SSHConfig struct {
 	Connection SSHConnection
-	Sudo       bool //TODO make this a per call option not global
 	LocalOn    Node
 	Bastion    BastionSSHConnection
 }

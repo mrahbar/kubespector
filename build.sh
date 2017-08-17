@@ -1,3 +1,3 @@
 #!/bin/bash
-rm -rf kubernetes-inspector-*-SNAPSHOT
+rm -rf kubespector-*-SNAPSHOT
 make -B kubernetes-inspector

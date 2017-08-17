@@ -38,7 +38,7 @@ func ClusterStatus(config types.Config, opts *types.ClusterStatusOpts) {
 		clusterStatusChecks = strings.Split(clusterStatusOpts.Checks, ",")
 	}
 
-	integration.PrettyPrint("Performing status checks %s for groups: %v\n", strings.Join(clusterStatusChecks, ","), strings.Join(groups, " "))
+	integration.PrettyPrint("Performing status checks %s for groups: %v", strings.Join(clusterStatusChecks, ","), strings.Join(groups, " "))
 
 	for _, element := range groups {
 		if element != types.KUBERNETES_GROUPNAME {
@@ -80,16 +80,19 @@ func getNodesStats(sshOpts types.SSHConfig, element string, nodes []types.Node) 
 			break
 		}
 
+		integration.PrettyNewLine()
+		integration.PrettyPrint("On node %s:", integration.ToNodeLabel(node))
+
 		result, err := integration.PerformSSHCmd(sshOpts, node, "cat /proc/uptime", clusterStatusOpts.Debug)
 		if err != nil {
-			integration.PrettyPrintWarn("Could not get uptime for node %s: %s", integration.ToNodeLabel(node), err)
+			integration.PrettyPrintWarn("Could not get uptime for: %s", err)
 		} else {
 			parts := strings.Fields(result)
 			if len(parts) == 2 {
 				var upsecs float64
 				upsecs, err = strconv.ParseFloat(parts[0], 64)
 				if err != nil {
-					integration.PrettyPrintWarn("Could not parse uptime for node %s: %s", integration.ToNodeLabel(node), err)
+					integration.PrettyPrintWarn("Could not parse uptime: %s", err)
 				} else {
 					dur := time.Duration(upsecs * 1e9)
 					dur = dur - (dur % time.Second)
@@ -109,20 +112,18 @@ func getNodesStats(sshOpts types.SSHConfig, element string, nodes []types.Node) 
 							uptimeFormated += " "
 						}
 					}
-					integration.PrettyPrintOk("Uptime of node %s: %s", integration.ToNodeLabel(node), uptimeFormated)
+					integration.PrettyPrintOk("Uptime %s", uptimeFormated)
 				}
 			}
 		}
 
 		result, err = integration.PerformSSHCmd(sshOpts, node, "/bin/cat /proc/loadavg", clusterStatusOpts.Debug)
 		if err != nil {
-			integration.PrettyPrintWarn("Could not get load statistics for node %s: %s", integration.ToNodeLabel(node), err)
+			integration.PrettyPrintWarn("Could not get load statistics: %s", err)
 		} else {
-
 			parts := strings.Fields(result)
 			if len(parts) == 5 {
-				loadMsg := fmt.Sprintf("Load average on node %s:\n", integration.ToNodeLabel(node))
-				loadMsg = fmt.Sprintf("%s\tPeriods in minutes - 1: %s - 5:%s - 10:%s\n", loadMsg, parts[0], parts[1], parts[2])
+				loadMsg := fmt.Sprintf("Load periods in minutes - 1: %s - 5: %s - 10: %s\n", parts[0], parts[1], parts[2])
 
 				if i := strings.Index(parts[3], "/"); i != -1 {
 					runningProcs := parts[3][0:i]
@@ -130,15 +131,13 @@ func getNodesStats(sshOpts types.SSHConfig, element string, nodes []types.Node) 
 					if i+1 < len(parts[3]) {
 						totalProcs = parts[3][i+1:]
 					}
-					loadMsg = fmt.Sprintf("%s\tNumber of processes: currently running %s - total %s\n", loadMsg, runningProcs, totalProcs)
+					loadMsg = fmt.Sprintf("%sNumber of processes: currently running %s - total %s", loadMsg, runningProcs, totalProcs)
 
-					integration.PrettyPrintOk(loadMsg)
+					integration.PrettyPrintOk(strings.TrimSpace(loadMsg))
 				}
 			}
 		}
 	}
-
-	integration.PrettyPrint("\n")
 }
 
 func checkServiceStatus(sshOpts types.SSHConfig, element string, services []string, nodes []types.Node) {
@@ -158,14 +157,15 @@ func checkServiceStatus(sshOpts types.SSHConfig, element string, services []stri
 			break
 		}
 
-		integration.PrettyPrint("\nOn node %s:\n", integration.ToNodeLabel(node))
+		integration.PrettyNewLine()
+		integration.PrettyPrint("On node %s:", integration.ToNodeLabel(node))
 
 		for _, service := range services {
 			result, err := integration.PerformSSHCmd(sshOpts, node,
 				fmt.Sprintf("systemctl is-active %s", service), clusterStatusOpts.Debug)
 
 			if err != nil {
-				integration.PrettyPrintErr("Error checking status of %s: %s, %s", service, result, err)
+				integration.PrettyPrintErr("Error checking status of %s: %s", service, err)
 			} else {
 				if result == "active" {
 					integration.PrettyPrintOk("Service %s is active", service)
@@ -198,14 +198,15 @@ func checkContainerStatus(sshOpts types.SSHConfig, element string, containers []
 			break
 		}
 
-		integration.PrettyPrint("\nOn node %s:\n", integration.ToNodeLabel(node))
+		integration.PrettyNewLine()
+		integration.PrettyPrint("On node %s:", integration.ToNodeLabel(node))
 
 		for _, container := range containers {
 			result, err := integration.PerformSSHCmd(sshOpts, node,
 				fmt.Sprintf("bash -c 'docker ps -a --latest -f name=%s* -q | xargs --no-run-if-empty docker inspect -f '{{.State.Status}}''", container), clusterStatusOpts.Debug)
 
 			if err != nil {
-				integration.PrettyPrintErr("Error checking status of %s: %s, %s", container, result, err)
+				integration.PrettyPrintErr("Error checking status of %s: %s", container, err)
 			} else {
 				if result == "running" {
 					integration.PrettyPrintOk("Container %s is running", container)
@@ -238,7 +239,8 @@ func checkCertificatesExpiration(sshOpts types.SSHConfig, element string, certif
 			break
 		}
 
-		integration.PrettyPrint("\nOn node %s:\n", integration.ToNodeLabel(node))
+		integration.PrettyNewLine()
+		integration.PrettyPrint("On node %s:", integration.ToNodeLabel(node))
 
 		for _, cert := range certificates {
 			cert = parseTemplate(cert, node, clusterStatusOpts.Debug)
@@ -246,7 +248,7 @@ func checkCertificatesExpiration(sshOpts types.SSHConfig, element string, certif
 				fmt.Sprintf("bash -c 'openssl x509 -enddate -noout -in %s |cut -d= -f 2'", cert), clusterStatusOpts.Debug)
 
 			if err != nil {
-				integration.PrettyPrintErr("Error checking expiration of %s: %s, %s", cert, result, err)
+				integration.PrettyPrintErr("Error checking expiration of %s: %s", cert, err)
 			} else {
 				_, err = integration.PerformSSHCmd(sshOpts, node,
 					fmt.Sprintf("openssl x509 -checkend 86400 -noout -in %s", cert), clusterStatusOpts.Debug)
@@ -264,14 +266,14 @@ func checkCertificatesExpiration(sshOpts types.SSHConfig, element string, certif
 func parseTemplate(value string, node types.Node, debug bool) string {
 	if strings.Contains(value, leftTemplateDelim) && strings.Contains(value, rightTemplateDelim) {
 		if debug {
-			fmt.Printf("Value containts templating. Parsing: %s\n", value)
+			integration.PrettyPrintDebug("Value containts templating. Parsing: %s", value)
 		}
 
 		t := template.New("Template")
 		t, err := t.Parse(value)
 		if err != nil {
 			if debug {
-				fmt.Printf("Error parsing template: %s\n", err)
+				integration.PrettyPrintDebug("Error parsing template: %s", err)
 			}
 			return value
 		}
@@ -280,19 +282,19 @@ func parseTemplate(value string, node types.Node, debug bool) string {
 		err = t.Execute(&tplResult, node)
 		if err != nil {
 			if debug {
-				fmt.Printf("Error executing template: %s\n", err)
+				integration.PrettyPrintDebug("Error executing template: %s", err)
 			}
 		} else {
 			value = tplResult.String()
 			if debug {
-				fmt.Printf("Template executed successfully: %s\n", value)
+				integration.PrettyPrintDebug("Template executed successfully: %s", value)
 			}
 			return value
 		}
 	}
 
 	if debug {
-		fmt.Printf("Value does not containts templating: %s\n", value)
+		integration.PrettyPrintDebug("Value does not containts templating: %s", value)
 	}
 
 	return value
@@ -311,33 +313,35 @@ func checkDiskStatus(sshOpts types.SSHConfig, element string, diskSpace types.Di
 			break
 		}
 
-		integration.PrettyPrint("\nOn node %s:\n", integration.ToNodeLabel(node))
+		integration.PrettyNewLine()
+		integration.PrettyPrint("On node %s:", integration.ToNodeLabel(node))
 
+		spacesRegex := regexp.MustCompile("\\s+")
 		if len(diskSpace.FileSystemUsage) > 0 {
 			for _, fsUsage := range diskSpace.FileSystemUsage {
 				result, err := integration.PerformSSHCmd(sshOpts, node,
 					fmt.Sprintf("df -h | grep %s", fsUsage), clusterStatusOpts.Debug)
 
 				if err != nil {
-					integration.PrettyPrintErr("Error estimating file system usage for %s: %s, %s", fsUsage, result, err)
+					integration.PrettyPrintErr("Error estimating file system usage for %s: %s", fsUsage, err)
 				} else {
-					splits := regexp.MustCompile("\\s+").Split(result, 6)
+					splits := spacesRegex.Split(result, 6)
 					fsUsed := splits[2]
 					fsAvail := splits[3]
-					fsUsePercent := splits[4]
-					fsUsePercentVal, err := strconv.Atoi(strings.Replace(fsUsePercent, "%", "", 1))
+					fsUsePercent := strings.Replace(splits[4], "%", "", 1)
+					fsUsePercentVal, err := strconv.Atoi(fsUsePercent)
 
 					if err != nil {
-						integration.PrettyPrintErr("Error determining file system usage percent for %s: %s, %s", fsUsage, result, err)
+						integration.PrettyPrintErr("Error determining file system usage percent for %s: %s", fsUsage, err)
 					} else {
 						if fsUsePercentVal < 65 {
-							integration.PrettyPrintOk("File system usage of %s amounts to: Used: %s Available: %s (%s)",
+							integration.PrettyPrintOk("File system usage of %s amounts to - Used: %s Available: %s (%s)",
 								fsUsage, fsUsed, fsAvail, fsUsePercent)
 						} else if fsUsePercentVal < 85 {
-							integration.PrettyPrintWarn("File system usage of %s amounts to: Used: %s Available: %s (%s)",
+							integration.PrettyPrintWarn("File system usage of %s amounts to - Used: %s Available: %s (%s)",
 								fsUsage, fsUsed, fsAvail, fsUsePercent)
 						} else {
-							integration.PrettyPrintErr("File system usage of %s amounts to: Used: %s Available: %s (%s)",
+							integration.PrettyPrintErr("File system usage of %s amounts to - Used: %s Available: %s (%s)",
 								fsUsage, fsUsed, fsAvail, fsUsePercent)
 						}
 					}
@@ -352,9 +356,9 @@ func checkDiskStatus(sshOpts types.SSHConfig, element string, diskSpace types.Di
 					clusterStatusOpts.Debug)
 
 				if err != nil {
-					integration.PrettyPrintErr("Error estimating directory usage for %s: %s, %s", dirUsage, result, err)
+					integration.PrettyPrintErr("Error estimating directory usage for %s: %s", dirUsage, err)
 				} else {
-					splits := regexp.MustCompile("\\s+").Split(result, 2)
+					splits := spacesRegex.Split(result, 2)
 					dirUse := splits[0]
 
 					integration.PrettyPrintOk("Directory usage of %s amounts to %s", dirUsage, dirUse)
@@ -377,14 +381,14 @@ func checkKubernetesStatus(sshOpts types.SSHConfig, element string,
 		os.Exit(1)
 	}
 
-	node := integration.GetFirstAccessibleNode(sshOpts.LocalOn, nodes, clusterStatusOpts.Debug)
+	node := integration.GetFirstAccessibleNode(sshOpts, nodes, clusterStatusOpts.Debug)
 
 	if !integration.IsNodeAddressValid(node) {
 		integration.PrettyPrintErr("No master available for Kubernetes status check")
 		os.Exit(1)
 	}
 
-	integration.PrettyPrint("Running kubectl on node %s\n\n", integration.ToNodeLabel(node))
+	integration.PrettyPrint("Running kubectl on node %s\n", integration.ToNodeLabel(node))
 
 	for _, resource := range resources {
 		msg := fmt.Sprintf("Status of %s", resource.Type)
@@ -398,15 +402,15 @@ func checkKubernetesStatus(sshOpts types.SSHConfig, element string,
 			command += " -o wide"
 		}
 
-		integration.PrettyPrint(msg + namespace_msg + ":\n")
+		integration.PrettyPrint(msg + namespace_msg + ":")
 		result, err := integration.PerformSSHCmd(sshOpts, node, command, clusterStatusOpts.Debug)
-		integration.PrettyPrint("\n")
+		integration.PrettyNewLine()
 
 		if err != nil {
-			integration.PrettyPrintErr("Error checking %s%s: %s, %s", resource.Type, namespace_msg, result, err)
+			integration.PrettyPrintErr("Error checking %s%s: %s", resource.Type, namespace_msg, err)
 		} else {
 			integration.PrettyPrintOk(result)
 		}
-		integration.PrettyPrint("\n")
+		integration.PrettyNewLine()
 	}
 }

@@ -1,250 +1,107 @@
 package integration
 
 import (
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"runtime"
 	"strings"
 
-	"golang.org/x/crypto/ssh"
-
 	"github.com/mrahbar/kubernetes-inspector/types"
-	"io/ioutil"
+	"github.com/appleboy/easyssh-proxy"
+	"time"
 )
 
-type SecureShellBinary struct {
-	binaryName string
-	binaryPath string
-	portArg    string
-}
+const connectionTimeout = 10 * time.Second
+const commandTimeout = 15
 
-var baseSSHArgs = []string{
-	"-F", "/dev/null",
-	"-o", "PasswordAuthentication=no",
-	"-o", "StrictHostKeyChecking=no",
-	"-o", "UserKnownHostsFile=/dev/null",
-	"-o", "LogLevel=quiet", // suppress "Warning: Permanently added '[localhost]:2022' (ECDSA) to the list of known hosts."
-	"-o", "ConnectionAttempts=3", // retry 3 times if SSH connection fails
-	"-o", "ConnectTimeout=10", // timeout after 10 seconds
-	"-o", "ControlMaster=no", // disable ssh multiplexing
-	"-o", "ControlPath=none",
-}
-
-type Client interface {
-	Output(pty bool, debug bool, args ...string) (string, error)
-}
-
-type ExternalClient struct {
-	BaseArgs   []string
-	BinaryPath string
-	cmd        *exec.Cmd
-}
-
-func PerformSSHCmd2(sshOpts types.SSHConfig, node types.Node, cmd string, debug bool) (string, error) {
-	return PerformSSHCmdWithPty(sshOpts, false, node, cmd, debug)
-}
-
-func PerformSSHCmdWithPty(sshOpts types.SSHConfig, pty bool, node types.Node, cmd string, debug bool) (string, error) {
-	if sshOpts.Sudo && !strings.HasPrefix(cmd, "sudo") {
-		cmd = "sudo " + cmd
-	}
-
+func PerformSSHCmd(sshOpts types.SSHConfig, node types.Node, cmd string, debug bool) (string, error) {
 	if NodeEquals(sshOpts.LocalOn, node) {
 		splits := strings.SplitN(cmd, " ", 1)
 		return shell(splits[0], debug, splits[1])
 	}
 
 	nodeAddress := GetNodeAddress(node)
-	opts := []string{}
-
-	if IsNodeAddressValid(sshOpts.Bastion.Node) {
-		proxyJump := fmt.Sprintf("-J %s@%s:%s", sshOpts.Bastion.User, GetNodeAddress(sshOpts.Bastion.Node), sshOpts.Bastion.Port)
-		opts = append(opts, proxyJump)
-	}
-
-	client, err := newSSHClient(fmt.Sprintf("%s@%s", sshOpts.Connection.User, nodeAddress),
-		sshOpts.Connection.Port, sshOpts.Connection.Key, opts, debug)
-
+	key, err := validUnencryptedPrivateKey(sshOpts.Connection.Key, debug)
 	if err != nil {
-		msg := fmt.Sprintf("Error creating SSH client for host %s: %v", nodeAddress, err)
-		PrettyPrintErr(msg)
 		return "", err
 	}
 
-	return client.Output(pty, debug, cmd)
-}
-
-// newSSHClient verifies ssh is available in the PATH and returns an SSH client
-func newSSHClient(remoteHost string, port int, key string, options []string, debug bool) (Client, error) {
-	return newClient(SecureShellBinary{binaryName: "ssh", portArg: "-p"}, remoteHost, port, key, options, debug)
-}
-
-// newClient verifies ssh is available in the PATH and returns an SSH client
-func newClient(binary SecureShellBinary, remoteHost string, port int, key string, options []string, debug bool) (Client, error) {
-	key, err := validUnencryptedPrivateKey(key, debug)
-	if err != nil {
-		return nil, err
+	sshConf := &easyssh.MakeConfig{
+		Port:    fmt.Sprintf("%d", sshOpts.Connection.Port),
+		User:    sshOpts.Connection.User,
+		KeyPath: key,
+		Server:  nodeAddress,
+		Timeout: connectionTimeout,
 	}
 
-	binaryPath, err := exec.LookPath(binary.binaryName)
-	if err != nil {
-		return nil, fmt.Errorf("command not found: %s", binary)
+	if IsNodeAddressValid(sshOpts.Bastion.Node) {
+		sshConf.Proxy = easyssh.DefaultConfig{
+			Server:  GetNodeAddress(sshOpts.Bastion.Node),
+			KeyPath: sshOpts.Bastion.Key,
+			User:    sshOpts.Bastion.User,
+			Port:    fmt.Sprintf("%d", sshOpts.Bastion.Port),
+			Timeout: connectionTimeout,
+		}
 	}
 
-	binary.binaryPath = binaryPath
-	return newExternalClient(binary, remoteHost, port, key, options)
-}
-
-func newExternalClient(binary SecureShellBinary, host string, port int, key string, options []string) (*ExternalClient, error) {
-	// Get default args with user and host
-	args := append(baseSSHArgs, options...)
-	// set port
-	args = append(args, binary.portArg, fmt.Sprintf("%d", port))
-	// set key
-	args = append(args, "-i", key)
-	// set host
-	args = append(args, host)
-
-	client := &ExternalClient{
-		BinaryPath: binary.binaryPath,
-		BaseArgs:   args,
+	if debug {
+		PrettyPrintDebug("Executing command: %s via ssh %+v\n", cmd, sshConf)
 	}
 
-	return client, nil
+	output, outErr, timeout, err := sshConf.Run(cmd, commandTimeout)
+	output = strings.TrimSpace(output)
+	outErr = strings.TrimSpace(outErr)
+	if debug {
+		PrettyPrintDebug("Result of command:\nOutput: %s\nErrOutput: %s\nTimeout: %s\nErr: %s",
+			output, outErr, timeout, err)
+	}
+
+	if outErr != "" {
+		if err != nil {
+			err = fmt.Errorf("%s %s", outErr, err)
+		} else {
+			err = fmt.Errorf("%s", outErr)
+		}
+	}
+
+	return output, err
 }
 
-// Output runs the ssh command and returns the output
-func (client *ExternalClient) Output(pty bool, debug bool, args ...string) (string, error) {
-	args = append(client.BaseArgs, args...)
-	cmd := executeCmd(client.BinaryPath, pty, args...)
+// Shell runs the command, binding Stdin, Stdout and Stderr
+func shell(binaryPath string, debug bool, args ...string) (string, error) {
+	cmd := exec.Command(binaryPath, args...)
 	if debug {
 		cmdDebug := append([]string{}, cmd.Args...)
 		fmt.Printf("Executing command: %s\n", cmdDebug)
 	}
-	// for pseudo-tty and sudo to work correctly Stdin must be set to os.Stdin
-	if pty {
-		cmd.Stdin = os.Stdin
-	}
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
-	output, err := cmd.CombinedOutput()
+	o, err := cmd.CombinedOutput()
+	output := strings.TrimSpace(string(o))
 	if debug {
-		fmt.Printf("Result of command:\n\tResult: %s\tErr: %s\n", strings.TrimSpace(string(output)), err)
+		fmt.Printf("Result of command:\nResult: %sErr: %s\n", output, err)
 	}
 
-	return strings.TrimSpace(string(output)), err
+	return output, err
 }
 
-func executeCmd(binaryPath string, pty bool, args ...string) *exec.Cmd {
-	if pty {
-		args = append([]string{"-tt"}, args...)
-	}
-	return exec.Command(binaryPath, args...)
-}
-
-// ValidUnencryptedPrivateKey parses SSH private key
-func validUnencryptedPrivateKey(file string, debug bool) (string, error) {
-	// Check private key before use it
-	fi, err := os.Stat(file)
-	if err != nil {
-		// Abort if key not accessible
-		return "", err
-	}
-
-	buffer, err := ioutil.ReadFile(file)
-	if err != nil {
-		return "", err
-	}
-
-	isEncrypted, err := isEncrypted(buffer)
-	if err != nil {
-		return "", fmt.Errorf("Parse SSH key error")
-	}
-
-	if isEncrypted {
-		return "", fmt.Errorf("Encrypted SSH key is not permitted")
-	}
-
-	// Check if x/crypto/ssh can parse the key
-	_, err = ssh.ParsePrivateKey(buffer)
-	if err != nil {
-		//return fmt.Errorf("Parse SSH key error: %v", err)
-		file, _ = convertBerToDerFormat(buffer, debug)
-		if err != nil {
-			fi, err = os.Stat(file)
+func GetFirstAccessibleNode(sshOpts types.SSHConfig, nodes []types.Node, debug bool) types.Node {
+	if IsNodeAddressValid(sshOpts.LocalOn) {
+		for _, n := range nodes {
+			if NodeEquals(sshOpts.LocalOn, n) {
+				return n
+			}
 		}
 	}
 
-	if runtime.GOOS != "windows" {
-		mode := fi.Mode()
-
-		// Private key file should have strict permissions
-		perm := mode.Perm()
-		if perm&0400 == 0 {
-			return "", fmt.Errorf("'%s' is not readable", file)
-		}
-		if perm&0077 != 0 {
-			return "", fmt.Errorf("permissions %#o for '%s' are too open", perm, file)
+	for _, n := range nodes {
+		_, err := PerformSSHCmd(sshOpts, n, "hostname", debug)
+		if err == nil {
+			return n
 		}
 	}
 
-	return file, nil
-}
-
-func isEncrypted(buffer []byte) (bool, error) {
-	// There is no error, just a nil block
-	block, _ := pem.Decode(buffer)
-	// File cannot be decoded, maybe it's some unexpected format
-	if block == nil {
-		return false, fmt.Errorf("Parse SSH key error")
-	}
-
-	return x509.IsEncryptedPEMBlock(block), nil
-}
-
-// Work around for https://github.com/mitchellh/packer/issues/2526
-func convertBerToDerFormat(ber []byte, debug bool) (string, error) {
-	if debug {
-		// Can't parse the key, maybe it's BER encoded. Try to convert it with OpenSSL.
-		fmt.Println("Couldn't parse SSH key, trying work around for [GH-2526].")
-	}
-
-	derFilePath := filepath.Join(".", ".kubernetes-inspector-privatekey-formated.der")
-	if _, err := os.Stat(derFilePath); err == nil {
-		if debug {
-			fmt.Println("DER formated private key file already exists.")
-		}
-		return derFilePath, nil
-	}
-
-	openSslPath, err := exec.LookPath("openssl")
-	if err != nil {
-		return "", fmt.Errorf("Couldn't find OpenSSL, aborting work around: %s\n", err)
-	}
-
-	berFormattedKey, err := ioutil.TempFile("", "kubernetes-inspector-ber-privatekey-")
-	defer os.Remove(berFormattedKey.Name())
-	if err != nil {
-		return "", err
-	}
-
-	ioutil.WriteFile(berFormattedKey.Name(), ber, os.ModeAppend)
-	derFormattedKey, err := os.OpenFile(derFilePath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
-	if err != nil {
-		return "", err
-	}
-
-	args := []string{"rsa", "-in", berFormattedKey.Name(), "-out", derFormattedKey.Name()}
-	if debug {
-		fmt.Printf("Executing: %s %v\n", openSslPath, args)
-
-	}
-	if err := exec.Command(openSslPath, args...).Run(); err != nil {
-		return "", fmt.Errorf("OpenSSL failed with error: %s\n", err)
-	}
-
-	return derFormattedKey.Name(), nil
+	return types.Node{}
 }

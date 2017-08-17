@@ -17,7 +17,7 @@ func initializeStopService(service string, node string, group string) {
 	}
 
 	if node != "" {
-		integration.PrintHeader(fmt.Sprintf("Stopping service %v on node %s:\n",
+		integration.PrintHeader(fmt.Sprintf("Stopping service %v on node %s:",
 			service, node), '=')
 	}
 
@@ -27,7 +27,7 @@ func initializeStopService(service string, node string, group string) {
 func stopService(sshOpts types.SSHConfig, service string, node types.Node, debug bool) {
 	o, err := integration.PerformSSHCmd(sshOpts, node, fmt.Sprintf("sudo systemctl stop %s", service), debug)
 
-	integration.PrettyPrint(fmt.Sprintf("Result on node %s:\n", integration.ToNodeLabel(node)))
+	integration.PrettyPrint(fmt.Sprintf("Result on node %s:", integration.ToNodeLabel(node)))
 	if err != nil {
 		integration.PrettyPrintErr("Error: %v\nOut: %s", err, o)
 	} else {
