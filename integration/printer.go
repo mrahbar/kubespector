@@ -7,6 +7,9 @@ import (
 
 	"github.com/fatih/color"
 	"os"
+	"strings"
+	"unicode/utf8"
+	"bytes"
 )
 
 const (
@@ -21,6 +24,7 @@ const (
 	debugType   = "[DEBUG]"
 )
 
+const tabWidth = 104
 var out io.Writer = os.Stdout
 
 var Green = color.New(color.FgGreen)
@@ -43,6 +47,10 @@ func PrettyPrintErr(msg string, a ...interface{}) {
 // PrettyPrint no type will be displayed, used for just single line printing
 func PrettyPrint(msg string, a ...interface{}) {
 	printMsg(msg, noType, a...)
+}
+
+func PrettyNewLine() {
+	printMsg("", noType)
 }
 
 // PrettyPrintWarn [WARNING](Orange) with formatted string
@@ -102,7 +110,7 @@ func PrintSkipped(out io.Writer) {
 
 // PrintHeader will print header with predefined width
 func PrintHeader(msg string, padding byte) {
-	w := tabwriter.NewWriter(out, 104, 0, 0, padding, 0)
+	w := tabwriter.NewWriter(out, tabWidth, 0, 0, padding, 0)
 	fmt.Fprintln(w, "")
 	format := msg + "\t\n"
 	fmt.Fprintf(w, format)
@@ -117,10 +125,24 @@ func PrintColor(clr *color.Color, msg string, a ...interface{}) {
 }
 
 func printMsg(msg, status string, a ...interface{}) {
-	w := tabwriter.NewWriter(out, 100, 0, 0, ' ', 0)
+	width := tabWidth - 4
+	w := tabwriter.NewWriter(out, width, 0, 0, ' ', 0)
+
+	var msgBuffer bytes.Buffer
+	fmt.Fprintf(&msgBuffer, msg, a...)
+	carriageReturnSplits := strings.Split(msgBuffer.String(), "\n")
+	msg = ""
+	for _, cr := range carriageReturnSplits {
+		crFormated := formatToTab(cr, width)
+		if msg != "" {
+			msg = fmt.Sprintf("%s\n%s", msg, crFormated)
+		} else {
+			msg = crFormated
+		}
+	}
+
 	// print message
-	format := msg + "\t"
-	fmt.Fprintf(w, format, a...)
+	fmt.Fprintf(w, msg+"\t")
 
 	// print status
 	if status != noType {
@@ -139,12 +161,39 @@ func printMsg(msg, status string, a ...interface{}) {
 			clr = Blue
 		}
 
-		sformat := "%s\n"
-		fmt.Fprintf(w, sformat, clr.SprintFunc()(status))
+		fmt.Fprintf(w, "%s\n", clr.SprintFunc()(status))
 
 	} else {
 		fmt.Fprint(w, "\n")
 	}
 
 	w.Flush()
+}
+
+func formatToTab(msg string, width int) string {
+	if utf8.RuneCountInString(msg) > width {
+		msgSplits := strings.Split(msg, " ")
+		msg = ""
+		msgLine := ""
+
+		for _, split := range msgSplits {
+			newLine := fmt.Sprintf("%s %s", msgLine, split)
+			if len(newLine) < width {
+				msgLine = newLine
+			} else {
+				if msg != "" {
+					msg = fmt.Sprintf("%s\n%s", msg, msgLine)
+				} else {
+					msg = msgLine
+				}
+
+				msgLine = split
+			}
+		}
+		if msgLine != "" {
+			msg = fmt.Sprintf("%s\n%s", msg, msgLine)
+		}
+	}
+
+	return msg
 }

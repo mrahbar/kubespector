@@ -157,8 +157,7 @@ func Netperf(config types.Config, opts *types.NetperfOpts) {
 	}
 
 	sshOpts = config.Ssh
-	sshOpts.Sudo = false
-	node = integration.GetFirstAccessibleNode(sshOpts.LocalOn, group.Nodes, netperfOpts.Debug)
+	node = integration.GetFirstAccessibleNode(sshOpts, group.Nodes, netperfOpts.Debug)
 
 	if !integration.IsNodeAddressValid(node) {
 		integration.PrettyPrintErr("No master available")
@@ -181,7 +180,7 @@ func Netperf(config types.Config, opts *types.NetperfOpts) {
 		os.Exit(1)
 	}
 
-	integration.PrettyPrint("Running kubectl commands on node %s\n", integration.ToNodeLabel(node))
+	integration.PrettyPrint("Running kubectl commands on node %s", integration.ToNodeLabel(node))
 
 	checkingPreconditions()
 	createTestNamespace()
@@ -211,13 +210,13 @@ func checkingPreconditions() {
 	result, err := runKubectlCommand(args)
 
 	if err != nil {
-		integration.PrettyPrintErr("Error checking node count:\n\tResult: %s\tErr: %s", result, err)
+		integration.PrettyPrintErr("Error checking node count: %s", err)
 		os.Exit(1)
 	} else {
 		count, errAtoi := strconv.Atoi(strings.TrimRight(result, "\n"))
 
 		if errAtoi != nil {
-			integration.PrettyPrintErr("Error getting node count:\n\tErr: %s", errAtoi)
+			integration.PrettyPrintErr("Error getting node count: %s", errAtoi)
 			os.Exit(1)
 		} else if count < 2 {
 			integration.PrettyPrintErr("Insufficient number of nodes for netperf test (need minimum 2 nodes)")
@@ -230,10 +229,10 @@ func createTestNamespace() {
 	integration.PrettyPrint("Creating namespace")
 	data := make(map[string]string)
 	data["Namespace"] = testNamespace
-	result, err := deployKubernetesResource(NAMESPACE_TEMPLATE, data)
+	_, err := deployKubernetesResource(NAMESPACE_TEMPLATE, data)
 
 	if err != nil {
-		integration.PrettyPrintErr("Error creating test namespace:\n\tResult: %s\tErr: %s", result, err)
+		integration.PrettyPrintErr("Error creating test namespace: %s", err)
 		os.Exit(1)
 	} else {
 		integration.PrettyPrint("Namespace %s created", testNamespace)
@@ -287,7 +286,7 @@ func createService(name string, serviceData interface{}) {
 		if strings.Contains(result, "AlreadyExists") {
 			integration.PrettyPrintIgnored("Service: %s already exists.", name)
 		} else {
-			integration.PrettyPrintErr("Error adding service %v:\n\tResult: %s\tErr: %s", name, result, err)
+			integration.PrettyPrintErr("Error adding service %v: %s", name, err)
 			os.Exit(1)
 		}
 	} else {
@@ -310,7 +309,7 @@ func createReplicationControllers() {
 	result, err := deployKubernetesResource(RC_TEMPLATE, hostRC)
 
 	if err != nil {
-		integration.PrettyPrintErr("Error creating %s replication controller:\n\tResult: %s\tErr: %s", orchestratorName, result, err)
+		integration.PrettyPrintErr("Error creating %s replication controller: %s", orchestratorName, err)
 		os.Exit(1)
 	} else {
 		integration.PrettyPrint("Created %s replication-controller", orchestratorName)
@@ -320,14 +319,14 @@ func createReplicationControllers() {
 	result, err = runKubectlCommand(args)
 
 	if err != nil {
-		integration.PrettyPrintErr("Error getting nodes for worker replication controller:\n\tResult: %s\tErr: %s", result, err)
+		integration.PrettyPrintErr("Error getting nodes for worker replication controller: %s", err)
 		os.Exit(1)
 	} else {
 		integration.PrettyPrint("Waiting 5s to give orchestrator pod time to start")
 		time.Sleep(5 * time.Second)
 		hostIP, err := getServiceIP(orchestratorName)
 		if hostIP == "" || err != nil {
-			integration.PrettyPrintErr("Error getting clusterIP of service %s:\n\tResult: %s\tErr: %s", orchestratorName, result, err)
+			integration.PrettyPrintErr("Error getting clusterIP of service %s: %s", orchestratorName, err)
 			os.Exit(1)
 		}
 
@@ -358,10 +357,10 @@ func createReplicationControllers() {
 				},
 			}
 
-			result, err := deployKubernetesResource(RC_TEMPLATE, clientRC)
+			_, err := deployKubernetesResource(RC_TEMPLATE, clientRC)
 
 			if err != nil {
-				integration.PrettyPrintErr("Error creating %s replication controller:\n\tResult: %s\tErr: %s", name, result, err)
+				integration.PrettyPrintErr("Error creating %s replication controller: %s", name, err)
 				os.Exit(1)
 			} else {
 				integration.PrettyPrint("Created %s replication-controller", name)
@@ -384,7 +383,7 @@ func deployKubernetesResource(tpl string, data interface{}) (string, error) {
 
 	tmpFile, err := ioutil.TempFile(os.TempDir(), "kube-")
 	if err != nil {
-		integration.PrettyPrintErr("Error creating temporary file:\tErr: %s", err)
+		integration.PrettyPrintErr("Error creating temporary file: %s", err)
 		os.Exit(1)
 	}
 
@@ -409,7 +408,7 @@ func waitForServicesToBeRunning() {
 		result, err := runKubectlCommand(args)
 
 		if err != nil {
-			integration.PrettyPrintWarn("Error running kubectl command '%v':\n\tResult: %s\tErr: %s", args, result, err)
+			integration.PrettyPrintWarn("Error running kubectl command '%v': %s", args, err)
 		}
 
 		lines := strings.Split(result, " ")
@@ -472,7 +471,7 @@ func fetchTestResults() {
 func getCsvResultsFromPod(podName string) *string {
 	logData, err := runKubectlCommand([]string{"--namespace=" + testNamespace, "logs", podName, "--timestamps=false"})
 	if err != nil {
-		integration.PrettyPrintWarn("Error reading logs from pod %s:\n\tResult: %s\tErr: %s", podName, logData, err)
+		integration.PrettyPrintWarn("Error reading logs from pod %s: %s", podName, err)
 		return nil
 	}
 

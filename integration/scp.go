@@ -2,75 +2,126 @@ package integration
 
 import (
 	"fmt"
+	"os"
 	"github.com/mrahbar/kubernetes-inspector/types"
+	"github.com/appleboy/easyssh-proxy"
+	"io"
+	"strings"
 )
 
-func PerformSCPCmdFromRemote2(sshOpts types.SSHConfig, node types.Node, remotePath string, localPath string, debug bool) error {
+func PerformSCPCmdFromRemote(sshOpts types.SSHConfig, node types.Node, remotePath string, localPath string, debug bool) error {
+	nodeAddress := GetNodeAddress(node)
+
+	if debug {
+		PrettyPrintDebug("Copying from remote file %s:%s to %s", nodeAddress, remotePath, localPath)
+	}
 
 	if NodeEquals(sshOpts.LocalOn, node) {
 		return copyFile(remotePath, localPath)
 	}
 
-	nodeAddress := GetNodeAddress(node)
-
-	opts := []string{}
-
-	if IsNodeAddressValid(sshOpts.Bastion.Node) {
-		proxyJump := fmt.Sprintf("-J %s@%s:%s", sshOpts.Bastion.User, GetNodeAddress(sshOpts.Bastion.Node), sshOpts.Bastion.Port)
-		opts = append(opts, proxyJump)
-	}
-
-	client, err := newSCPClient(fmt.Sprintf("%s@%s:%s", sshOpts.Connection.User, nodeAddress, remotePath),
-		sshOpts.Connection.Port, sshOpts.Connection.Key, opts, debug)
-
+	key, err := validUnencryptedPrivateKey(sshOpts.Connection.Key, debug)
 	if err != nil {
-		msg := fmt.Sprintf("Error creating SCP client for host %s: %v", nodeAddress, err)
-		PrettyPrintErr(msg)
 		return err
 	}
 
-	result, err := client.Output(false, debug, localPath)
+	sshConf := &easyssh.MakeConfig{
+		Port:    fmt.Sprintf("%d", sshOpts.Connection.Port),
+		User:    sshOpts.Connection.User,
+		KeyPath: key,
+		Server:  nodeAddress,
+		Timeout: connectionTimeout,
+	}
+
+	if IsNodeAddressValid(sshOpts.Bastion.Node) {
+		sshConf.Proxy = easyssh.DefaultConfig{
+			Server:  GetNodeAddress(sshOpts.Bastion.Node),
+			KeyPath: sshOpts.Bastion.Key,
+			User:    sshOpts.Bastion.User,
+			Port:    fmt.Sprintf("%d", sshOpts.Bastion.Port),
+			Timeout: connectionTimeout,
+		}
+	}
+
+	if debug {
+		PrettyPrintDebug("Executing scp %+v\n", sshConf)
+	}
+
+	output, outErr, timeout, err := sshConf.Run(fmt.Sprintf("cat %s", remotePath), commandTimeout)
+	output = strings.TrimSpace(output)
+	outErr = strings.TrimSpace(outErr)
+	if debug {
+		PrettyPrintDebug("Result of command:\nErrOutput: %s\nTimeout: %s\nErr: %s", outErr, timeout, err)
+	}
 
 	if err != nil {
-		return fmt.Errorf("Result: %s\t%s", result, err)
-	} else {
-		return nil
+		return err
 	}
+
+	fileHandler, srcErr := os.Open(localPath)
+	if srcErr != nil {
+		return srcErr
+	}
+
+	_, err = fileHandler.WriteString(output)
+
+	return err
 }
 
-func PerformSCPCmdToRemote2(sshOpts types.SSHConfig, node types.Node, localPath string, remotePath string, debug bool) error {
+func PerformSCPCmdToRemote(sshOpts types.SSHConfig, node types.Node, remotePath string, localPath string, debug bool) error {
+	nodeAddress := GetNodeAddress(node)
+
+	if debug {
+		PrettyPrintDebug("Copying file %s to remote %s:%s", localPath, nodeAddress, remotePath)
+	}
 
 	if NodeEquals(sshOpts.LocalOn, node) {
 		return copyFile(localPath, remotePath)
 	}
 
-	nodeAddress := GetNodeAddress(node)
-
-	opts := []string{}
-
-	if IsNodeAddressValid(sshOpts.Bastion.Node) {
-		proxyJump := fmt.Sprintf("-J %s@%s:%s", sshOpts.Bastion.User, GetNodeAddress(sshOpts.Bastion.Node), sshOpts.Bastion.Port)
-		opts = append(opts, proxyJump)
-	}
-
-	client, err := newSCPClient(localPath, sshOpts.Connection.Port, sshOpts.Connection.Key, opts, debug)
-
+	key, err := validUnencryptedPrivateKey(sshOpts.Connection.Key, debug)
 	if err != nil {
-		msg := fmt.Sprintf("Error creating SCP client for host %s: %v", nodeAddress, err)
-		PrettyPrintErr(msg)
 		return err
 	}
 
-	result, err := client.Output(false, debug, fmt.Sprintf("%s@%s:%s", sshOpts.Connection.User, nodeAddress, remotePath))
-
-	if err != nil {
-		return fmt.Errorf("Result: %s\t%s", result, err)
-	} else {
-		return nil
+	sshConf := &easyssh.MakeConfig{
+		Port:    fmt.Sprintf("%d", sshOpts.Connection.Port),
+		User:    sshOpts.Connection.User,
+		KeyPath: key,
+		Server:  nodeAddress,
+		Timeout: connectionTimeout,
 	}
+
+	if IsNodeAddressValid(sshOpts.Bastion.Node) {
+		sshConf.Proxy = easyssh.DefaultConfig{
+			Server:  GetNodeAddress(sshOpts.Bastion.Node),
+			KeyPath: sshOpts.Bastion.Key,
+			User:    sshOpts.Bastion.User,
+			Port:    fmt.Sprintf("%d", sshOpts.Bastion.Port),
+			Timeout: connectionTimeout,
+		}
+	}
+
+	if debug {
+		PrettyPrintDebug("Executing scp %+v\n", sshConf)
+	}
+
+	return sshConf.Scp(localPath, remotePath)
 }
 
-// newSCPClient verifies ssh is available in the PATH and returns an SSH client
-func newSCPClient(remoteHost string, port int, key string, options []string, debug bool) (Client, error) {
-	return newClient(SecureShellBinary{binaryName: "scp", portArg: "-P"}, remoteHost, port, key, options, debug)
+func copyFile(src, dst string) error {
+	dstFile, err := os.Open(dst)
+	defer dstFile.Close()
+	if err != nil {
+		return err
+	}
+
+	srcFile, err := os.Open(src)
+	defer srcFile.Close()
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(dstFile, srcFile)
+	return err
 }

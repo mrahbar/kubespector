@@ -17,7 +17,7 @@ func initializeStatusService(service string, node string, group string) {
 	}
 
 	if node != "" {
-		integration.PrintHeader(fmt.Sprintf("Checking status of service %v on node %s:\n",
+		integration.PrintHeader(fmt.Sprintf("Checking status of service %v on node %s:",
 			service, node), '=')
 	}
 
@@ -27,7 +27,7 @@ func initializeStatusService(service string, node string, group string) {
 func statusService(sshOpts types.SSHConfig, service string, node types.Node, debug bool) {
 	o, err := integration.PerformSSHCmd(sshOpts, node, fmt.Sprintf("sudo systemctl status %s -l", service), debug)
 
-	integration.PrettyPrint(fmt.Sprintf("Result on node %s:\n", integration.ToNodeLabel(node)))
+	integration.PrettyPrint(fmt.Sprintf("Result on node %s:", integration.ToNodeLabel(node)))
 	if err != nil {
 		integration.PrettyPrintErr("Error: %v\nOut: %s", err, o)
 	} else {
