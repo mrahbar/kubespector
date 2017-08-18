@@ -32,6 +32,7 @@ var Red = color.New(color.FgRed)
 var Orange = color.New(color.FgRed, color.FgYellow)
 var Blue = color.New(color.FgCyan)
 var Magenta = color.New(color.FgMagenta)
+var Yellow = color.New(color.FgYellow)
 var White = color.New(color.FgHiWhite)
 
 // PrettyPrintOk [OK](Green) with formatted string
@@ -142,7 +143,7 @@ func printMsg(msg, status string, a ...interface{}) {
 	}
 
 	// print message
-	fmt.Fprintf(w, msg+"\t")
+	fmt.Fprintf(w, strings.TrimFunc(msg, func(r rune) bool { return r == ' ' })+"\t")
 
 	// print status
 	if status != noType {
@@ -156,9 +157,11 @@ func printMsg(msg, status string, a ...interface{}) {
 		case warnType, ignoredType:
 			clr = Orange
 		case infoType:
-			clr = Magenta
-		case skippedType, debugType:
 			clr = Blue
+		case skippedType:
+			clr = Magenta
+		case debugType:
+			clr = Yellow
 		}
 
 		fmt.Fprintf(w, "%s\n", clr.SprintFunc()(status))

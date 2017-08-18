@@ -1,7 +1,13 @@
 package types
 
 type NetperfOpts struct {
-	Output  string
+	OutputDir string
+	Cleanup   bool
+	RootOpts
+}
+
+type ScaleTestOpts struct {
+	OutputDir string
 	Cleanup bool
 	RootOpts
 }

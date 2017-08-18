@@ -7,6 +7,7 @@ import (
 	"github.com/appleboy/easyssh-proxy"
 	"io"
 	"strings"
+	"encoding/base64"
 )
 
 func PerformSCPCmdFromRemote(sshOpts types.SSHConfig, node types.Node, remotePath string, localPath string, debug bool) error {
@@ -25,12 +26,14 @@ func PerformSCPCmdFromRemote(sshOpts types.SSHConfig, node types.Node, remotePat
 		return err
 	}
 
+	t := connectionTimeout(sshOpts.Connection)
+
 	sshConf := &easyssh.MakeConfig{
 		Port:    fmt.Sprintf("%d", sshOpts.Connection.Port),
 		User:    sshOpts.Connection.User,
 		KeyPath: key,
 		Server:  nodeAddress,
-		Timeout: connectionTimeout,
+		Timeout: t,
 	}
 
 	if IsNodeAddressValid(sshOpts.Bastion.Node) {
@@ -39,19 +42,23 @@ func PerformSCPCmdFromRemote(sshOpts types.SSHConfig, node types.Node, remotePat
 			KeyPath: sshOpts.Bastion.Key,
 			User:    sshOpts.Bastion.User,
 			Port:    fmt.Sprintf("%d", sshOpts.Bastion.Port),
-			Timeout: connectionTimeout,
+			Timeout: t,
 		}
 	}
 
+	cmd := fmt.Sprintf("base64 %s", remotePath)
 	if debug {
-		PrettyPrintDebug("Executing scp %+v\n", sshConf)
+		PrettyPrintDebug("Executing command: %s via scp %+v\n", cmd, sshConf)
 	}
 
-	output, outErr, timeout, err := sshConf.Run(fmt.Sprintf("cat %s", remotePath), commandTimeout)
-	output = strings.TrimSpace(output)
+	output, outErr, timeout, err := sshConf.Run(cmd, 2*commandTimeout)
 	outErr = strings.TrimSpace(outErr)
 	if debug {
-		PrettyPrintDebug("Result of command:\nErrOutput: %s\nTimeout: %s\nErr: %s", outErr, timeout, err)
+		errFormatted := ""
+		if err != nil {
+			errFormatted = fmt.Sprintf("%s", err)
+		}
+		PrettyPrintDebug("Result of command:\nErrOutput: %s\nTimeout: %t\nErr: %s\n", outErr, timeout, errFormatted)
 	}
 
 	if err != nil {
@@ -63,8 +70,12 @@ func PerformSCPCmdFromRemote(sshOpts types.SSHConfig, node types.Node, remotePat
 		return srcErr
 	}
 
-	_, err = fileHandler.WriteString(output)
+	sDec, decErr := base64.StdEncoding.DecodeString(output)
+	if decErr != nil {
+		return decErr
+	}
 
+	_, err = fileHandler.WriteString(string(sDec))
 	return err
 }
 
@@ -84,12 +95,14 @@ func PerformSCPCmdToRemote(sshOpts types.SSHConfig, node types.Node, remotePath 
 		return err
 	}
 
+	t := connectionTimeout(sshOpts.Connection)
+
 	sshConf := &easyssh.MakeConfig{
 		Port:    fmt.Sprintf("%d", sshOpts.Connection.Port),
 		User:    sshOpts.Connection.User,
 		KeyPath: key,
 		Server:  nodeAddress,
-		Timeout: connectionTimeout,
+		Timeout: t,
 	}
 
 	if IsNodeAddressValid(sshOpts.Bastion.Node) {
@@ -98,7 +111,7 @@ func PerformSCPCmdToRemote(sshOpts types.SSHConfig, node types.Node, remotePath 
 			KeyPath: sshOpts.Bastion.Key,
 			User:    sshOpts.Bastion.User,
 			Port:    fmt.Sprintf("%d", sshOpts.Bastion.Port),
-			Timeout: connectionTimeout,
+			Timeout: t,
 		}
 	}
 

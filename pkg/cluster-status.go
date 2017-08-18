@@ -143,11 +143,11 @@ func getNodesStats(sshOpts types.SSHConfig, element string, nodes []types.Node) 
 func checkServiceStatus(sshOpts types.SSHConfig, element string, services []string, nodes []types.Node) {
 	integration.PrintHeader(fmt.Sprintf("Checking service status of group [%s] ", element), '=')
 	if nodes == nil || len(nodes) == 0 {
-		integration.PrettyPrintIgnored("No host configured for [%s]", element)
+		integration.PrettyPrintSkipped("No host configured for [%s]", element)
 		return
 	}
 	if services == nil || len(services) == 0 {
-		integration.PrettyPrintIgnored("No services configured for [%s]", element)
+		integration.PrettyPrintSkipped("No services configured for [%s]", element)
 		return
 	}
 
@@ -184,11 +184,11 @@ func checkServiceStatus(sshOpts types.SSHConfig, element string, services []stri
 func checkContainerStatus(sshOpts types.SSHConfig, element string, containers []string, nodes []types.Node) {
 	integration.PrintHeader(fmt.Sprintf("Checking container status of group [%s] ", element), '=')
 	if nodes == nil || len(nodes) == 0 {
-		integration.PrettyPrintIgnored("No host configured for [%s]", element)
+		integration.PrettyPrintSkipped("No host configured for [%s]", element)
 		return
 	}
 	if containers == nil || len(containers) == 0 {
-		integration.PrettyPrintIgnored("No containers configured for [%s]", element)
+		integration.PrettyPrintSkipped("No containers configured for [%s]", element)
 		return
 	}
 
@@ -203,7 +203,7 @@ func checkContainerStatus(sshOpts types.SSHConfig, element string, containers []
 
 		for _, container := range containers {
 			result, err := integration.PerformSSHCmd(sshOpts, node,
-				fmt.Sprintf("bash -c 'docker ps -a --latest -f name=%s* -q | xargs --no-run-if-empty docker inspect -f '{{.State.Status}}''", container), clusterStatusOpts.Debug)
+				fmt.Sprintf("sudo bash -c 'docker ps -a --latest -f name=%s* -q | xargs --no-run-if-empty docker inspect -f '{{.State.Status}}''", container), clusterStatusOpts.Debug)
 
 			if err != nil {
 				integration.PrettyPrintErr("Error checking status of %s: %s", container, err)
@@ -215,7 +215,7 @@ func checkContainerStatus(sshOpts types.SSHConfig, element string, containers []
 				} else if result == "exited" || result == "removing" || result == "dead" {
 					integration.PrettyPrintErr("Container %s is %s", container, result)
 				} else {
-					integration.PrettyPrintSkipped("Container %s not found or in unknown state: %s", container, result)
+					integration.PrettyPrintIgnored("Container %s not found or in unknown state: %s", container, result)
 				}
 			}
 		}
@@ -225,11 +225,11 @@ func checkContainerStatus(sshOpts types.SSHConfig, element string, containers []
 func checkCertificatesExpiration(sshOpts types.SSHConfig, element string, certificates []string, nodes []types.Node) {
 	integration.PrintHeader(fmt.Sprintf("Checking certificate status of group [%s] ", element), '=')
 	if nodes == nil || len(nodes) == 0 {
-		integration.PrettyPrintIgnored("No host configured for [%s]", element)
+		integration.PrettyPrintSkipped("No host configured for [%s]", element)
 		return
 	}
 	if certificates == nil || len(certificates) == 0 {
-		integration.PrettyPrintIgnored("No certificates configured for [%s]", element)
+		integration.PrettyPrintSkipped("No certificates configured for [%s]", element)
 		return
 	}
 
@@ -245,13 +245,13 @@ func checkCertificatesExpiration(sshOpts types.SSHConfig, element string, certif
 		for _, cert := range certificates {
 			cert = parseTemplate(cert, node, clusterStatusOpts.Debug)
 			result, err := integration.PerformSSHCmd(sshOpts, node,
-				fmt.Sprintf("bash -c 'openssl x509 -enddate -noout -in %s |cut -d= -f 2'", cert), clusterStatusOpts.Debug)
+				fmt.Sprintf("sudo bash -c 'openssl x509 -enddate -noout -in %s |cut -d= -f 2'", cert), clusterStatusOpts.Debug)
 
 			if err != nil {
 				integration.PrettyPrintErr("Error checking expiration of %s: %s", cert, err)
 			} else {
 				_, err = integration.PerformSSHCmd(sshOpts, node,
-					fmt.Sprintf("openssl x509 -checkend 86400 -noout -in %s", cert), clusterStatusOpts.Debug)
+					fmt.Sprintf("sudo openssl x509 -checkend 86400 -noout -in %s", cert), clusterStatusOpts.Debug)
 
 				if err == nil {
 					integration.PrettyPrintOk("Certificate %s is valid until %s", cert, result)
@@ -303,7 +303,7 @@ func parseTemplate(value string, node types.Node, debug bool) string {
 func checkDiskStatus(sshOpts types.SSHConfig, element string, diskSpace types.DiskUsage, nodes []types.Node) {
 	integration.PrintHeader(fmt.Sprintf("Checking disk status of group [%s] ", element), '-')
 	if nodes == nil || len(nodes) == 0 {
-		integration.PrettyPrintIgnored("No host configured for [%s]", element)
+		integration.PrettyPrintSkipped("No host configured for [%s]", element)
 		return
 	}
 
@@ -320,7 +320,7 @@ func checkDiskStatus(sshOpts types.SSHConfig, element string, diskSpace types.Di
 		if len(diskSpace.FileSystemUsage) > 0 {
 			for _, fsUsage := range diskSpace.FileSystemUsage {
 				result, err := integration.PerformSSHCmd(sshOpts, node,
-					fmt.Sprintf("df -h | grep %s", fsUsage), clusterStatusOpts.Debug)
+					fmt.Sprintf("sudo df -h | grep %s", fsUsage), clusterStatusOpts.Debug)
 
 				if err != nil {
 					integration.PrettyPrintErr("Error estimating file system usage for %s: %s", fsUsage, err)
@@ -335,13 +335,13 @@ func checkDiskStatus(sshOpts types.SSHConfig, element string, diskSpace types.Di
 						integration.PrettyPrintErr("Error determining file system usage percent for %s: %s", fsUsage, err)
 					} else {
 						if fsUsePercentVal < 65 {
-							integration.PrettyPrintOk("File system usage of %s amounts to - Used: %s Available: %s (%s)",
+							integration.PrettyPrintOk("File system usage of %s amounts to - Used: %s Available: %s (%s%%)",
 								fsUsage, fsUsed, fsAvail, fsUsePercent)
 						} else if fsUsePercentVal < 85 {
-							integration.PrettyPrintWarn("File system usage of %s amounts to - Used: %s Available: %s (%s)",
+							integration.PrettyPrintWarn("File system usage of %s amounts to - Used: %s Available: %s (%s%%)",
 								fsUsage, fsUsed, fsAvail, fsUsePercent)
 						} else {
-							integration.PrettyPrintErr("File system usage of %s amounts to - Used: %s Available: %s (%s)",
+							integration.PrettyPrintErr("File system usage of %s amounts to - Used: %s Available: %s (%s%%)",
 								fsUsage, fsUsed, fsAvail, fsUsePercent)
 						}
 					}
@@ -352,7 +352,7 @@ func checkDiskStatus(sshOpts types.SSHConfig, element string, diskSpace types.Di
 		if len(diskSpace.DirectoryUsage) > 0 {
 			for _, dirUsage := range diskSpace.DirectoryUsage {
 				result, err := integration.PerformSSHCmd(sshOpts, node,
-					fmt.Sprintf("du -h -d 0 --exclude=/proc --exclude=/run %s | grep %s", dirUsage, dirUsage),
+					fmt.Sprintf("sudo du -h -d 0 --exclude=/proc --exclude=/run %s | grep %s", dirUsage, dirUsage),
 					clusterStatusOpts.Debug)
 
 				if err != nil {

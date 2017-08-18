@@ -1,48 +1,69 @@
 Ssh:
-  Pty: true
-  User: ubuntu
-  Key: ./syseleven_ssh_key
-  Port: 22
-  Options: -o StrictHostKeyChecking=no
-  Sudo: true
+  Connection:
+    User: mazad
+    Key: /home/core/.ssh/id_rsa_gitlabtef
+    Port: 22
 ClusterGroups:
   - Name: Etcd
     Services:
-    - etcd_k8s
+    - etcd
     Nodes:
-    - Host: "ket-stack"
+    - Host: "kubernetesnode1"
+    - Host: "kubernetesnode2"
+    - Host: "kubernetesnode3"
+    Certificates:
+    - /etc/kubernetes/certs/etcd/ca.crt
+    - /etc/kubernetes/certs/etcd/client.crt
     DiskUsage:
       FileSystemUsage:
-      - /dev/vda1
+      - /dev/sda1
       DirectoryUsage:
-      - /etc/etcd_k8s
+      - /etc/etcd
       - /var/log
   - Name: Master
     Services:
-    - kube-apiserver
-    - kube-controller-manager
-    - kube-scheduler
-    - etcd_networking
+    - networking
+    - docker
+    - kubelet
+    Containers:
+    - k8s_kube-apiserver
+    - k8s_kube-controller-manager
+    - k8s_kube-scheduler
+    Certificates:
+    - /etc/kubernetes/certs/ca.pem
+    - /etc/kubernetes/certs/apiserver.pem
+    - /etc/kubernetes/certs/kube-controller-manager.pem
+    - /etc/kubernetes/certs/kube-scheduler.pem
     Nodes:
-    - Host: "ket-stack"
+    - Host: "kubernetesnode1"
+    - Host: "kubernetesnode2"
+    - Host: "kubernetesnode3"
     DiskUsage:
       FileSystemUsage:
-      - /dev/vda1
+      - /dev/sda1
       DirectoryUsage:
       - /etc/kubernetes
-      - /etc/etcd_networking
       - /var/log
   - Name: Worker
     Services:
     - docker
     - kubelet
-    - kube-proxy
-    - flanneld
+    - networking
+    - kube-docker-monitor
+    - kube-kubelet-monitor
+    Containers:
+    - k8s_kube-proxy
+    - k8s_nginx-proxy
     Nodes:
-    - Host: "ket-stack"
+    - Host: "kubernetesnode1"
+    - Host: "kubernetesnode2"
+    - Host: "kubernetesnode3"
+    Certificates:
+    - /etc/kubernetes/certs/kube-proxy-{{.Host}}.pem
+    - /etc/kubernetes/certs/kubelet-{{.Host}}.pem
     DiskUsage:
       FileSystemUsage:
-      - /dev/vda1
+      - /dev/sda1
       DirectoryUsage:
       - /etc/docker
       - /var/lib/kubelet

@@ -11,7 +11,6 @@ import (
 	"time"
 )
 
-const connectionTimeout = 10 * time.Second
 const commandTimeout = 15
 
 func PerformSSHCmd(sshOpts types.SSHConfig, node types.Node, cmd string, debug bool) (string, error) {
@@ -23,15 +22,20 @@ func PerformSSHCmd(sshOpts types.SSHConfig, node types.Node, cmd string, debug b
 	nodeAddress := GetNodeAddress(node)
 	key, err := validUnencryptedPrivateKey(sshOpts.Connection.Key, debug)
 	if err != nil {
+		if debug {
+			PrettyPrintDebug("Error validating private key: %s", err)
+		}
 		return "", err
 	}
 
+	t := connectionTimeout(sshOpts.Connection)
+
 	sshConf := &easyssh.MakeConfig{
-		Port:    fmt.Sprintf("%d", sshOpts.Connection.Port),
 		User:    sshOpts.Connection.User,
+		Port:    fmt.Sprintf("%d", sshOpts.Connection.Port),
 		KeyPath: key,
 		Server:  nodeAddress,
-		Timeout: connectionTimeout,
+		Timeout: t,
 	}
 
 	if IsNodeAddressValid(sshOpts.Bastion.Node) {
@@ -40,7 +44,7 @@ func PerformSSHCmd(sshOpts types.SSHConfig, node types.Node, cmd string, debug b
 			KeyPath: sshOpts.Bastion.Key,
 			User:    sshOpts.Bastion.User,
 			Port:    fmt.Sprintf("%d", sshOpts.Bastion.Port),
-			Timeout: connectionTimeout,
+			Timeout: t,
 		}
 	}
 
@@ -52,19 +56,28 @@ func PerformSSHCmd(sshOpts types.SSHConfig, node types.Node, cmd string, debug b
 	output = strings.TrimSpace(output)
 	outErr = strings.TrimSpace(outErr)
 	if debug {
-		PrettyPrintDebug("Result of command:\nOutput: %s\nErrOutput: %s\nTimeout: %s\nErr: %s",
-			output, outErr, timeout, err)
+		errFormatted := ""
+		if err != nil {
+			errFormatted = fmt.Sprintf("%s", err)
+		}
+		PrettyPrintDebug("Result of command:\nOutput: %s\nErrOutput: %s\nTimeout: %t\nErr: %s\n",
+			output, outErr, timeout, errFormatted)
 	}
 
-	if outErr != "" {
-		if err != nil {
-			err = fmt.Errorf("%s %s", outErr, err)
-		} else {
-			err = fmt.Errorf("%s", outErr)
-		}
+	if outErr != "" && err != nil {
+		err = fmt.Errorf("%s %s", outErr, err)
 	}
 
 	return output, err
+}
+
+func connectionTimeout(conn types.SSHConnection) time.Duration {
+	t := 10 * time.Second
+	if conn.Timeout > 0 {
+		t = time.Duration(conn.Timeout) * time.Second
+	}
+
+	return t
 }
 
 // Shell runs the command, binding Stdin, Stdout and Stderr
