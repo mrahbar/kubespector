@@ -24,7 +24,7 @@ func Backup(config types.Config, opts *types.EtcdBackupOpts) {
 		os.Exit(1)
 	}
 
-	node := integration.GetFirstAccessibleNode(sshOpts, group.Nodes, etcdBackupOpts.Debug)
+	node := integration.GetFirstAccessibleNode(config.Ssh, group.Nodes, etcdBackupOpts.Debug)
 
 	if !integration.IsNodeAddressValid(node) {
 		integration.PrettyPrintErr("No node available for etcd backup")
@@ -57,20 +57,22 @@ func backup(ssh types.SSHConfig, node types.Node) {
 			etcdConnection, etcdBackupOpts.ClientCertFile, etcdBackupOpts.ClientKeyFile, etcdBackupOpts.CaFile)
 	}
 
-	integration.PrettyPrint("Start backup process")
-	backupCmd := fmt.Sprintf("etcdctl %s backup --data-dir %s --backup-dir %s", etcdConnection, etcdBackupOpts.DataDir, localEtcdBackupDir)
+	integration.PrettyPrintInfo("Start backup process")
+	cleanUp(ssh, node, localEtcdBackupDir)
+	backupCmd := fmt.Sprintf("sudo etcdctl %s backup --data-dir %s --backup-dir %s", etcdConnection, etcdBackupOpts.DataDir, localEtcdBackupDir)
 	_, err := integration.PerformSSHCmd(ssh, node, backupCmd, etcdBackupOpts.Debug)
 
 	if err != nil {
 		integration.PrettyPrintErr("Error trying to backup etcd: %s", err)
 		os.Exit(1)
 	} else {
-		integration.PrettyPrint("Backup created")
+		integration.PerformSSHCmd(ssh, node, fmt.Sprintf("sudo chmod -R 777 %s", localEtcdBackupDir), etcdBackupOpts.Debug)
+		integration.PrettyPrintOk("Backup created")
 	}
 }
 
 func transferBackup(ssh types.SSHConfig, node types.Node) {
-	integration.PrettyPrint("Creating archive of Etcd backup")
+	integration.PrettyPrintInfo("Creating archive of Etcd backup")
 
 	archiveName := fmt.Sprintf("etcd-backup-%s.tar.gz", strings.Replace(time.Now().Format("2006-01-02T15:04:05"), ":", "-", -1))
 	backupArchive := path.Join(localBackupDir, archiveName)
@@ -84,7 +86,7 @@ func transferBackup(ssh types.SSHConfig, node types.Node) {
 	} else {
 		cleanUp(ssh, node, localEtcdBackupDir)
 
-		integration.PrettyPrint("Transferring archive")
+		integration.PrettyPrintInfo("Transferring archive")
 		err = integration.PerformSCPCmdFromRemote(ssh, node, backupArchive, etcdBackupOpts.Output, etcdBackupOpts.Debug)
 
 		cleanUp(ssh, node, backupArchive)
@@ -93,12 +95,12 @@ func transferBackup(ssh types.SSHConfig, node types.Node) {
 			integration.PrettyPrintErr("Error trying transfer backup archive: %s", err)
 			os.Exit(1)
 		} else {
-			integration.PrettyPrint("Etcd backup is at %s", path.Join(etcdBackupOpts.Output, archiveName))
+			integration.PrettyPrintOk("Etcd backup is at %s", path.Join(etcdBackupOpts.Output, archiveName))
 		}
 
 	}
 }
 
 func cleanUp(ssh types.SSHConfig, node types.Node, dir string) {
-	integration.PerformSSHCmd(ssh, node, fmt.Sprintf("rm -rf %s", dir), etcdBackupOpts.Debug)
+	integration.PerformSSHCmd(ssh, node, fmt.Sprintf("sudo rm -rf %s", dir), etcdBackupOpts.Debug)
 }

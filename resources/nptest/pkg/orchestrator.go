@@ -54,12 +54,13 @@ func Orchestrate(d bool) {
 		{SourceNode: "netperf-w3", DestinationNode: "netperf-w2", Label: "13 netperf. Remote VM using Virtual IP", Type: netperfTest, ClusterIP: true},
 	}
 
-	initializeOutputFiles()
+	initializeOutputFiles(outputCaptureFile)
+	initializeOutputFiles(resultCaptureFile)
 	serveRPCRequests(rpcServicePort)
 }
 
-func initializeOutputFiles() {
-	fd, err := os.OpenFile(outputCaptureFile, os.O_RDWR|os.O_CREATE, 0666)
+func initializeOutputFiles(file string) {
+	fd, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
 		integration.PrettyPrintErr("Failed to open output capture file: %s", err)
 		os.Exit(2)
@@ -265,7 +266,7 @@ func getMax(points []types.Point) (float64) {
 func writeOutputFile(filename, data string) {
 	fd, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0666)
 	if err != nil {
-		integration.PrettyPrintWarn("Failed to append to existing file %s: %s", filename, err)
+		integration.PrettyPrintWarn("Failed to open existing file %s: %s", filename, err)
 		return
 	}
 	defer fd.Close()

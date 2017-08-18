@@ -15,7 +15,7 @@ func Kubectl(config types.Config, kubectlOpts *types.KubectlOpts) {
 		os.Exit(1)
 	}
 
-	node := integration.GetFirstAccessibleNode(sshOpts, group.Nodes, kubectlOpts.Debug)
+	node := integration.GetFirstAccessibleNode(config.Ssh, group.Nodes, kubectlOpts.Debug)
 
 	if !integration.IsNodeAddressValid(node) {
 		integration.PrettyPrintErr("No master available")
@@ -30,6 +30,4 @@ func Kubectl(config types.Config, kubectlOpts *types.KubectlOpts) {
 	} else {
 		integration.PrettyPrintOk(result)
 	}
-
-	integration.PrettyPrint("\n")
 }

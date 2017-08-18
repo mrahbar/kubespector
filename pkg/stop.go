@@ -31,7 +31,7 @@ func stopService(sshOpts types.SSHConfig, service string, node types.Node, debug
 	if err != nil {
 		integration.PrettyPrintErr("Error: %v\nOut: %s", err, o)
 	} else {
-		integration.PrettyPrintOk("Service %s stoped. %s", service, o)
+		integration.PrettyPrintOk("Service %s stopped. %s", service, o)
 	}
 
 	integration.PrettyPrint("\n")

@@ -29,6 +29,7 @@ type SSHConnection struct {
 	User    string
 	Key     string
 	Port    int
+	Timeout int
 }
 
 type BastionSSHConnection struct {

@@ -34,8 +34,11 @@ const (
 	orchestratorMode = "orchestrator"
 	workerMode       = "worker"
 
-	csvDataMarker    = "GENERATING CSV OUTPUT"
-	csvEndDataMarker = "END CSV DATA"
+	csvDataMarker     = "GENERATING CSV OUTPUT"
+	csvEndDataMarker  = "END CSV DATA"
+	outputCaptureFile = "/tmp/output.txt"
+	resultCaptureFile = "/tmp/result.csv"
+
 	netperfImage     = "endianogino/netperf:1.1"
 
 	workerCount      = 3
@@ -164,19 +167,18 @@ func Netperf(config types.Config, opts *types.NetperfOpts) {
 		os.Exit(1)
 	}
 
-	if netperfOpts.Output == "" {
+	if netperfOpts.OutputDir == "" {
 		ex, err := os.Executable()
 		if err != nil {
 			os.Exit(1)
 		}
 		exPath := path.Dir(ex)
-		netperfOpts.Output = path.Join(exPath, "netperf.out")
+		netperfOpts.OutputDir = path.Join(exPath, "netperf-results")
 	}
 
-	err := error(nil)
-	_, err = os.Create(netperfOpts.Output)
+	err := os.MkdirAll(netperfOpts.OutputDir, os.ModePerm)
 	if err != nil {
-		integration.PrettyPrintErr("Failed to open output file for path %s Error: %v", netperfOpts.Output, err)
+		integration.PrettyPrintErr("Failed to open output file for path %s Error: %v", netperfOpts.OutputDir, err)
 		os.Exit(1)
 	}
 
@@ -187,16 +189,13 @@ func Netperf(config types.Config, opts *types.NetperfOpts) {
 	createServices()
 	createReplicationControllers()
 
-	integration.PrettyPrint("Waiting for pods to be Running...")
 	waitForServicesToBeRunning()
 	displayTestPods()
-
-	integration.PrettyPrint("Waiting till pods orchestrate themselves. This may take several minutes..")
 	fetchTestResults()
 
 	// cleanup services
 	if netperfOpts.Cleanup {
-		integration.PrettyPrint("Cleaning up...")
+		integration.PrettyPrintInfo("Cleaning up...")
 		removeServices()
 		removeReplicationControllers()
 	}
@@ -226,7 +225,7 @@ func checkingPreconditions() {
 }
 
 func createTestNamespace() {
-	integration.PrettyPrint("Creating namespace")
+	integration.PrettyPrintInfo("Creating namespace")
 	data := make(map[string]string)
 	data["Namespace"] = testNamespace
 	_, err := deployKubernetesResource(NAMESPACE_TEMPLATE, data)
@@ -235,13 +234,13 @@ func createTestNamespace() {
 		integration.PrettyPrintErr("Error creating test namespace: %s", err)
 		os.Exit(1)
 	} else {
-		integration.PrettyPrint("Namespace %s created", testNamespace)
+		integration.PrettyPrintOk("Namespace %s created", testNamespace)
 	}
-	integration.PrettyPrint("")
+	integration.PrettyNewLine()
 }
 
 func createServices() {
-	integration.PrettyPrint("Creating services")
+	integration.PrettyPrintInfo("Creating services")
 	// Host
 	data := service{Name: orchestratorName, Namespace: testNamespace, Ports: []servicePort{
 		{
@@ -276,7 +275,7 @@ func createServices() {
 		},
 	}}
 	createService(name, data)
-	integration.PrettyPrint("")
+	integration.PrettyNewLine()
 }
 
 func createService(name string, serviceData interface{}) {
@@ -290,12 +289,12 @@ func createService(name string, serviceData interface{}) {
 			os.Exit(1)
 		}
 	} else {
-		integration.PrettyPrint("Service %s created.", name)
+		integration.PrettyPrintOk("Service %s created.", name)
 	}
 }
 
 func createReplicationControllers() {
-	integration.PrettyPrint("Creating ReplicationControllers")
+	integration.PrettyPrintInfo("Creating ReplicationControllers")
 
 	hostRC := ReplicationController{Name: orchestratorName, Namespace: testNamespace,
 		Image:                            netperfImage, ContainerMode: orchestratorMode, Ports: []podPort{
@@ -312,7 +311,7 @@ func createReplicationControllers() {
 		integration.PrettyPrintErr("Error creating %s replication controller: %s", orchestratorName, err)
 		os.Exit(1)
 	} else {
-		integration.PrettyPrint("Created %s replication-controller", orchestratorName)
+		integration.PrettyPrintOk("Created %s replication-controller", orchestratorName)
 	}
 
 	args := []string{"get", "nodes", " | ", "grep", "-w", "\"Ready\"", " | ", "sed", "-e", "\"s/[[:space:]]\\+/,/g\""}
@@ -363,11 +362,11 @@ func createReplicationControllers() {
 				integration.PrettyPrintErr("Error creating %s replication controller: %s", name, err)
 				os.Exit(1)
 			} else {
-				integration.PrettyPrint("Created %s replication-controller", name)
+				integration.PrettyPrintOk("Created %s replication-controller", name)
 			}
 		}
 	}
-	integration.PrettyPrint("")
+	integration.PrettyNewLine()
 }
 
 func runKubectlCommand(args []string) (string, error) {
@@ -400,6 +399,7 @@ func deployKubernetesResource(tpl string, data interface{}) (string, error) {
 }
 
 func waitForServicesToBeRunning() {
+	integration.PrettyPrintInfo("Waiting for pods to be Running...")
 	waitTime := time.Second
 	done := false
 	for !done {
@@ -418,7 +418,15 @@ func waitForServicesToBeRunning() {
 			waitTime *= 2
 			continue
 		}
-		if lines[0] != "Running" || lines[1] != "Running" {
+
+		allRunning := true
+		for _, p := range lines {
+			if p != "Running" {
+				allRunning = false
+				break
+			}
+		}
+		if !allRunning {
 			integration.PrettyPrint("Services not running. Waiting %v then checking again.", waitTime)
 			time.Sleep(waitTime)
 			waitTime *= 2
@@ -426,21 +434,22 @@ func waitForServicesToBeRunning() {
 			done = true
 		}
 	}
-	integration.PrettyPrint("")
+	integration.PrettyNewLine()
 }
 
 func displayTestPods() {
 	result, err := runKubectlCommand([]string{"--namespace=" + testNamespace, "get", "pods", "-o=wide"})
-	integration.PrettyPrint("Pods are running:\n%s", result)
+	integration.PrettyPrint("Pods are running\n%s", result)
 
 	if err != nil {
 		integration.PrettyPrintWarn("Error running kubectl command '%v'", err)
 	}
 
-	integration.PrettyPrint("")
+	integration.PrettyNewLine()
 }
 
 func fetchTestResults() {
+	integration.PrettyPrintInfo("Waiting till pods orchestrate themselves. This may take several minutes..")
 	orchestratorPodName := getPodName(orchestratorName)
 	sleep := 30 * time.Second
 
@@ -449,19 +458,20 @@ func fetchTestResults() {
 		time.Sleep(sleep)
 		orchestratorPodName = getPodName(orchestratorName)
 	}
-	integration.PrettyPrint("Orchestrator Pod is %s", orchestratorPodName)
+	integration.PrettyPrint("The pods orchestrate themselves, waiting for the results file to show up in the orchestrator pod %s", orchestratorPodName)
 	sleep = 5 * time.Minute
-	// The pods orchestrate themselves, we just wait for the results file to show up in the orchestrator container
+	integration.PrettyNewLine()
+
 	for true {
 		// Monitor the orchestrator pod for the CSV results file
 		csvdata := getCsvResultsFromPod(orchestratorPodName)
 		if csvdata == nil {
-			integration.PrettyPrintInfo("Scanned orchestrator pod filesystem - no results file found yet...waiting %s for orchestrator to write CSV file...", sleep)
+			integration.PrettyPrintSkipped("Scanned orchestrator pod filesystem - no results file found yet...waiting %s for orchestrator to write CSV file...", sleep)
 			time.Sleep(sleep)
 			continue
 		}
-		integration.PrettyPrint("Test concluded - CSV raw data written to %s", netperfOpts.Output)
-		if processCsvData(orchestratorPodName, "/tmp/result.csv", "/tmp/output.txt") {
+		integration.PrettyPrintInfo("Test concluded - CSV raw data written to %s", netperfOpts.OutputDir)
+		if processCsvData(orchestratorPodName) {
 			break
 		}
 	}
@@ -486,20 +496,33 @@ func getCsvResultsFromPod(podName string) *string {
 }
 
 // processCsvData : Fetch the CSV datafile
-func processCsvData(podName, remoteFile, remoteRawFile string) bool {
-	remote := fmt.Sprintf("%s/%s:%s", testNamespace, podName, remoteFile)
-	_, err := runKubectlCommand([]string{"cp", remote, netperfOpts.Output})
-
+func processCsvData(podName string) bool {
+	remote := fmt.Sprintf("%s/%s:%s", testNamespace, podName, resultCaptureFile)
+	_, err := runKubectlCommand([]string{"cp", remote, resultCaptureFile})
 	if err != nil {
-		integration.PrettyPrintErr("Couldn't copy output CSV datafile: %s", err)
+		integration.PrettyPrintErr("Couldn't copy output CSV datafile %s from remote %s: %s",
+			resultCaptureFile, integration.GetNodeAddress(node), err)
 		return false
 	}
 
-	remote = fmt.Sprintf("%s/%s:%s", testNamespace, podName, remoteRawFile)
-	_, err = runKubectlCommand([]string{"cp", remote, fmt.Sprintf("%s.raw", netperfOpts.Output)})
-
+	err = integration.PerformSCPCmdFromRemote(sshOpts, node, resultCaptureFile, filepath.Join(netperfOpts.OutputDir, "result.csv"), netperfOpts.Debug)
 	if err != nil {
-		integration.PrettyPrintErr("Couldn't copy output RAW datafile: %s", err)
+		integration.PrettyPrintErr("Couldn't fetch output CSV datafile %s from remote %s: %s",
+			resultCaptureFile, integration.GetNodeAddress(node), err)
+		return false
+	}
+
+	remote = fmt.Sprintf("%s/%s:%s", testNamespace, podName, outputCaptureFile)
+	_, err = runKubectlCommand([]string{"cp", remote, outputCaptureFile})
+	if err != nil {
+		integration.PrettyPrintErr("Couldn't copy output RAW datafile %s from remote %s: %s",
+			outputCaptureFile, integration.GetNodeAddress(node), err)
+		return false
+	}
+	err = integration.PerformSCPCmdFromRemote(sshOpts, node, outputCaptureFile, filepath.Join(netperfOpts.OutputDir, "output.txt"), netperfOpts.Debug)
+	if err != nil {
+		integration.PrettyPrintErr("Couldn't fetch output RAW datafile %s from remote %s: %s",
+			outputCaptureFile, integration.GetNodeAddress(node), err)
 		return false
 	}
 
