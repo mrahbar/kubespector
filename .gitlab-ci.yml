@@ -17,10 +17,10 @@ build-project:
     - TAG=$(grep -Po 'TAG\s=\s\K([\d.\-\w]+)' Makefile)
     - echo "$TAG"
     - glide install
-    - go build -a -installsuffix cgo -ldflags "-w -X main.version=$TAG -X 'main.buildDate=$BUILD_DATE'" -o kubernetes-inspector-$TAG *.go
-    - mv kubernetes-inspector-$TAG /builds/mrahbar/kubernetes-inspector
+    - go build -a -installsuffix cgo -ldflags "-w -X main.version=$TAG -X 'main.buildDate=$BUILD_DATE'" -o kubespector-$TAG *.go
+    - mv kubespector-$TAG /builds/mrahbar/kubernetes-inspector
   artifacts:
     when: on_success
     paths:
-    - kubernetes-inspector-*
+    - kubespector-*
     
