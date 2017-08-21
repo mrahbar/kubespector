@@ -21,12 +21,6 @@ var (
 	sshOpts types.SSHConfig
 )
 
-type podDeployment struct {
-	Name  string
-	Image string
-	Port  int
-}
-
 const (
 	testNamespace    = "netperf"
 	orchestratorName = "netperf-orchestrator"
@@ -46,107 +40,6 @@ const (
 	orchestratorPort = 5202
 	iperf3Port       = 5201
 	netperfPort      = 12865
-)
-
-type servicePort struct {
-	Name       string
-	Protocol   string
-	Port       int
-	TargetPort int
-}
-
-type podPort struct {
-	Name     string
-	Protocol string
-	Port     int
-}
-
-type env struct {
-	Name  string
-	Value string
-}
-
-type service struct {
-	Name      string
-	Namespace string
-	Ports     []servicePort
-}
-
-type ReplicationController struct {
-	Name              string
-	Namespace         string
-	Image             string
-	NodeName          string
-	ContainerMode     string
-	Ports             []podPort
-	ClientPod         bool
-	OrchestratorPodIP string
-}
-
-const (
-	NAMESPACE_TEMPLATE = `apiVersion: v1
-kind: Namespace
-metadata:
-  name: {{.Namespace}}
-`
-	SERVICE_TEMPLATE = `apiVersion: v1
-kind: Service
-metadata:
-  name: {{.Name}}
-  labels:
-    app: {{.Name}}
-  namespace: {{.Namespace}}
-spec:
-  ports:{{range $i, $a := .Ports}}
-  - name: {{.Name}}
-    protocol: {{.Protocol}}
-    port: {{.Port}}
-    targetPort: {{.TargetPort}}{{end}}
-  selector:
-    app: {{.Name}}
-  type: ClusterIP
-`
-
-	RC_TEMPLATE = `apiVersion: v1
-kind: ReplicationController
-metadata:
-  name: {{.Name}}
-  namespace: {{.Namespace}}
-spec:
-  replicas: 1
-  selector:
-    app: {{.Name}}
-  template:
-    metadata:
-      name: {{.Name}}
-      labels:
-        app: {{.Name}}
-    spec:{{if .NodeName }}
-      nodeName: {{.NodeName}}{{end}}
-      containers:
-      - name: {{.Name}}
-        image: {{.Image}}
-        imagePullPolicy: Always
-        args:
-        - --mode={{.ContainerMode}}
-        {{- if .Ports }}
-        ports:{{range $i, $a := .Ports}}
-        - name: {{.Name}}
-          protocol: {{.Protocol}}
-          containerPort: {{.Port}}{{end}}{{end}}
-		{{- if .ClientPod }}
-        env:
-        - name: workerPodIP
-          valueFrom:
-            fieldRef:
-              fieldPath: status.podIP
-        - name: workerName
-          value: {{.Name}}
-        - name: orchestratorPort
-          value: "5202"
-        - name: orchestratorPodIP
-          value: "{{.OrchestratorPodIP}}"{{end}}
-`
 )
 
 var netperfOpts *types.NetperfOpts
@@ -229,7 +122,7 @@ func createTestNamespace() {
 	util.PrettyPrintInfo("Creating namespace")
 	data := make(map[string]string)
 	data["Namespace"] = testNamespace
-	_, err := deployKubernetesResource(NAMESPACE_TEMPLATE, data)
+	_, err := deployKubernetesResource(types.NAMESPACE_TEMPLATE, data)
 
 	if err != nil {
 		util.PrettyPrintErr("Error creating test namespace: %s", err)
@@ -243,7 +136,7 @@ func createTestNamespace() {
 func createServices() {
 	util.PrettyPrintInfo("Creating services")
 	// Host
-	data := service{Name: orchestratorName, Namespace: testNamespace, Ports: []servicePort{
+	data := types.Service{Name: orchestratorName, Namespace: testNamespace, Ports: []types.ServicePort{
 		{
 			Name:       orchestratorName,
 			Port:       orchestratorPort,
@@ -255,7 +148,7 @@ func createServices() {
 
 	// Create the netperf-w2 service that points a clusterIP at the worker 2 pod
 	name := fmt.Sprintf("%s%d", workerName, 2)
-	data = service{Name: name, Namespace: testNamespace, Ports: []servicePort{
+	data = types.Service{Name: name, Namespace: testNamespace, Ports: []types.ServicePort{
 		{
 			Name:       name,
 			Protocol:   "TCP",
@@ -280,7 +173,7 @@ func createServices() {
 }
 
 func createService(name string, serviceData interface{}) {
-	sshOut, err := deployKubernetesResource(SERVICE_TEMPLATE, serviceData)
+	sshOut, err := deployKubernetesResource(types.SERVICE_TEMPLATE, serviceData)
 
 	if err != nil {
 		if strings.Contains(ssh.CombineOutput(sshOut), "AlreadyExists") {
@@ -297,8 +190,15 @@ func createService(name string, serviceData interface{}) {
 func createReplicationControllers() {
 	util.PrettyPrintInfo("Creating ReplicationControllers")
 
-	hostRC := ReplicationController{Name: orchestratorName, Namespace: testNamespace,
-		Image: netperfImage, ContainerMode: orchestratorMode, Ports: []podPort{
+	hostRC := types.ReplicationController{Name: orchestratorName, Namespace: testNamespace,
+		Image: netperfImage,
+		Args: []types.Arg{
+			{
+				Key:   "--mode",
+				Value: orchestratorMode,
+			},
+		},
+		Ports: []types.PodPort{
 			{
 				Name:     "service-port",
 				Protocol: "TCP",
@@ -306,7 +206,7 @@ func createReplicationControllers() {
 			},
 		},
 	}
-	sshOut, err := deployKubernetesResource(RC_TEMPLATE, hostRC)
+	sshOut, err := deployKubernetesResource(types.REPLICATION_CONTROLLER_TEMPLATE, hostRC)
 
 	if err != nil {
 		util.PrettyPrintErr("Error creating %s replication controller: %s", orchestratorName, err)
@@ -341,9 +241,15 @@ func createReplicationControllers() {
 				kubeNode = secondNode
 			}
 
-			clientRC := ReplicationController{Name: name, Namespace: testNamespace, Image: netperfImage,
-				ContainerMode: workerMode, NodeName: kubeNode, ClientPod: true, OrchestratorPodIP: hostIP,
-				Ports: []podPort{
+			clientRC := types.ReplicationController{Name: name, Namespace: testNamespace, Image: netperfImage,
+				NodeName: kubeNode,
+				Args: []types.Arg{
+					{
+						Key:   "--mode",
+						Value: workerMode,
+					},
+				},
+				Ports: []types.PodPort{
 					{
 						Name:     "iperf3-port",
 						Protocol: "UDP",
@@ -355,9 +261,27 @@ func createReplicationControllers() {
 						Port:     netperfPort,
 					},
 				},
+				Envs: []types.Env{
+					{
+						Name:  "workerName",
+						Value: name,
+					},
+					{
+						Name:       "workerPodIP",
+						FieldValue: "status.podIP",
+					},
+					{
+						Name:  "orchestratorPort",
+						Value: "5202",
+					},
+					{
+						Name:  "orchestratorPodIP",
+						Value: hostIP,
+					},
+				},
 			}
 
-			_, err := deployKubernetesResource(RC_TEMPLATE, clientRC)
+			_, err := deployKubernetesResource(types.REPLICATION_CONTROLLER_TEMPLATE, clientRC)
 
 			if err != nil {
 				util.PrettyPrintErr("Error creating %s replication controller: %s", name, err)
