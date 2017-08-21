@@ -3,7 +3,7 @@ package cmd
 import (
 	"os"
 
-	"github.com/mrahbar/kubernetes-inspector/integration"
+	"github.com/mrahbar/kubernetes-inspector/util"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -56,8 +56,8 @@ func initConfig() {
 	// If a config file is found, read it in.
 	err := viper.ReadInConfig()
 	if err == nil {
-		integration.PrettyPrint("Loading config file: %s", viper.ConfigFileUsed())
+		util.PrettyPrint("Loading config file: %s", viper.ConfigFileUsed())
 	} else {
-		integration.PrettyPrintErr("Error loading config file: %s", err.Error())
+		util.PrettyPrintErr("Error loading config file: %s", err.Error())
 	}
 }

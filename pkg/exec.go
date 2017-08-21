@@ -2,39 +2,69 @@ package pkg
 
 import (
 	"fmt"
-	"github.com/mrahbar/kubernetes-inspector/integration"
+	"github.com/mrahbar/kubernetes-inspector/ssh"
 	"github.com/mrahbar/kubernetes-inspector/types"
+	"github.com/mrahbar/kubernetes-inspector/util"
+	"os"
 )
 
+var execOpts *types.ExecOpts
+
 func Exec(config types.Config, opts *types.ExecOpts) {
+	execOpts = opts
 	runGeneric(config, &opts.GenericOpts, initializeExec, exec)
 }
 
 func initializeExec(target string, node string, group string) {
 	if group != "" {
-		integration.PrintHeader(fmt.Sprintf("Executing '%v' in group [%s] ",
+		util.PrintHeader(fmt.Sprintf("Executing '%v' in group [%s] ",
 			target, group), '=')
 	}
 
 	if node != "" {
-		integration.PrintHeader(fmt.Sprintf("Executing '%v' on node %s :\n",
+		util.PrintHeader(fmt.Sprintf("Executing '%v' on node %s :\n",
 			target, node), '=')
 	}
 
-	integration.PrettyPrint("\n")
+	if execOpts.FileOutput != "" {
+		err := util.InitializeOutputFile(execOpts.FileOutput)
+		if err != nil {
+			util.PrettyPrintErr("Failed to open output file %s: %s", execOpts.FileOutput, err)
+			os.Exit(1)
+		} else {
+			util.PrettyPrintInfo("Result is written to file %s screen output is suppressed.", execOpts.FileOutput)
+		}
+	}
+	util.PrettyNewLine()
 }
 
 func exec(sshOpts types.SSHConfig, command string, node types.Node, debug bool) {
-	command = fmt.Sprintf("bash -c '%s'", command)
-
-	o, err := integration.PerformSSHCmd(sshOpts, node, command, debug)
-
-	integration.PrettyPrint(fmt.Sprintf("Result on node %s:\n", integration.ToNodeLabel(node)))
-	if err != nil {
-		integration.PrettyPrintErr("Error: %v\nOut: %s", err, o)
+	if execOpts.Sudo {
+		command = fmt.Sprintf("sudo %s", command)
 	} else {
-		integration.PrettyPrintOk("%s", o)
+		command = fmt.Sprintf("%s", command)
 	}
 
-	integration.PrettyPrint("\n")
+	sshOut, err := ssh.PerformCmd(sshOpts, node, command, debug)
+
+	util.PrettyPrint(fmt.Sprintf("Result on node %s:", util.ToNodeLabel(node)))
+	if err != nil {
+		util.PrettyPrintErr("Error executing command: %s", err)
+	} else {
+		result := ssh.CombineOutput(sshOut)
+		if execOpts.FileOutput != "" {
+			out := fmt.Sprintf("Result of '%s' on node %s:\n\n%s\n\n", command, util.ToNodeLabel(node), result)
+			err := util.WriteOutputFile(execOpts.FileOutput, out)
+			if err != nil {
+				util.PrettyPrintWarn("Failed to write to output file %s forwarding to screen: %s", execOpts.FileOutput, err)
+				util.PrettyPrintOk(result)
+			} else {
+				util.PrettyPrintOk("Result written to file")
+			}
+		} else {
+			util.PrettyPrintOk(result)
+		}
+	}
+
+	util.PrettyNewLine()
 }

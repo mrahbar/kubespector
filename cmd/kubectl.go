@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/mrahbar/kubernetes-inspector/integration"
+	"github.com/mrahbar/kubernetes-inspector/util"
 
 	"github.com/mrahbar/kubernetes-inspector/pkg"
 	"github.com/mrahbar/kubernetes-inspector/types"
@@ -16,7 +16,7 @@ var kubectlCmd = &cobra.Command{
 	Aliases: []string{"k"},
 	Short:   "Wrapper for kubectl",
 	Long:    `For a full documentation of available commands visit official website: https://kubernetes.io/docs/user-guide/kubectl-overview/`,
-	PreRunE: integration.CheckRequiredFlags,
+	PreRunE: util.CheckRequiredFlags,
 	Run:     kubectlRun,
 }
 
@@ -27,7 +27,7 @@ func init() {
 }
 
 func kubectlRun(_ *cobra.Command, _ []string) {
-	config := integration.UnmarshalConfig()
+	config := util.UnmarshalConfig()
 	kubectlOpts.Debug = RootOpts.Debug
 	pkg.Kubectl(config, kubectlOpts)
 }

@@ -1,15 +1,15 @@
-package integration
+package util
 
 import (
 	"fmt"
 	"io"
 	"text/tabwriter"
 
+	"bytes"
 	"github.com/fatih/color"
 	"os"
 	"strings"
 	"unicode/utf8"
-	"bytes"
 )
 
 const (
@@ -25,6 +25,7 @@ const (
 )
 
 const tabWidth = 104
+
 var out io.Writer = os.Stdout
 
 var Green = color.New(color.FgGreen)

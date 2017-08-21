@@ -1,5 +1,3 @@
-cobrall: push
-
 TAG = 1.1.3-SNAPSHOT
 PREFIX = kubespector
 BUILD_DATE := $(shell date -u)

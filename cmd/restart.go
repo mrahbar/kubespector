@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/mrahbar/kubernetes-inspector/integration"
+	"github.com/mrahbar/kubernetes-inspector/util"
 
 	"github.com/mrahbar/kubernetes-inspector/pkg"
 	"github.com/mrahbar/kubernetes-inspector/types"
@@ -16,7 +16,7 @@ var restartCmd = &cobra.Command{
 	Short: "Restarts a Kubernetes service on a target group or node",
 	Long: `Service name is mandatory. Either specify node or group in which the service should be restarted.
 	When a target group is specified all nodes inside that group will be targeted for service restart.`,
-	PreRunE: integration.CheckRequiredFlags,
+	PreRunE: util.CheckRequiredFlags,
 	Run:     restartRun,
 }
 
@@ -29,7 +29,7 @@ func init() {
 }
 
 func restartRun(_ *cobra.Command, _ []string) {
-	config := integration.UnmarshalConfig()
+	config := util.UnmarshalConfig()
 	restartOpts.Debug = RootOpts.Debug
 	pkg.Restart(config, restartOpts)
 }

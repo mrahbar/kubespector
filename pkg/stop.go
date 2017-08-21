@@ -2,8 +2,9 @@ package pkg
 
 import (
 	"fmt"
-	"github.com/mrahbar/kubernetes-inspector/integration"
+	"github.com/mrahbar/kubernetes-inspector/ssh"
 	"github.com/mrahbar/kubernetes-inspector/types"
+	"github.com/mrahbar/kubernetes-inspector/util"
 )
 
 func Stop(config types.Config, opts *types.GenericOpts) {
@@ -12,27 +13,27 @@ func Stop(config types.Config, opts *types.GenericOpts) {
 
 func initializeStopService(service string, node string, group string) {
 	if group != "" {
-		integration.PrintHeader(fmt.Sprintf("Stopping service %v in group [%s] ",
+		util.PrintHeader(fmt.Sprintf("Stopping service %v in group [%s] ",
 			service, group), '=')
 	}
 
 	if node != "" {
-		integration.PrintHeader(fmt.Sprintf("Stopping service %v on node %s:",
+		util.PrintHeader(fmt.Sprintf("Stopping service %v on node %s:",
 			service, node), '=')
 	}
 
-	integration.PrettyPrint("\n")
+	util.PrettyNewLine()
 }
 
 func stopService(sshOpts types.SSHConfig, service string, node types.Node, debug bool) {
-	o, err := integration.PerformSSHCmd(sshOpts, node, fmt.Sprintf("sudo systemctl stop %s", service), debug)
+	_, err := ssh.PerformCmd(sshOpts, node, fmt.Sprintf("sudo systemctl stop %s", service), debug)
 
-	integration.PrettyPrint(fmt.Sprintf("Result on node %s:", integration.ToNodeLabel(node)))
+	util.PrettyPrint(fmt.Sprintf("Result on node %s:", util.ToNodeLabel(node)))
 	if err != nil {
-		integration.PrettyPrintErr("Error: %v\nOut: %s", err, o)
+		util.PrettyPrintErr("Error stopping service %s: %s", service, err)
 	} else {
-		integration.PrettyPrintOk("Service %s stopped. %s", service, o)
+		util.PrettyPrintOk("Service %s stopped.", service)
 	}
 
-	integration.PrettyPrint("\n")
+	util.PrettyNewLine()
 }
