@@ -28,8 +28,6 @@ var currentJobIndex = 0
 var globalLock sync.Mutex
 var workerStateMap = make(map[string]*types.WorkerState)
 
-// NetPerfRpc stores something
-// TODO: someone who knows what this all this does should update comments.
 type NetPerfRpc int
 
 // Blocking RPC server start - only runs on the orchestrator
@@ -234,7 +232,7 @@ func flushDataPointsToCsv() {
 	}
 	integration.PrettyPrint(buffer)
 
-	resultsBuffer := fmt.Sprintf("%s\n",buffer)
+	resultsBuffer := fmt.Sprintf("%s\n", buffer)
 	for _, label := range dataPointKeys {
 		buffer = fmt.Sprintf("%-45s,", label)
 		points := dataPoints[label]
@@ -243,15 +241,15 @@ func flushDataPointsToCsv() {
 			buffer = buffer + fmt.Sprintf("%s,", p.Bandwidth)
 		}
 		integration.PrettyPrint(buffer)
-		resultsBuffer += fmt.Sprintf("%s\n",buffer)
+		resultsBuffer += fmt.Sprintf("%s\n", buffer)
 	}
 
 	integration.PrettyPrint(csvEndDataMarker)
-	resultsBuffer += fmt.Sprintf("%s\n",csvEndDataMarker)
+	resultsBuffer += fmt.Sprintf("%s\n", csvEndDataMarker)
 	writeOutputFile(resultCaptureFile, resultsBuffer)
 }
 
-func getMax(points []types.Point) (float64) {
+func getMax(points []types.Point) float64 {
 	var max float64
 	for _, p := range points {
 		fv, _ := strconv.ParseFloat(p.Bandwidth, 64)

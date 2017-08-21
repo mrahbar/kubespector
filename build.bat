@@ -1,0 +1,1 @@
+go build -a -installsuffix cgo -ldflags "-w -X main.version=1.1.3-SNAPSHOT -X 'main.buildDate=Sat Aug 19 20:07:24 UTC 2017'" -o kubespector-1.1.3-SNAPSHOT.exe

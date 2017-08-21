@@ -2,8 +2,9 @@ package pkg
 
 import (
 	"fmt"
-	"github.com/mrahbar/kubernetes-inspector/integration"
+	"github.com/mrahbar/kubernetes-inspector/ssh"
 	"github.com/mrahbar/kubernetes-inspector/types"
+	"github.com/mrahbar/kubernetes-inspector/util"
 )
 
 func Restart(config types.Config, opts *types.GenericOpts) {
@@ -12,28 +13,28 @@ func Restart(config types.Config, opts *types.GenericOpts) {
 
 func initializeRestartService(service string, node string, group string) {
 	if group != "" {
-		integration.PrintHeader(fmt.Sprintf("Restarting service %v in group [%s] ",
+		util.PrintHeader(fmt.Sprintf("Restarting service %v in group [%s] ",
 			service, group), '=')
 	}
 
 	if node != "" {
-		integration.PrintHeader(fmt.Sprintf("Restarting service %v on node %s:",
+		util.PrintHeader(fmt.Sprintf("Restarting service %v on node %s:",
 			service, node), '=')
 	}
 
-	integration.PrettyPrint("\n")
+	util.PrettyNewLine()
 }
 
 func restartService(sshOpts types.SSHConfig, service string, node types.Node, debug bool) {
-	o, err := integration.PerformSSHCmd(sshOpts, node, fmt.Sprintf("sudo systemctl restart %s", service), debug)
+	_, err := ssh.PerformCmd(sshOpts, node, fmt.Sprintf("sudo systemctl restart %s", service), debug)
 
-	integration.PrettyPrint(fmt.Sprintf("Result on node %s:", integration.ToNodeLabel(node)))
+	util.PrettyPrint(fmt.Sprintf("Result on node %s:", util.ToNodeLabel(node)))
 
 	if err != nil {
-		integration.PrettyPrintErr("Error: %v\nOut: %s", err, o)
+		util.PrettyPrintErr("Error restarting service %s: %s", service, err)
 	} else {
-		integration.PrettyPrintOk("Service %s restarted. %s", service, o)
+		util.PrettyPrintOk("Service %s restarted.", service)
 	}
 
-	integration.PrettyPrint("\n")
+	util.PrettyNewLine()
 }

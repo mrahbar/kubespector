@@ -1,9 +1,9 @@
 package cmd
 
 import (
-	"github.com/mrahbar/kubernetes-inspector/integration"
 	"github.com/mrahbar/kubernetes-inspector/pkg"
 	"github.com/mrahbar/kubernetes-inspector/types"
+	"github.com/mrahbar/kubernetes-inspector/util"
 	"github.com/spf13/cobra"
 )
 
@@ -24,7 +24,7 @@ func init() {
 }
 
 func clusterStatusRun(_ *cobra.Command, _ []string) {
-	config := integration.UnmarshalConfig()
+	config := util.UnmarshalConfig()
 	clusterStatusOpts.Debug = RootOpts.Debug
 	pkg.ClusterStatus(config, clusterStatusOpts)
 }

@@ -8,6 +8,6 @@ type NetperfOpts struct {
 
 type ScaleTestOpts struct {
 	OutputDir string
-	Cleanup bool
+	Cleanup   bool
 	RootOpts
 }

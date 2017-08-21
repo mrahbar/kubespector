@@ -1,8 +1,8 @@
 package pkg
 
 import (
-	"github.com/mrahbar/kubernetes-inspector/integration"
 	"github.com/mrahbar/kubernetes-inspector/types"
+	"github.com/mrahbar/kubernetes-inspector/util"
 	"os"
 	"strings"
 )
@@ -20,11 +20,11 @@ func runGeneric(config types.Config, opts *types.GenericOpts, initializer types.
 			}
 		}
 
-		if !integration.IsNodeAddressValid(node) {
-			integration.PrettyPrintErr("No node found for %v in config", opts.NodeArg)
+		if !util.IsNodeAddressValid(node) {
+			util.PrettyPrintErr("No node found for %v in config", opts.NodeArg)
 			os.Exit(1)
 		} else {
-			initializer(opts.TargetArg, integration.ToNodeLabel(node), "")
+			initializer(opts.TargetArg, util.ToNodeLabel(node), "")
 			processor(config.Ssh, opts.TargetArg, node, opts.Debug)
 		}
 	} else {
@@ -40,23 +40,23 @@ func runGeneric(config types.Config, opts *types.GenericOpts, initializer types.
 		}
 
 		for _, element := range groups {
-			group := integration.FindGroupByName(config.ClusterGroups, element)
+			group := util.FindGroupByName(config.ClusterGroups, element)
 
 			if group.Nodes != nil {
-				initializer(opts.TargetArg, integration.ToNodeLabel(types.Node{}), element)
+				initializer(opts.TargetArg, util.ToNodeLabel(types.Node{}), element)
 				for _, node := range group.Nodes {
-					if !integration.IsNodeAddressValid(node) {
-						integration.PrettyPrintErr("Current node %q has no valid address", node)
+					if !util.IsNodeAddressValid(node) {
+						util.PrettyPrintErr("Current node %q has no valid address", node)
 						continue
 					} else {
-						if !integration.ElementInArray(nodes, node.Host) {
+						if !util.ElementInArray(nodes, node.Host) {
 							processor(config.Ssh, opts.TargetArg, node, opts.Debug)
 							nodes = append(nodes, node.Host)
 						}
 					}
 				}
 			} else {
-				integration.PrettyPrintErr("No Nodes found for group: %s", element)
+				util.PrettyPrintErr("No Nodes found for group: %s", element)
 			}
 		}
 	}

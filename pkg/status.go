@@ -2,8 +2,9 @@ package pkg
 
 import (
 	"fmt"
-	"github.com/mrahbar/kubernetes-inspector/integration"
+	"github.com/mrahbar/kubernetes-inspector/ssh"
 	"github.com/mrahbar/kubernetes-inspector/types"
+	"github.com/mrahbar/kubernetes-inspector/util"
 )
 
 func Status(config types.Config, opts *types.GenericOpts) {
@@ -12,27 +13,27 @@ func Status(config types.Config, opts *types.GenericOpts) {
 
 func initializeStatusService(service string, node string, group string) {
 	if group != "" {
-		integration.PrintHeader(fmt.Sprintf("Checking status of service %v in group [%s] ",
+		util.PrintHeader(fmt.Sprintf("Checking status of service %v in group [%s] ",
 			service, group), '=')
 	}
 
 	if node != "" {
-		integration.PrintHeader(fmt.Sprintf("Checking status of service %v on node %s:",
+		util.PrintHeader(fmt.Sprintf("Checking status of service %v on node %s:",
 			service, node), '=')
 	}
 
-	integration.PrettyPrint("\n")
+	util.PrettyNewLine()
 }
 
 func statusService(sshOpts types.SSHConfig, service string, node types.Node, debug bool) {
-	o, err := integration.PerformSSHCmd(sshOpts, node, fmt.Sprintf("sudo systemctl status %s -l", service), debug)
+	sshOut, err := ssh.PerformCmd(sshOpts, node, fmt.Sprintf("sudo systemctl status %s -l", service), debug)
 
-	integration.PrettyPrint(fmt.Sprintf("Result on node %s:", integration.ToNodeLabel(node)))
+	util.PrettyPrint(fmt.Sprintf("Result on node %s:", util.ToNodeLabel(node)))
 	if err != nil {
-		integration.PrettyPrintErr("Error: %v\nOut: %s", err, o)
+		util.PrettyPrintErr("Error checking status of service %s: %s", service, err)
 	} else {
-		integration.PrettyPrintOk("%s", o)
+		util.PrettyPrintOk(ssh.CombineOutput(sshOut))
 	}
 
-	integration.PrettyPrint("\n")
+	util.PrettyNewLine()
 }

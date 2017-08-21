@@ -18,25 +18,6 @@ type Config struct {
 	}
 }
 
-//LocalOn and Bastion are mutual exclusive
-type SSHConfig struct {
-	Connection SSHConnection
-	LocalOn    Node
-	Bastion    BastionSSHConnection
-}
-
-type SSHConnection struct {
-	User    string
-	Key     string
-	Port    int
-	Timeout int
-}
-
-type BastionSSHConnection struct {
-	SSHConnection
-	Node Node
-}
-
 type ClusterGroup struct {
 	Name         string
 	Nodes        []Node
