@@ -44,12 +44,12 @@ func initializeOutputFile() {
 	archiveName = fmt.Sprintf("etcd-backup-%s.tar.gz", strings.Replace(time.Now().Format("2006-01-02T15:04:05"), ":", "-", -1))
 
 	if etcdBackupOpts.Output == "" {
-		ex, err := os.Executable()
+		ex, err := util.GetExecutablePath()
 		if err != nil {
 			os.Exit(1)
 		}
 
-		etcdBackupOpts.Output = filepath.Join(filepath.Dir(ex), archiveName)
+		etcdBackupOpts.Output = filepath.Join(ex, archiveName)
 	} else {
 		etcdBackupOpts.Output = filepath.Join(etcdBackupOpts.Output, archiveName)
 	}

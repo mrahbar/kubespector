@@ -1,18 +1,14 @@
 package pkg
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/mrahbar/kubernetes-inspector/ssh"
 	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/util"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
-	"text/template"
 	"time"
 )
 
@@ -22,7 +18,7 @@ var (
 )
 
 const (
-	testNamespace    = "netperf"
+	netperfNamespace = "netperf"
 	orchestratorName = "netperf-orchestrator"
 	workerName       = "netperf-w"
 
@@ -62,11 +58,10 @@ func Netperf(config types.Config, opts *types.NetperfOpts) {
 	}
 
 	if netperfOpts.OutputDir == "" {
-		ex, err := os.Executable()
+		exPath, err := util.GetExecutablePath()
 		if err != nil {
 			os.Exit(1)
 		}
-		exPath := path.Dir(ex)
 		netperfOpts.OutputDir = path.Join(exPath, "netperf-results")
 	}
 
@@ -78,65 +73,53 @@ func Netperf(config types.Config, opts *types.NetperfOpts) {
 
 	util.PrettyPrint("Running kubectl commands on node %s", util.ToNodeLabel(node))
 
-	checkingPreconditions()
-	createTestNamespace()
-	createServices()
-	createReplicationControllers()
+	checkingNetperfPreconditions()
+	createNetperfNamespace()
+	createNetperfServices()
+	createNetperfReplicationControllers()
 
-	waitForServicesToBeRunning()
-	displayTestPods()
+	waitForNetperfServicesToBeRunning()
+	displayNetperfPods()
 	fetchTestResults()
 
-	// cleanup services
 	if netperfOpts.Cleanup {
 		util.PrettyPrintInfo("Cleaning up...")
-		removeServices()
-		removeReplicationControllers()
+		removeNetperfServices()
+		removeNetperfReplicationControllers()
 	}
 
 	util.PrettyPrintOk("DONE")
 }
 
-func checkingPreconditions() {
-	tmpl := "\"{range .items[*]}{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status};{end}{end}\""
-	args := []string{"get", "nodes", "-o", "jsonpath=" + tmpl, " | ", "tr", "';'", "\\\\n", " | ", "grep", "\"Ready=True\"", " | ", "wc", "-l"}
-	sshOut, err := runKubectlCommand(args)
+func checkingNetperfPreconditions() {
+	count, err := ssh.GetNumberOfReadyNodes(sshOpts, node, netperfOpts.Debug)
 
 	if err != nil {
 		util.PrettyPrintErr("Error checking node count: %s", err)
 		os.Exit(1)
-	} else {
-		count, errAtoi := strconv.Atoi(strings.TrimRight(sshOut.Stdout, "\n"))
-
-		if errAtoi != nil {
-			util.PrettyPrintErr("Error getting node count: %s", errAtoi)
-			os.Exit(1)
-		} else if count < 2 {
-			util.PrettyPrintErr("Insufficient number of nodes for netperf test (need minimum 2 nodes)")
-			os.Exit(1)
-		}
+	} else if count < 2 {
+		util.PrettyPrintErr("Insufficient number of nodes for netperf test (need minimum of 2 nodes)")
+		os.Exit(1)
 	}
 }
 
-func createTestNamespace() {
+func createNetperfNamespace() {
 	util.PrettyPrintInfo("Creating namespace")
-	data := make(map[string]string)
-	data["Namespace"] = testNamespace
-	_, err := deployKubernetesResource(types.NAMESPACE_TEMPLATE, data)
+	err := ssh.CreateNamespace(sshOpts, node, netperfNamespace, netperfOpts.Debug)
 
 	if err != nil {
 		util.PrettyPrintErr("Error creating test namespace: %s", err)
 		os.Exit(1)
 	} else {
-		util.PrettyPrintOk("Namespace %s created", testNamespace)
+		util.PrettyPrintOk("Namespace %s created", netperfNamespace)
 	}
 	util.PrettyNewLine()
 }
 
-func createServices() {
+func createNetperfServices() {
 	util.PrettyPrintInfo("Creating services")
 	// Host
-	data := types.Service{Name: orchestratorName, Namespace: testNamespace, Ports: []types.ServicePort{
+	data := types.Service{Name: orchestratorName, Namespace: netperfNamespace, Ports: []types.ServicePort{
 		{
 			Name:       orchestratorName,
 			Port:       orchestratorPort,
@@ -144,11 +127,17 @@ func createServices() {
 			TargetPort: orchestratorPort,
 		},
 	}}
-	createService(orchestratorName, data)
+	exists, err := ssh.CreateService(sshOpts, node, data, netperfOpts.Debug)
+	if exists {
+		util.PrettyPrintIgnored("Service: %s already exists.", orchestratorName)
+	} else {
+		util.PrettyPrintErr("Error adding service %v: %s", orchestratorName, err)
+		os.Exit(1)
+	}
 
 	// Create the netperf-w2 service that points a clusterIP at the worker 2 pod
 	name := fmt.Sprintf("%s%d", workerName, 2)
-	data = types.Service{Name: name, Namespace: testNamespace, Ports: []types.ServicePort{
+	data = types.Service{Name: name, Namespace: netperfNamespace, Ports: []types.ServicePort{
 		{
 			Name:       name,
 			Protocol:   "TCP",
@@ -168,29 +157,20 @@ func createServices() {
 			TargetPort: netperfPort,
 		},
 	}}
-	createService(name, data)
+	exists, err = ssh.CreateService(sshOpts, node, data, netperfOpts.Debug)
+	if exists {
+		util.PrettyPrintIgnored("Service: %s already exists.", name)
+	} else {
+		util.PrettyPrintErr("Error adding service %v: %s", name, err)
+		os.Exit(1)
+	}
 	util.PrettyNewLine()
 }
 
-func createService(name string, serviceData interface{}) {
-	sshOut, err := deployKubernetesResource(types.SERVICE_TEMPLATE, serviceData)
-
-	if err != nil {
-		if strings.Contains(ssh.CombineOutput(sshOut), "AlreadyExists") {
-			util.PrettyPrintIgnored("Service: %s already exists.", name)
-		} else {
-			util.PrettyPrintErr("Error adding service %v: %s", name, err)
-			os.Exit(1)
-		}
-	} else {
-		util.PrettyPrintOk("Service %s created.", name)
-	}
-}
-
-func createReplicationControllers() {
+func createNetperfReplicationControllers() {
 	util.PrettyPrintInfo("Creating ReplicationControllers")
 
-	hostRC := types.ReplicationController{Name: orchestratorName, Namespace: testNamespace,
+	hostRC := types.ReplicationController{Name: orchestratorName, Namespace: netperfNamespace,
 		Image: netperfImage,
 		Args: []types.Arg{
 			{
@@ -206,7 +186,7 @@ func createReplicationControllers() {
 			},
 		},
 	}
-	sshOut, err := deployKubernetesResource(types.REPLICATION_CONTROLLER_TEMPLATE, hostRC)
+	err := ssh.CreateReplicationController(sshOpts, node, hostRC, netperfOpts.Debug)
 
 	if err != nil {
 		util.PrettyPrintErr("Error creating %s replication controller: %s", orchestratorName, err)
@@ -216,7 +196,7 @@ func createReplicationControllers() {
 	}
 
 	args := []string{"get", "nodes", " | ", "grep", "-w", "\"Ready\"", " | ", "sed", "-e", "\"s/[[:space:]]\\+/,/g\""}
-	sshOut, err = runKubectlCommand(args)
+	sshOut, err := ssh.RunKubectlCommand(sshOpts, node, args, netperfOpts.Debug)
 
 	if err != nil {
 		util.PrettyPrintErr("Error getting nodes for worker replication controller: %s", err)
@@ -241,7 +221,7 @@ func createReplicationControllers() {
 				kubeNode = secondNode
 			}
 
-			clientRC := types.ReplicationController{Name: name, Namespace: testNamespace, Image: netperfImage,
+			clientRC := types.ReplicationController{Name: name, Namespace: netperfNamespace, Image: netperfImage,
 				NodeName: kubeNode,
 				Args: []types.Arg{
 					{
@@ -281,7 +261,7 @@ func createReplicationControllers() {
 				},
 			}
 
-			_, err := deployKubernetesResource(types.REPLICATION_CONTROLLER_TEMPLATE, clientRC)
+			_, err := ssh.DeployKubernetesResource(sshOpts, node, types.REPLICATION_CONTROLLER_TEMPLATE, clientRC, netperfOpts.Debug)
 
 			if err != nil {
 				util.PrettyPrintErr("Error creating %s replication controller: %s", name, err)
@@ -294,47 +274,14 @@ func createReplicationControllers() {
 	util.PrettyNewLine()
 }
 
-func runKubectlCommand(args []string) (*types.SSHOutput, error) {
-	a := strings.Join(args, " ")
-	return ssh.PerformCmd(sshOpts, node, fmt.Sprintf("kubectl %s", a), netperfOpts.Debug)
-}
-
-func deployKubernetesResource(tpl string, data interface{}) (*types.SSHOutput, error) {
-	var definition bytes.Buffer
-
-	tmpl, _ := template.New("kube-template").Parse(tpl)
-	tmpl.Execute(&definition, data)
-
-	tmpFile, err := ioutil.TempFile("", "kubeceptor-")
-	if err != nil {
-		util.PrettyPrintErr("Error creating temporary file: %s", err)
-		os.Exit(1)
-	}
-
-	defer os.Remove(tmpFile.Name())
-	ioutil.WriteFile(tmpFile.Name(), definition.Bytes(), os.ModeAppend)
-	remoteFile := path.Join("/tmp", filepath.Base(tmpFile.Name()))
-	err = ssh.UploadFile(sshOpts, node, remoteFile, tmpFile.Name(), netperfOpts.Debug)
-	if err != nil {
-		util.PrettyPrintErr("Error transferring temporary file %s: %s", tmpFile.Name(), err)
-		os.Exit(1)
-	}
-
-	args := []string{"apply", "-f", remoteFile}
-	result, err := runKubectlCommand(args)
-	ssh.DeleteRemoteFile(sshOpts, node, remoteFile, netperfOpts.Debug)
-
-	return result, err
-}
-
-func waitForServicesToBeRunning() {
+func waitForNetperfServicesToBeRunning() {
 	util.PrettyPrintInfo("Waiting for pods to be Running...")
 	waitTime := time.Second
 	done := false
 	for !done {
 		tmpl := "\"{..status.phase}\""
-		args := []string{"--namespace=" + testNamespace, "get", "pods", "-o", "jsonpath=" + tmpl}
-		sshOut, err := runKubectlCommand(args)
+		args := []string{"--namespace=" + netperfNamespace, "get", "pods", "-o", "jsonpath=" + tmpl}
+		sshOut, err := ssh.RunKubectlCommand(sshOpts, node, args, netperfOpts.Debug)
 
 		if err != nil {
 			util.PrettyPrintWarn("Error running kubectl command '%v': %s", args, err)
@@ -366,12 +313,12 @@ func waitForServicesToBeRunning() {
 	util.PrettyNewLine()
 }
 
-func displayTestPods() {
-	result, err := runKubectlCommand([]string{"--namespace=" + testNamespace, "get", "pods", "-o=wide"})
-	util.PrettyPrint("Pods are running\n%s", result)
-
+func displayNetperfPods() {
+	result, err := ssh.GetPods(sshOpts, node, netperfNamespace, true, netperfOpts.Debug)
 	if err != nil {
 		util.PrettyPrintWarn("Error running kubectl command '%v'", err)
+	} else {
+		util.PrettyPrint("Pods are running\n%s", result)
 	}
 
 	util.PrettyNewLine()
@@ -408,7 +355,8 @@ func fetchTestResults() {
 
 // Retrieve the logs for the pod/container and check if csv data has been generated
 func getCsvResultsFromPod(podName string) *string {
-	sshOut, err := runKubectlCommand([]string{"--namespace=" + testNamespace, "logs", podName, "--timestamps=false"})
+	args := []string{"--namespace=" + netperfNamespace, "logs", podName, "--timestamps=false"}
+	sshOut, err := ssh.RunKubectlCommand(sshOpts, node, args, netperfOpts.Debug)
 	logData := sshOut.Stdout
 	if err != nil {
 		util.PrettyPrintWarn("Error reading logs from pod %s: %s", podName, err)
@@ -427,8 +375,8 @@ func getCsvResultsFromPod(podName string) *string {
 
 // processCsvData : Fetch the CSV datafile
 func processCsvData(podName string) bool {
-	remote := fmt.Sprintf("%s/%s:%s", testNamespace, podName, resultCaptureFile)
-	_, err := runKubectlCommand([]string{"cp", remote, resultCaptureFile})
+	remote := fmt.Sprintf("%s/%s:%s", netperfNamespace, podName, resultCaptureFile)
+	_, err := ssh.RunKubectlCommand(sshOpts, node, []string{"cp", remote, resultCaptureFile}, netperfOpts.Debug)
 	if err != nil {
 		util.PrettyPrintErr("Couldn't copy output CSV datafile %s from remote %s: %s",
 			resultCaptureFile, util.GetNodeAddress(node), err)
@@ -442,8 +390,8 @@ func processCsvData(podName string) bool {
 		return false
 	}
 
-	remote = fmt.Sprintf("%s/%s:%s", testNamespace, podName, outputCaptureFile)
-	_, err = runKubectlCommand([]string{"cp", remote, outputCaptureFile})
+	remote = fmt.Sprintf("%s/%s:%s", netperfNamespace, podName, outputCaptureFile)
+	_, err = ssh.RunKubectlCommand(sshOpts, node, []string{"cp", remote, outputCaptureFile}, netperfOpts.Debug)
 	if err != nil {
 		util.PrettyPrintErr("Couldn't copy output RAW datafile %s from remote %s: %s",
 			outputCaptureFile, util.GetNodeAddress(node), err)
@@ -459,38 +407,39 @@ func processCsvData(podName string) bool {
 	return true
 }
 
-func removeServices() {
-	removeService(orchestratorName)
-	removeService(fmt.Sprintf("%s%d", workerName, 2))
-}
+func removeNetperfServices() {
+	name := "svc/" + orchestratorName
+	err := ssh.RemoveResource(sshOpts, node, netperfNamespace, name, netperfOpts.Debug)
+	if err != nil {
+		util.PrettyPrintWarn("Error deleting service '%v'", name, err)
+	}
 
-func removeService(name string) {
-	_, err := runKubectlCommand([]string{"--namespace=" + testNamespace, "delete", "svc/" + name})
-
+	name = fmt.Sprintf("svc/%s%d", workerName, 2)
+	err = ssh.RemoveResource(sshOpts, node, netperfNamespace, name, netperfOpts.Debug)
 	if err != nil {
 		util.PrettyPrintWarn("Error deleting service '%v'", name, err)
 	}
 }
 
-func removeReplicationControllers() {
-	removeReplicationController(orchestratorName)
-	for i := 1; i <= workerCount; i++ {
-		removeReplicationController(fmt.Sprintf("%s%d", workerName, i))
-	}
-}
-
-func removeReplicationController(name string) {
-	_, err := runKubectlCommand([]string{"--namespace=" + testNamespace, "delete", "rc/" + name})
-
+func removeNetperfReplicationControllers() {
+	err := ssh.RemoveResource(sshOpts, node, netperfNamespace, orchestratorName, netperfOpts.Debug)
 	if err != nil {
-		util.PrettyPrintWarn("Error deleting replication-controller '%v'", name, err)
+		util.PrettyPrintWarn("Error deleting replication-controller '%v'", orchestratorName, err)
+	}
+
+	for i := 1; i <= workerCount; i++ {
+		name := fmt.Sprintf("rc/%s%d", workerName, i)
+		err := ssh.RemoveResource(sshOpts, node, netperfNamespace, name, netperfOpts.Debug)
+		if err != nil {
+			util.PrettyPrintWarn("Error deleting replication-controller '%v'", name, err)
+		}
 	}
 }
 
 func getPodName(name string) string {
 	tmpl := "\"{..metadata.name}\""
-	args := []string{"--namespace=" + testNamespace, "get", "pods", "-l", "app=" + name, "-o", "jsonpath=" + tmpl}
-	sshOut, err := runKubectlCommand(args)
+	args := []string{"--namespace=" + netperfNamespace, "get", "pods", "-l", "app=" + name, "-o", "jsonpath=" + tmpl}
+	sshOut, err := ssh.RunKubectlCommand(sshOpts, node, args, netperfOpts.Debug)
 
 	if err != nil {
 		return ""
@@ -501,8 +450,8 @@ func getPodName(name string) string {
 
 func getServiceIP(name string) (string, error) {
 	tmpl := "\"{..spec.clusterIP}\""
-	args := []string{"--namespace=" + testNamespace, "get", "service", "-l", "app=" + name, "-o", "jsonpath=" + tmpl}
-	sshOut, err := runKubectlCommand(args)
+	args := []string{"--namespace=" + netperfNamespace, "get", "service", "-l", "app=" + name, "-o", "jsonpath=" + tmpl}
+	sshOut, err := ssh.RunKubectlCommand(sshOpts, node, args, netperfOpts.Debug)
 
 	if err != nil {
 		return "", err

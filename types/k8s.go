@@ -24,6 +24,11 @@ type Arg struct {
 	Value string
 }
 
+type ResourceRequest struct {
+	Cpu    string
+	Memory string
+}
+
 type Service struct {
 	Name      string
 	Namespace string
@@ -31,13 +36,15 @@ type Service struct {
 }
 
 type ReplicationController struct {
-	Name      string
-	Namespace string
-	Image     string
-	NodeName  string
-	Args      []Arg
-	Ports     []PodPort
-	Envs      []Env
+	Name            string
+	Namespace       string
+	Image           string
+	NodeName        string
+	Args            []Arg
+	Commands        []string
+	Ports           []PodPort
+	ResourceRequest ResourceRequest
+	Envs            []Env
 }
 
 const (
@@ -78,38 +85,56 @@ spec:
       name: {{.Name}}
       labels:
         app: {{.Name}}
-    spec:{{if .NodeName }}
-      nodeName: {{.NodeName}}{{end}}
+    spec:
+    {{- if .NodeName }}
+      nodeName: {{.NodeName}}
+    {{- end}}
       containers:
       - name: {{.Name}}
         image: {{.Image}}
         imagePullPolicy: Always
-        {{- if .Args }}
+	{{- if .Args }}
         args:
         {{- range $i, $a := .Args}}
         - {{.Key}}={{.Value}}
         {{- end}}
+	{{- end}}
+	{{- if .Commands }}
+        command:
+        {{- range $i, $e := .Commands}}
+          - {{ $e }}
         {{- end}}
-        {{- if .Ports }}
+	{{- end}}
+	{{- if .Ports }}
         ports:
         {{- range $i, $a := .Ports}}
         - name: {{.Name}}
           protocol: {{.Protocol}}
           containerPort: {{.Port}}
-          {{- end}}
         {{- end}}
+	{{- end}}
 		{{- if .Envs }}
         env:
-        {{- range $i, $a := .Envs}}
+	{{- range $i, $a := .Envs}}
         - name: {{.Name}}
-		{{- if .FieldValue }}
+		  {{- if .FieldValue }}
           valueFrom:
             fieldRef:
               fieldPath: {{.FieldValue}}
-        {{- else}}
+          {{- else}}
           value: "{{.Value}}"
+          {{- end}}
         {{- end}}
-        {{- end}}
-        {{- end}}
+	{{- end}}
+	{{- if .ResourceRequest }}
+        resources:
+		  requests:
+		  {{- if .ResourceRequest.Cpu}}
+		    cpu: {{.ResourceRequest.Cpu}}
+          {{- end}}
+		  {{- if .ResourceRequest.Memory}}
+		    memory: {{.ResourceRequest.Memory}}
+          {{- end}}
+	{{- end}}
 `
 )
