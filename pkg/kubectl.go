@@ -1,11 +1,11 @@
 package pkg
 
 import (
-	"fmt"
 	"github.com/mrahbar/kubernetes-inspector/ssh"
 	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/util"
 	"os"
+	"strings"
 )
 
 func Kubectl(config types.Config, kubectlOpts *types.KubectlOpts) {
@@ -24,7 +24,7 @@ func Kubectl(config types.Config, kubectlOpts *types.KubectlOpts) {
 	}
 
 	util.PrettyPrint("Running kubectl command '%s' on node %s\n", kubectlOpts.Command, util.ToNodeLabel(node))
-	sshOut, err := ssh.PerformCmd(config.Ssh, node, fmt.Sprintf("kubectl %s", kubectlOpts.Command), kubectlOpts.Debug)
+	sshOut, err := ssh.RunKubectlCommand(config.Ssh, node, strings.Split(kubectlOpts.Command, " "), kubectlOpts.Debug)
 
 	if err != nil {
 		util.PrettyPrintErr("Error performing kubectl command %s: %s", kubectlOpts.Command, err)

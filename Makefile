@@ -3,7 +3,7 @@ PREFIX = kubespector
 BUILD_DATE := $(shell date -u)
 
 DOCKER_RUN = docker run --rm -u $(shell id -u):$(shell id -g) -v $(shell pwd):/go/src/github.com/mrahbar/kubernetes-inspector -w /go/src/github.com/mrahbar/kubernetes-inspector
-GOLANG_CONTAINER = golang-glide:1.8
+GOLANG_CONTAINER = endianogino/golang-glide:1.8
 BUILD_IN_CONTAINER = 1
 
 build-container:
@@ -20,9 +20,9 @@ endif
 
 deps: build-container
 ifeq ($(BUILD_IN_CONTAINER),1)
-	$(DOCKER_RUN) -e CGO_ENABLED=0 $(GOLANG_CONTAINER) glide update
+	$(DOCKER_RUN) -e CGO_ENABLED=0 $(GOLANG_CONTAINER) dep ensure
 else
-	CGO_ENABLED=0 glide install
+	CGO_ENABLED=0 dep ensure
 endif
 
 kubernetes-inspector: deps

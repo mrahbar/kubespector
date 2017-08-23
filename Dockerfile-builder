@@ -12,3 +12,5 @@ RUN curl -fsSL https://github.com/Masterminds/glide/releases/download/v${GLIDE_V
 	&& mv linux-amd64/glide /usr/local/bin \
 	&& rm -rf linux-amd64 \
 	&& rm glide.zip
+
+RUN go get -u github.com/golang/dep/cmd/dep

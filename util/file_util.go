@@ -1,6 +1,9 @@
 package util
 
-import "os"
+import (
+	"os"
+	"path/filepath"
+)
 
 func InitializeOutputFile(file string) error {
 	fd, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE, 0666)
@@ -24,4 +27,13 @@ func WriteOutputFile(filename, data string) error {
 	}
 
 	return nil
+}
+
+func GetExecutablePath() (string, error) {
+	ex, err := os.Executable()
+	if err != nil {
+		return "", nil
+	}
+
+	return filepath.Dir(ex), nil
 }
