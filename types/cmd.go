@@ -16,6 +16,12 @@ type ExecOpts struct {
 	FileOutput string
 }
 
+type ScpOpts struct {
+	GenericOpts
+	LocalFile  string
+	RemoteFile string
+}
+
 type LogsOpts struct {
 	GenericOpts
 	Sudo       bool

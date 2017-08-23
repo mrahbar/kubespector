@@ -10,7 +10,7 @@ import (
 var netperfOpts = &types.NetperfOpts{}
 
 var netperfCmd = &cobra.Command{
-	Use:     "network",
+	Use:     "network-test",
 	Aliases: []string{"net"},
 	Short:   "Runs network performance tests on a cluster",
 	Long:    `This is a tool for running network performance tests on a cluster. The cluster should have at least two worker nodes.`,
