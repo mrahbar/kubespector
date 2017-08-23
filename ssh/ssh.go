@@ -15,7 +15,11 @@ import (
 func PerformCmd(sshOpts types.SSHConfig, node types.Node, cmd string, debug bool) (*types.SSHOutput, error) {
 	if util.NodeEquals(sshOpts.LocalOn, node) {
 		splits := strings.SplitN(cmd, " ", 1)
-		out, err := shell(splits[0], debug, splits[1])
+		args := ""
+		if len(splits) > 1 {
+			args = splits[1]
+		}
+		out, err := shell(splits[0], debug, args)
 		return &types.SSHOutput{Stdout: out}, err
 	}
 
