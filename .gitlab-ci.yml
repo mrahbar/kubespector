@@ -1,4 +1,4 @@
-image: endianogino/golang-glide:1.8-dep
+image: endianogino/golang-glide:1.9-dep
 
 stages:
   - build

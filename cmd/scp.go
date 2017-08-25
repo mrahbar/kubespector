@@ -10,17 +10,18 @@ import (
 var scpOpts = &types.ScpOpts{}
 
 var scpCmd = &cobra.Command{
-	Use:   "scp",
-	Short: "Secure bidirectional file copy",
-	Long: `Copies files or directories to or from the cluster`,
-	Run: scpRun,
+	Use:     "scp",
+	Short:   "Secure bidirectional file copy",
+	Long:    `Copies files or directories to or from the cluster`,
+	PreRunE: util.CheckRequiredFlags,
+	Run:     scpRun,
 }
 
 func init() {
 	RootCmd.AddCommand(scpCmd)
 	scpCmd.Flags().StringVarP(&scpOpts.GroupArg, "group", "g", "", "Comma-separated list of group names")
 	scpCmd.Flags().StringVarP(&scpOpts.NodeArg, "node", "n", "", "Name of target node")
-	scpCmd.Flags().StringVarP(&scpOpts.TargetArg, "direction", "t", "", "Must eiher be 'up' or 'down' resp. first letter.")
+	scpCmd.Flags().StringVarP(&scpOpts.TargetArg, "direction", "t", "", "Must either be 'up' or 'down' resp. first letter.")
 	scpCmd.Flags().StringVarP(&scpOpts.LocalPath, "localPath", "l", "", "This is the source when direction is 'up' or the target when direction is 'down' ")
 	scpCmd.Flags().StringVarP(&scpOpts.RemotePath, "remotePath", "r", "", "This is the target when direction is 'up' or the source when direction is 'down' ")
 

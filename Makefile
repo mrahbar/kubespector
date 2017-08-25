@@ -3,7 +3,7 @@ PREFIX = kubespector
 BUILD_DATE := $(shell date -u)
 
 DOCKER_RUN = docker run --rm -u $(shell id -u):$(shell id -g) -v $(shell pwd):/go/src/github.com/mrahbar/kubernetes-inspector -w /go/src/github.com/mrahbar/kubernetes-inspector
-GOLANG_CONTAINER = endianogino/golang-glide:1.8-dep
+GOLANG_CONTAINER = endianogino/golang-glide:1.9-dep
 BUILD_IN_CONTAINER = 1
 
 build-container:

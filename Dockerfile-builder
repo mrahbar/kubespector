@@ -1,4 +1,4 @@
-FROM golang:1.8
+FROM golang:1.9
 MAINTAINER Mahmoud Azad <mahmoud.azad@acando.de>
 
 ARG GLIDE_VERSION=0.12.3
