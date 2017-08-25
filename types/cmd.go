@@ -18,8 +18,8 @@ type ExecOpts struct {
 
 type ScpOpts struct {
 	GenericOpts
-	LocalFile  string
-	RemoteFile string
+	LocalPath  string
+	RemotePath string
 }
 
 type LogsOpts struct {
