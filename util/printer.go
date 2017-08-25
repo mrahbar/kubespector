@@ -24,7 +24,7 @@ const (
 	debugType   = "[DEBUG]"
 )
 
-const tabWidth = 104
+const tabWidth = 124
 
 var out io.Writer = os.Stdout
 
