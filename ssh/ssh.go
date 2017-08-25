@@ -22,7 +22,7 @@ func PerformCmd(sshOpts types.SSHConfig, node types.Node, cmd string, debug bool
 		} else {
 			args = []string{}
 		}
-		out, err := shell(splits[0], debug, args...)
+		out, err := shell(splits[0], debug, args)
 		return out, err
 	}
 
@@ -67,11 +67,18 @@ func PerformCmd(sshOpts types.SSHConfig, node types.Node, cmd string, debug bool
 }
 
 // Shell runs the command, binding Stdin, Stdout and Stderr
-func shell(binaryPath string, debug bool, args ...string) (*types.SSHOutput, error) {
-	cmd := exec.Command(binaryPath, args...)
+func shell(binary string, debug bool, args []string) (*types.SSHOutput, error) {
+	lp, err := exec.LookPath(binary);
+	if err != nil {
+		return &types.SSHOutput{}, err
+	}
+
+	cmd := &exec.Cmd{
+		Path: lp,
+		Args: args,
+	}
 	if debug {
-		cmdDebug := append([]string{}, cmd.Args...)
-		fmt.Printf("Executing command: %s\n", cmdDebug)
+		fmt.Printf("Executing command: %s\n", cmd.Args)
 	}
 
 	var stderr bytes.Buffer
