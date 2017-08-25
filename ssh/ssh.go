@@ -15,15 +15,7 @@ import (
 
 func PerformCmd(sshOpts types.SSHConfig, node types.Node, cmd string, debug bool) (*types.SSHOutput, error) {
 	if util.NodeEquals(sshOpts.LocalOn, node) {
-		splits := strings.SplitN(cmd, " ", 1)
-		var args []string
-		if len(splits) > 1 {
-			args = strings.Split(splits[1], " ")
-		} else {
-			args = []string{}
-		}
-		out, err := shell(splits[0], debug, args)
-		return out, err
+		return shell(cmd, debug)
 	}
 
 	comm, err := establishSSHCommunication(sshOpts, util.GetNodeAddress(node), debug)
@@ -66,25 +58,27 @@ func PerformCmd(sshOpts types.SSHConfig, node types.Node, cmd string, debug bool
 	return o, err
 }
 
-// Shell runs the command, binding Stdin, Stdout and Stderr
-func shell(binary string, debug bool, args []string) (*types.SSHOutput, error) {
-	lp, err := exec.LookPath(binary);
+func shell(cmd string, debug bool) (*types.SSHOutput, error) {
+	shell := "/bin/bash"
+	err := findExecutable(shell);
 	if err != nil {
-		return &types.SSHOutput{}, err
+		shell = "/bin/sh"
+		err := findExecutable(shell);
+		if err != nil {
+			return &types.SSHOutput{}, err
+		}
 	}
 
-	cmd := &exec.Cmd{
-		Path: lp,
-		Args: args,
-	}
+	execCmd := exec.Command(shell, "-c", cmd)
+
 	if debug {
-		fmt.Printf("Executing command: %s\n", cmd.Args)
+		fmt.Printf("Executing command: %s %s\n", execCmd.Path, execCmd.Args)
 	}
 
 	var stderr bytes.Buffer
-	cmd.Stdin = os.Stdin
-	cmd.Stderr = &stderr
-	out, err := cmd.Output()
+	execCmd.Stdin = os.Stdin
+	execCmd.Stderr = &stderr
+	out, err := execCmd.Output()
 	output := strings.TrimSpace(string(out))
 	outErr := strings.TrimSpace(stderr.String())
 	o := &types.SSHOutput{Stdout: output, Stderr: outErr}
@@ -106,4 +100,15 @@ func shell(binary string, debug bool, args []string) (*types.SSHOutput, error) {
 	}
 
 	return o, err
+}
+
+func findExecutable(file string) error {
+	d, err := os.Stat(file)
+	if err != nil {
+		return err
+	}
+	if m := d.Mode(); !m.IsDir() && m&0111 != 0 {
+		return nil
+	}
+	return os.ErrPermission
 }
