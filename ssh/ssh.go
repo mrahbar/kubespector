@@ -95,7 +95,7 @@ func shell(cmd string, debug bool) (*types.SSHOutput, error) {
 		if err != nil {
 			errFormatted = fmt.Sprintf("%s", err)
 		}
-		util.PrettyPrintDebug("Result of command:\nStdout: %s\nStderr: %s\nExitStatus: %d\nErr: %s\n",
+		util.PrettyPrintDebug("Result of command\n- Stdout: %s\n- Stderr: %s\n- ExitStatus: %d\n- Err: %s\n",
 			output, outErr, exitStatus, errFormatted)
 	}
 

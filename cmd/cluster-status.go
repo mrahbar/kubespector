@@ -14,6 +14,7 @@ var clusterStatusCmd = &cobra.Command{
 	Aliases: []string{"cs"},
 	Short:   "Performs various checks on the cluster defined in the configuration file",
 	Long:    `When called without arguments all hosts and checks in configuration will be executed.`,
+	PreRunE: util.CheckRequiredFlags,
 	Run:     clusterStatusRun,
 }
 

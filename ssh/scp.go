@@ -35,7 +35,38 @@ func DownloadFile(sshOpts types.SSHConfig, node types.Node, remotePath string, l
 
 	err = comm.Download(remotePath, dstFile)
 	if debug {
-		errFormatted := ""
+		errFormatted := "no-error"
+		if err != nil {
+			errFormatted = fmt.Sprintf("%s", err)
+		}
+		util.PrettyPrintDebug("Result of scp from remote: %s", errFormatted)
+	}
+
+	return err
+}
+
+func DownloadDirectory(sshOpts types.SSHConfig, node types.Node, remotePath string, localPath string, debug bool) error {
+	nodeAddress := util.GetNodeAddress(node)
+
+	if debug {
+		util.PrettyPrintDebug("Copying from remote file %s:%s to %s", nodeAddress, remotePath, localPath)
+	}
+
+	if util.NodeEquals(sshOpts.LocalOn, node) {
+		return fmt.Errorf("Local scp ist not supported")
+	}
+
+	comm, err := establishSSHCommunication(sshOpts, util.GetNodeAddress(node), debug)
+	if err != nil {
+		if debug {
+			util.PrettyPrintDebug("Creating communicator failed: %s", err)
+		}
+		return err
+	}
+
+	err = comm.DownloadDir(remotePath, localPath, []string{})
+	if debug {
+		errFormatted := "no-error"
 		if err != nil {
 			errFormatted = fmt.Sprintf("%s", err)
 		}
@@ -77,7 +108,38 @@ func UploadFile(sshOpts types.SSHConfig, node types.Node, remotePath string, loc
 
 	err = comm.Upload(remotePath, srcFile, &fi)
 	if debug {
-		errFormatted := ""
+		errFormatted := "no-error"
+		if err != nil {
+			errFormatted = fmt.Sprintf("%s", err)
+		}
+		util.PrettyPrintDebug("Result of scp from remote: %s", errFormatted)
+	}
+
+	return err
+}
+
+func UploadDirectory(sshOpts types.SSHConfig, node types.Node, remotePath string, localPath string, debug bool) error {
+	nodeAddress := util.GetNodeAddress(node)
+
+	if debug {
+		util.PrettyPrintDebug("Copying directory %s to remote %s:%s", localPath, nodeAddress, remotePath)
+	}
+
+	if util.NodeEquals(sshOpts.LocalOn, node) {
+		return fmt.Errorf("Local scp ist not supported")
+	}
+
+	comm, err := establishSSHCommunication(sshOpts, util.GetNodeAddress(node), debug)
+	if err != nil {
+		if debug {
+			util.PrettyPrintDebug("Creating communicator failed: %s", err)
+		}
+		return err
+	}
+
+	err = comm.UploadDir(remotePath, localPath, []string{})
+	if debug {
+		errFormatted := "no-error"
 		if err != nil {
 			errFormatted = fmt.Sprintf("%s", err)
 		}

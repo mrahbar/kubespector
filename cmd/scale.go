@@ -15,6 +15,7 @@ var scaleCmd = &cobra.Command{
 	Aliases: []string{"scale"},
 	Short:   "Runs a load tests on a cluster",
 	Long:    `This is a tool for running a scale test on a cluster by performing massive load on network and on pods.`,
+	PreRunE: util.CheckRequiredFlags,
 	Run:     scaleRun,
 }
 
