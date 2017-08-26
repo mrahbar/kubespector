@@ -20,19 +20,19 @@ type Executor interface {
     DownloadFile(remotePath string, localPath string) error
     DownloadDirectory(remotePath string, localPath string) error
     UploadFile(remotePath string, localPath string) error
-    UploadDirectory(node types.Node, remotePath string, localPath string)
-    DeleteRemoteFile(node types.Node, remoteFile string) error
+	UploadDirectory(remotePath string, localPath string) error
+	DeleteRemoteFile(remoteFile string) error
 
     RunKubectlCommand(args []string) (*types.SSHOutput, error)
     DeployKubernetesResource(tpl string, data interface{}) (*types.SSHOutput, error)
 
     GetNumberOfReadyNodes() (int, error)
     CreateNamespace(namespace string) error
-    CreateService(serviceData interface{})
+	CreateService(serviceData interface{}) (bool, error)
     CreateReplicationController(data interface{}) error
     ScaleReplicationController(namespace string, rc string, replicas int) error
     GetPods(namespace string, wide bool) (*types.SSHOutput, error)
-    RemoveResource(namespace, full_qualified_name string) error
+	RemoveResource(namespace, fullQualifiedName string) error
 }
 
 type CommandExecutor struct {
