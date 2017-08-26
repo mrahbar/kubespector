@@ -1,28 +1,30 @@
 package ssh
 
 import (
-	"fmt"
 	"bytes"
+    "fmt"
+    "github.com/mrahbar/kubernetes-inspector/types"
 	"io/ioutil"
 	"os"
+    "path"
 	"path/filepath"
-	"github.com/mrahbar/kubernetes-inspector/types"
+    "strconv"
 	"strings"
 	"text/template"
-	"path"
-	"strconv"
 )
 
-func RunKubectlCommand(sshOpts types.SSHConfig, node types.Node, args []string, debug bool) (*types.SSHOutput, error) {
+func (c *CommandExecutor) RunKubectlCommand(args []string) (*types.SSHOutput, error) {
 	a := strings.Join(args, " ")
-	return PerformCmd(sshOpts, node, fmt.Sprintf("kubectl %s", a), debug)
+    return c.PerformCmd(fmt.Sprintf("kubectl %s", a))
 }
 
-func DeployKubernetesResource(sshOpts types.SSHConfig, node types.Node, tpl string, data interface{}, debug bool) (*types.SSHOutput, error) {
+func (c *CommandExecutor) DeployKubernetesResource(tpl string, data interface{}) (*types.SSHOutput, error) {
 	var definition bytes.Buffer
 
 	tmpl, _ := template.New("kube-template").Parse(tpl)
 	tmpl.Execute(&definition, data)
+
+    c.Printer.PrintTrace("Generated template:\n%s", definition.String())
 
 	tmpFile, err := ioutil.TempFile("", "kubespector-")
 	if err != nil {
@@ -33,22 +35,22 @@ func DeployKubernetesResource(sshOpts types.SSHConfig, node types.Node, tpl stri
 	ioutil.WriteFile(tmpFile.Name(), definition.Bytes(), os.ModeAppend)
 	remoteFile := path.Join("/tmp", filepath.Base(tmpFile.Name()))
 
-	err = UploadFile(sshOpts, node, remoteFile, tmpFile.Name(), debug)
+    err = c.UploadFile(remoteFile, tmpFile.Name())
 	if err != nil {
 		return &types.SSHOutput{}, err
 	}
 
 	args := []string{"apply", "-f", remoteFile}
-	result, err := RunKubectlCommand(sshOpts, node, args, debug)
-	DeleteRemoteFile(sshOpts, node, remoteFile, debug)
+    result, err := c.RunKubectlCommand(args)
+    c.DeleteRemoteFile(remoteFile)
 
 	return result, err
 }
 
-func GetNumberOfReadyNodes(sshOpts types.SSHConfig, node types.Node, debug bool) (int, error) {
+func (c *CommandExecutor) GetNumberOfReadyNodes() (int, error) {
 	tmpl := "\"{range .items[*]}{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status};{end}{end}\""
 	args := []string{"get", "nodes", "-o", "jsonpath=" + tmpl, " | ", "tr", "';'", "\\\\n", " | ", "grep", "\"Ready=True\"", " | ", "wc", "-l"}
-	sshOut, err := RunKubectlCommand(sshOpts, node, args, debug)
+    sshOut, err := c.RunKubectlCommand(args)
 
 	if err != nil {
 		return -1, err
@@ -63,16 +65,16 @@ func GetNumberOfReadyNodes(sshOpts types.SSHConfig, node types.Node, debug bool)
 	}
 }
 
-func CreateNamespace(sshOpts types.SSHConfig, node types.Node, namespace string, debug bool) error {
+func (c *CommandExecutor) CreateNamespace(namespace string) error {
 	data := make(map[string]string)
 	data["Namespace"] = namespace
-	_, err := DeployKubernetesResource(sshOpts, node, types.NAMESPACE_TEMPLATE, data, debug)
+    _, err := c.DeployKubernetesResource(types.NAMESPACE_TEMPLATE, data)
 
 	return err
 }
 
-func CreateService(sshOpts types.SSHConfig, node types.Node, serviceData interface{}, debug bool) (bool, error) {
-	sshOut, err := DeployKubernetesResource(sshOpts, node, types.SERVICE_TEMPLATE, serviceData, debug)
+func (c *CommandExecutor) CreateService(serviceData interface{}) (bool, error) {
+    sshOut, err := c.DeployKubernetesResource(types.SERVICE_TEMPLATE, serviceData)
 
 	if err != nil {
 		if strings.Contains(CombineOutput(sshOut), "AlreadyExists") {
@@ -85,23 +87,29 @@ func CreateService(sshOpts types.SSHConfig, node types.Node, serviceData interfa
 	return false, nil
 }
 
-func CreateReplicationController(sshOpts types.SSHConfig, node types.Node, data interface{}, debug bool) error {
-	_, err := DeployKubernetesResource(sshOpts, node, types.REPLICATION_CONTROLLER_TEMPLATE, data, debug)
+func (c *CommandExecutor) CreateReplicationController(data interface{}) error {
+    _, err := c.DeployKubernetesResource(types.REPLICATION_CONTROLLER_TEMPLATE, data)
 	return err
 }
 
-func GetPods(sshOpts types.SSHConfig, node types.Node, namespace string, wide bool, debug bool) (*types.SSHOutput, error) {
+func (c *CommandExecutor) ScaleReplicationController(namespace string, rc string, replicas int) error {
+    args := []string{"--namespace=" + namespace, "scale", "replicationcontroller", rc, fmt.Sprintf("--replicas=%d", replicas)}
+    _, err := c.RunKubectlCommand(args)
+    return err
+}
+
+func (c *CommandExecutor) GetPods(namespace string, wide bool) (*types.SSHOutput, error) {
 	args := []string{"--namespace=" + namespace, "get", "pods"}
 	if wide {
 		args = append(args, "-o=wide")
 	}
 
-	return RunKubectlCommand(sshOpts, node, args, debug)
+    return c.RunKubectlCommand(args)
 }
 
-func RemoveResource(sshOpts types.SSHConfig, node types.Node, namespace, full_qualified_name string, debug bool) error {
-	args := []string{"--namespace=" + namespace, "delete", full_qualified_name}
-	_, err := RunKubectlCommand(sshOpts, node, args, debug)
+func (c *CommandExecutor) RemoveResource(namespace, fullQualifiedName string) error {
+    args := []string{"--namespace=" + namespace, "delete", fullQualifiedName}
+    _, err := c.RunKubectlCommand(args)
 
 	return err
 }

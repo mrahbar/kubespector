@@ -30,6 +30,10 @@ func init() {
 
 func statusRun(_ *cobra.Command, _ []string) {
 	config := util.UnmarshalConfig()
-	statusOpts.Debug = RootOpts.Debug
-	pkg.Status(config, statusOpts)
+	params := &types.CommandParams{
+		Printer: printer,
+		Config:  config,
+		Opts:    statusOpts,
+	}
+	pkg.Status(params)
 }

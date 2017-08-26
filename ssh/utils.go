@@ -3,6 +3,7 @@ package ssh
 import (
 	"errors"
 	"fmt"
+    "github.com/mrahbar/kubernetes-inspector/integration"
 	"github.com/mrahbar/kubernetes-inspector/ssh/communicator"
 	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/util"
@@ -14,7 +15,7 @@ import (
 	"time"
 )
 
-func GetFirstAccessibleNode(sshOpts types.SSHConfig, nodes []types.Node, debug bool) types.Node {
+func GetFirstAccessibleNode(sshOpts types.SSHConfig, nodes []types.Node, printer *integration.Printer) types.Node {
 	if util.IsNodeAddressValid(sshOpts.LocalOn) {
 		for _, n := range nodes {
 			if util.NodeEquals(sshOpts.LocalOn, n) {
@@ -23,8 +24,14 @@ func GetFirstAccessibleNode(sshOpts types.SSHConfig, nodes []types.Node, debug b
 		}
 	}
 
+    client := CommandExecutor{
+        SshOpts: sshOpts,
+        Printer: printer,
+    }
+
 	for _, n := range nodes {
-		_, err := PerformCmd(sshOpts, n, "hostname", debug)
+        client.Node = n
+        _, err := client.PerformCmd("hostname")
 		if err == nil {
 			return n
 		}
@@ -37,7 +44,7 @@ func CombineOutput(sshout *types.SSHOutput) string {
 	return fmt.Sprintf("Stdout: %s\nStderr: %s", sshout.Stdout, sshout.Stderr)
 }
 
-func PrepareSSHConfig(sshConfig *types.SSHConfig) []error {
+func prepareSSHConfig(sshConfig *types.SSHConfig) []error {
 	c := sshConfig.Connection
 	if c.Port == 0 {
 		c.Port = 22
@@ -98,8 +105,8 @@ func PrepareSSHConfig(sshConfig *types.SSHConfig) []error {
 	return errs
 }
 
-func establishSSHCommunication(sshOpts types.SSHConfig, address string, debug bool) (*communicator.Comm, error) {
-	commConfig, err := createCommunicationConfig(sshOpts, address)
+func establishSSHCommunication(sshOpts types.SSHConfig, address string, printer *integration.Printer) (*communicator.Comm, error) {
+    commConfig, err := createCommunicationConfig(sshOpts, address, printer)
 	if err != nil {
 		return &communicator.Comm{}, err
 	}
@@ -108,23 +115,19 @@ func establishSSHCommunication(sshOpts types.SSHConfig, address string, debug bo
 	handshakeAttempts := 0
 
 	for {
-		comm, err = communicator.New(address, commConfig, debug,
+        comm, err = communicator.New(address, commConfig,
 			func(msg string, a ...interface{}) {
-				util.PrettyPrintDebug(msg, a...)
+                printer.PrintTrace(msg, a...)
 			})
 
 		if err != nil {
-			if debug {
-				util.PrettyPrintDebug("SSH handshake err: %s", err)
-			}
+            printer.PrintDebug("SSH handshake err: %s", err)
 
 			// Only count this as an attempt if we were able to attempt
 			// to authenticate. Note this is very brittle since it depends
 			// on the string of the error... but I don't see any other way.
 			if strings.Contains(err.Error(), "authenticate") {
-				if debug {
-					util.PrettyPrintDebug("Detected authentication error. Increasing handshake attempts.")
-				}
+                printer.PrintDebug("Detected authentication error. Increasing handshake attempts.")
 				handshakeAttempts += 1
 			}
 
@@ -144,8 +147,8 @@ func establishSSHCommunication(sshOpts types.SSHConfig, address string, debug bo
 	return comm, nil
 }
 
-func createCommunicationConfig(sshOpts types.SSHConfig, nodeAddress string) (*communicator.Config, error) {
-	errs := PrepareSSHConfig(&sshOpts)
+func createCommunicationConfig(sshOpts types.SSHConfig, nodeAddress string, printer *integration.Printer) (*communicator.Config, error) {
+    errs := prepareSSHConfig(&sshOpts)
 	if len(errs) > 0 {
 		return &communicator.Config{}, flattenMultiError(errs)
 	}
@@ -158,7 +161,7 @@ func createCommunicationConfig(sshOpts types.SSHConfig, nodeAddress string) (*co
 		bAddr := fmt.Sprintf("%s:%d", util.GetNodeAddress(sshOpts.Bastion.Node), sshOpts.Bastion.Port)
 		bConf, err := sshBastionConfig(&sshOpts.Bastion)
 		if err != nil {
-			util.PrettyPrintDebug("BastionConfig failed: %s", err)
+            printer.PrintDebug("BastionConfig failed: %s", err)
 			return &communicator.Config{}, err
 		}
 		connFunc = communicator.BastionConnectFunc(
@@ -170,14 +173,14 @@ func createCommunicationConfig(sshOpts types.SSHConfig, nodeAddress string) (*co
 
 	nc, err := connFunc()
 	if err != nil {
-		util.PrettyPrintDebug("TCP connection to SSH ip/port failed: %s", err)
+        printer.PrintDebug("TCP connection to SSH ip/port failed: %s", err)
 		return &communicator.Config{}, err
 	}
 	nc.Close()
 
 	sshConfig, err := sshConfigFunc(&sshOpts.Connection)
 	if err != nil {
-		util.PrettyPrintDebug("SSHConfig failed: %s", err)
+        printer.PrintDebug("SSHConfig failed: %s", err)
 		return &communicator.Config{}, err
 	}
 

@@ -33,6 +33,10 @@ func init() {
 
 func execRun(_ *cobra.Command, _ []string) {
 	config := util.UnmarshalConfig()
-	execOpts.Debug = RootOpts.Debug
-	pkg.Exec(config, execOpts)
+    params := &types.CommandParams{
+        Printer: printer,
+        Config:  config,
+        Opts:    execOpts,
+    }
+    pkg.Exec(params)
 }
