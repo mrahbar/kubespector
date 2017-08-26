@@ -1,13 +1,17 @@
 package types
 
-type Initializer func(target string, node string, group string)
-type Processor func(SSHConfig, string, Node, bool)
+import "github.com/mrahbar/kubernetes-inspector/integration"
+
+type CommandParams struct {
+    Config  Config
+    Printer *integration.Printer
+    Opts    interface{}
+}
 
 type GenericOpts struct {
 	GroupArg  string
 	NodeArg   string
 	TargetArg string
-	RootOpts
 }
 
 type ExecOpts struct {
@@ -34,5 +38,4 @@ type LogsOpts struct {
 
 type KubectlOpts struct {
 	Command string
-	RootOpts
 }

@@ -30,6 +30,10 @@ func init() {
 
 func stopRun(_ *cobra.Command, _ []string) {
 	config := util.UnmarshalConfig()
-	stopOpts.Debug = RootOpts.Debug
-	pkg.Stop(config, stopOpts)
+    params := &types.CommandParams{
+        Printer: printer,
+        Config:  config,
+        Opts:    stopOpts,
+    }
+    pkg.Stop(params)
 }

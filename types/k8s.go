@@ -21,7 +21,7 @@ type Env struct {
 
 type Arg struct {
 	Key   string
-	Value string
+    Value interface{}
 }
 
 type ResourceRequest struct {
@@ -93,31 +93,31 @@ spec:
       - name: {{.Name}}
         image: {{.Image}}
         imagePullPolicy: Always
-	{{- if .Args }}
+    {{- if .Args }}
         args:
         {{- range $i, $a := .Args}}
         - {{.Key}}={{.Value}}
         {{- end}}
-	{{- end}}
-	{{- if .Commands }}
+    {{- end}}
+    {{- if .Commands }}
         command:
         {{- range $i, $e := .Commands}}
           - {{ $e }}
         {{- end}}
-	{{- end}}
-	{{- if .Ports }}
+    {{- end}}
+    {{- if .Ports }}
         ports:
         {{- range $i, $a := .Ports}}
         - name: {{.Name}}
           protocol: {{.Protocol}}
           containerPort: {{.Port}}
         {{- end}}
-	{{- end}}
-		{{- if .Envs }}
+    {{- end}}
+        {{- if .Envs }}
         env:
-	{{- range $i, $a := .Envs}}
+    {{- range $i, $a := .Envs}}
         - name: {{.Name}}
-		  {{- if .FieldValue }}
+          {{- if .FieldValue }}
           valueFrom:
             fieldRef:
               fieldPath: {{.FieldValue}}
@@ -125,16 +125,16 @@ spec:
           value: "{{.Value}}"
           {{- end}}
         {{- end}}
-	{{- end}}
-	{{- if .ResourceRequest }}
+    {{- end}}
+    {{- if .ResourceRequest }}
         resources:
-		  requests:
-		  {{- if .ResourceRequest.Cpu}}
-		    cpu: {{.ResourceRequest.Cpu}}
+          requests:
+          {{- if .ResourceRequest.Cpu}}
+            cpu: {{.ResourceRequest.Cpu}}
           {{- end}}
-		  {{- if .ResourceRequest.Memory}}
-		    memory: {{.ResourceRequest.Memory}}
+          {{- if .ResourceRequest.Memory}}
+            memory: {{.ResourceRequest.Memory}}
           {{- end}}
-	{{- end}}
+    {{- end}}
 `
 )

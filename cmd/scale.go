@@ -21,12 +21,16 @@ var scaleCmd = &cobra.Command{
 
 func init() {
 	PerfCmd.AddCommand(scaleCmd)
-	scaleCmd.Flags().StringVarP(&scaleTestOpts.OutputDir, "output", "o", "./scaletest-results.csv", "Full path to result file to output")
+    scaleCmd.Flags().StringVarP(&scaleTestOpts.OutputDir, "output", "o", "scaletest-results", "Full path to directory for result files")
 	scaleCmd.Flags().BoolVarP(&scaleTestOpts.Cleanup, "cleanup", "c", true, "Delete test pods when done")
 }
 
 func scaleRun(_ *cobra.Command, _ []string) {
 	config := util.UnmarshalConfig()
-	scaleTestOpts.Debug = RootOpts.Debug
-	pkg.ScaleTest(config, scaleTestOpts)
+    params := &types.CommandParams{
+        Printer: printer,
+        Config:  config,
+        Opts:    scaleTestOpts,
+    }
+    pkg.ScaleTest(params)
 }

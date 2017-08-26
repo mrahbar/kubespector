@@ -8,27 +8,35 @@ import (
 	"strings"
 )
 
-func Kubectl(config types.Config, kubectlOpts *types.KubectlOpts) {
+func Kubectl(cmdParams *types.CommandParams) {
+	initParams(cmdParams)
+	kubectlOpts := cmdParams.Opts.(*types.KubectlOpts)
 	group := util.FindGroupByName(config.ClusterGroups, types.MASTER_GROUPNAME)
 
 	if group.Nodes == nil || len(group.Nodes) == 0 {
-		util.PrettyPrintErr("No host configured for group [%s]", types.MASTER_GROUPNAME)
+		printer.PrintErr("No host configured for group [%s]", types.MASTER_GROUPNAME)
 		os.Exit(1)
 	}
 
-	node := ssh.GetFirstAccessibleNode(config.Ssh, group.Nodes, kubectlOpts.Debug)
+	node := ssh.GetFirstAccessibleNode(config.Ssh, group.Nodes, printer)
 
 	if !util.IsNodeAddressValid(node) {
-		util.PrettyPrintErr("No master available")
+		printer.PrintErr("No master available")
 		os.Exit(1)
 	}
 
-	util.PrettyPrint("Running kubectl command '%s' on node %s\n", kubectlOpts.Command, util.ToNodeLabel(node))
-	sshOut, err := ssh.RunKubectlCommand(config.Ssh, node, strings.Split(kubectlOpts.Command, " "), kubectlOpts.Debug)
+	cmdExecutor := &ssh.CommandExecutor{
+		SshOpts: config.Ssh,
+		Node:    node,
+		Printer: printer,
+	}
+
+	printer.Print("Running kubectl command '%s' on node %s\n", kubectlOpts.Command, util.ToNodeLabel(node))
+	sshOut, err := cmdExecutor.RunKubectlCommand(strings.Split(kubectlOpts.Command, " "))
 
 	if err != nil {
-		util.PrettyPrintErr("Error performing kubectl command %s: %s", kubectlOpts.Command, err)
+		printer.PrintErr("Error performing kubectl command %s: %s", kubectlOpts.Command, err)
 	} else {
-		util.PrettyPrintOk(sshOut.Stdout)
+		printer.PrintOk(sshOut.Stdout)
 	}
 }

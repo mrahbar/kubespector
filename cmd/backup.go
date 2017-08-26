@@ -34,6 +34,10 @@ func init() {
 
 func backupRun(_ *cobra.Command, _ []string) {
 	config := util.UnmarshalConfig()
-	etcdBackupOpts.Debug = RootOpts.Debug
-	pkg.Backup(config, etcdBackupOpts)
+    params := &types.CommandParams{
+        Printer: printer,
+        Config:  config,
+        Opts:    etcdBackupOpts,
+    }
+    pkg.Backup(params)
 }

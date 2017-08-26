@@ -1,15 +1,15 @@
 package main
 
 import (
+    "bytes"
+    "flag"
 	"fmt"
 	"log"
 	"net/http"
-	"flag"
 	"os"
-	"time"
-	"text/template"
-	"bytes"
 	"strings"
+    "text/template"
+    "time"
 )
 
 var port string

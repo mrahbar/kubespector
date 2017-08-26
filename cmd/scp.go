@@ -1,10 +1,10 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
-	"github.com/mrahbar/kubernetes-inspector/util"
 	"github.com/mrahbar/kubernetes-inspector/pkg"
 	"github.com/mrahbar/kubernetes-inspector/types"
+	"github.com/mrahbar/kubernetes-inspector/util"
+	"github.com/spf13/cobra"
 )
 
 var scpOpts = &types.ScpOpts{}
@@ -32,6 +32,10 @@ func init() {
 
 func scpRun(_ *cobra.Command, _ []string) {
 	config := util.UnmarshalConfig()
-	scpOpts.Debug = RootOpts.Debug
-	pkg.Scp(config, scpOpts)
+	params := &types.CommandParams{
+		Printer: printer,
+		Config:  config,
+		Opts:    scpOpts,
+	}
+	pkg.Scp(params)
 }

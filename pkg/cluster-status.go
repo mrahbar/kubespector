@@ -3,6 +3,7 @@ package pkg
 import (
 	"bytes"
 	"fmt"
+	"github.com/mrahbar/kubernetes-inspector/integration"
 	"github.com/mrahbar/kubernetes-inspector/ssh"
 	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/util"
@@ -22,8 +23,9 @@ const (
 var clusterStatusChecks = []string{types.SERVICES_CHECKNAME, types.CONTAINERS_CHECKNAME, types.CERTIFICATES_CHECKNAME, types.DISKUSAGE_CHECKNAME}
 var clusterStatusOpts = &types.ClusterStatusOpts{}
 
-func ClusterStatus(config types.Config, opts *types.ClusterStatusOpts) {
-	clusterStatusOpts = opts
+func ClusterStatus(cmdParams *types.CommandParams) {
+	initParams(cmdParams)
+	clusterStatusOpts = cmdParams.Opts.(*types.ClusterStatusOpts)
 
 	var groups = []string{}
 	if clusterStatusOpts.Groups != "" {
@@ -39,61 +41,68 @@ func ClusterStatus(config types.Config, opts *types.ClusterStatusOpts) {
 		clusterStatusChecks = strings.Split(clusterStatusOpts.Checks, ",")
 	}
 
-	util.PrettyPrint("Performing status checks %s for groups: %v", strings.Join(clusterStatusChecks, ","), strings.Join(groups, " "))
+	printer.Print("Performing status checks %s for groups: %v",
+		strings.Join(clusterStatusChecks, ","), strings.Join(groups, " "))
+
+	cmdExecutor := &ssh.CommandExecutor{
+		SshOpts: config.Ssh,
+		Printer: printer,
+	}
 
 	for _, element := range groups {
 		if element != types.KUBERNETES_GROUPNAME {
 			group := util.FindGroupByName(config.ClusterGroups, element)
 			if group.Nodes != nil {
-				getNodesStats(config.Ssh, element, group.Nodes)
+				getNodesStats(cmdExecutor, element, group.Nodes)
 
 				if util.ElementInArray(clusterStatusChecks, types.SERVICES_CHECKNAME) {
-					checkServiceStatus(config.Ssh, element, group.Services, group.Nodes)
+					checkServiceStatus(cmdExecutor, element, group.Services, group.Nodes)
 				}
 
 				if util.ElementInArray(clusterStatusChecks, types.CONTAINERS_CHECKNAME) {
-					checkContainerStatus(config.Ssh, element, group.Containers, group.Nodes)
+					checkContainerStatus(cmdExecutor, element, group.Containers, group.Nodes)
 				}
 
 				if util.ElementInArray(clusterStatusChecks, types.CERTIFICATES_CHECKNAME) {
-					checkCertificatesExpiration(config.Ssh, element, group.Certificates, group.Nodes)
+					checkCertificatesExpiration(cmdExecutor, element, group.Certificates, group.Nodes)
 				}
 
 				if util.ElementInArray(clusterStatusChecks, types.DISKUSAGE_CHECKNAME) {
-					checkDiskStatus(config.Ssh, element, group.DiskUsage, group.Nodes)
+					checkDiskStatus(cmdExecutor, element, group.DiskUsage, group.Nodes)
 				}
 			} else {
-				util.PrettyPrintErr("No Nodes found for group: %s", element)
+				printer.PrintErr("No Nodes found for group: %s", element)
 			}
 		} else {
 			group := util.FindGroupByName(config.ClusterGroups, types.MASTER_GROUPNAME)
-			checkKubernetesStatus(config.Ssh, element, config.Kubernetes.Resources, group.Nodes)
+			checkKubernetesStatus(cmdExecutor, element, config.Kubernetes.Resources, group.Nodes)
 		}
 	}
 }
 
-func getNodesStats(sshOpts types.SSHConfig, element string, nodes []types.Node) {
-	util.PrintHeader(fmt.Sprintf("Retrieving node stats of group [%s] ", element), '=')
+func getNodesStats(cmdExecutor *ssh.CommandExecutor, element string, nodes []types.Node) {
+	integration.PrintHeader(fmt.Sprintf("Retrieving node stats of group [%s] ", element), '=')
 
 	for _, node := range nodes {
 		if !util.IsNodeAddressValid(node) {
-			util.PrettyPrintErr("Current node %q has no valid address", node)
+			printer.PrintErr("Current node %q has no valid address", node)
 			break
 		}
 
-		util.PrettyNewLine()
-		util.PrettyPrint("On node %s:", util.ToNodeLabel(node))
+		integration.PrettyNewLine()
+		printer.Print("On node %s:", util.ToNodeLabel(node))
+		cmdExecutor.Node = node
 
-		sshOut, err := ssh.PerformCmd(sshOpts, node, "cat /proc/uptime", clusterStatusOpts.Debug)
+		sshOut, err := cmdExecutor.PerformCmd("cat /proc/uptime")
 		if err != nil {
-			util.PrettyPrintWarn("Could not get uptime for: %s", err)
+			printer.PrintWarn("Could not get uptime for: %s", err)
 		} else {
 			parts := strings.Fields(sshOut.Stdout)
 			if len(parts) == 2 {
 				var upsecs float64
 				upsecs, err = strconv.ParseFloat(parts[0], 64)
 				if err != nil {
-					util.PrettyPrintWarn("Could not parse uptime: %s", err)
+					printer.PrintWarn("Could not parse uptime: %s", err)
 				} else {
 					dur := time.Duration(upsecs * 1e9)
 					dur = dur - (dur % time.Second)
@@ -113,14 +122,14 @@ func getNodesStats(sshOpts types.SSHConfig, element string, nodes []types.Node) 
 							uptimeFormated += " "
 						}
 					}
-					util.PrettyPrintOk("Uptime %s", uptimeFormated)
+					printer.PrintOk("Uptime %s", uptimeFormated)
 				}
 			}
 		}
 
-		sshOut, err = ssh.PerformCmd(sshOpts, node, "/bin/cat /proc/loadavg", clusterStatusOpts.Debug)
+		sshOut, err = cmdExecutor.PerformCmd("/bin/cat /proc/loadavg")
 		if err != nil {
-			util.PrettyPrintWarn("Could not get load statistics: %s", err)
+			printer.PrintWarn("Could not get load statistics: %s", err)
 		} else {
 			parts := strings.Fields(sshOut.Stdout)
 			if len(parts) == 5 {
@@ -134,199 +143,186 @@ func getNodesStats(sshOpts types.SSHConfig, element string, nodes []types.Node) 
 					}
 					loadMsg = fmt.Sprintf("%sNumber of processes: currently running %s - total %s", loadMsg, runningProcs, totalProcs)
 
-					util.PrettyPrintOk(strings.TrimSpace(loadMsg))
+					printer.PrintOk(strings.TrimSpace(loadMsg))
 				}
 			}
 		}
 	}
 }
 
-func checkServiceStatus(sshOpts types.SSHConfig, element string, services []string, nodes []types.Node) {
-	util.PrintHeader(fmt.Sprintf("Checking service status of group [%s] ", element), '=')
+func checkServiceStatus(cmdExecutor *ssh.CommandExecutor, element string, services []string, nodes []types.Node) {
+	integration.PrintHeader(fmt.Sprintf("Checking service status of group [%s] ", element), '=')
 	if nodes == nil || len(nodes) == 0 {
-		util.PrettyPrintSkipped("No host configured for [%s]", element)
+		printer.PrintSkipped("No host configured for [%s]", element)
 		return
 	}
 	if services == nil || len(services) == 0 {
-		util.PrettyPrintSkipped("No services configured for [%s]", element)
+		printer.PrintSkipped("No services configured for [%s]", element)
 		return
 	}
 
 	for _, node := range nodes {
 		if !util.IsNodeAddressValid(node) {
-			util.PrettyPrintErr("Current node %q has no valid address", node)
+			printer.PrintErr("Current node %q has no valid address", node)
 			break
 		}
 
-		util.PrettyNewLine()
-		util.PrettyPrint("On node %s:", util.ToNodeLabel(node))
+		integration.PrettyNewLine()
+		printer.Print("On node %s:", util.ToNodeLabel(node))
 
 		for _, service := range services {
-			sshOut, err := ssh.PerformCmd(sshOpts, node,
-				fmt.Sprintf("systemctl is-active %s", service), clusterStatusOpts.Debug)
+			sshOut, err := cmdExecutor.PerformCmd(fmt.Sprintf("systemctl is-active %s", service))
 
 			if err != nil {
-				util.PrettyPrintErr("Error checking status of %s: %s", service, err)
+				printer.PrintErr("Error checking status of %s: %s", service, err)
 			} else {
 				result := sshOut.Stdout
 				if result == "active" {
-					util.PrettyPrintOk("Service %s is active", service)
+					printer.PrintOk("Service %s is active", service)
 				} else if result == "activating" || result == "inactive" {
-					util.PrettyPrintWarn("Service %s is %s", service, result)
+					printer.PrintWarn("Service %s is %s", service, result)
 				} else if result == "failed" {
-					util.PrettyPrintErr("Service %s is failed", service)
+					printer.PrintErr("Service %s is failed", service)
 				} else {
-					util.PrettyPrintUnknown("Service %s is unknown state: %s", service, result)
+					printer.PrintUnknown("Service %s is unknown state: %s", service, result)
 				}
 			}
 		}
 	}
 }
 
-func checkContainerStatus(sshOpts types.SSHConfig, element string, containers []string, nodes []types.Node) {
-	util.PrintHeader(fmt.Sprintf("Checking container status of group [%s] ", element), '=')
+func checkContainerStatus(cmdExecutor *ssh.CommandExecutor, element string, containers []string, nodes []types.Node) {
+	integration.PrintHeader(fmt.Sprintf("Checking container status of group [%s] ", element), '=')
 	if nodes == nil || len(nodes) == 0 {
-		util.PrettyPrintSkipped("No host configured for [%s]", element)
+		printer.PrintSkipped("No host configured for [%s]", element)
 		return
 	}
 	if containers == nil || len(containers) == 0 {
-		util.PrettyPrintSkipped("No containers configured for [%s]", element)
+		printer.PrintSkipped("No containers configured for [%s]", element)
 		return
 	}
 
 	for _, node := range nodes {
 		if !util.IsNodeAddressValid(node) {
-			util.PrettyPrintErr("Current node %q has no valid address", node)
+			printer.PrintErr("Current node %q has no valid address", node)
 			break
 		}
 
-		util.PrettyNewLine()
-		util.PrettyPrint("On node %s:", util.ToNodeLabel(node))
+		integration.PrettyNewLine()
+		printer.Print("On node %s:", util.ToNodeLabel(node))
 
 		for _, container := range containers {
-			sshOut, err := ssh.PerformCmd(sshOpts, node,
-				fmt.Sprintf("sudo bash -c 'docker ps -a -q --latest -f name=%s* | xargs --no-run-if-empty docker inspect -f '{{.State.Status}}''", container), clusterStatusOpts.Debug)
+			cmd := fmt.Sprintf("sudo bash -c 'docker ps -a -q --latest -f name=%s* | xargs --no-run-if-empty docker inspect -f '{{.State.Status}}''", container)
+			sshOut, err := cmdExecutor.PerformCmd(cmd)
 
 			if err != nil {
-				util.PrettyPrintErr("Error checking status of %s: %s", container, err)
+				printer.PrintErr("Error checking status of %s: %s", container, err)
 			} else {
 				result := sshOut.Stdout
 				if result == "running" {
-					util.PrettyPrintOk("Container %s is running", container)
+					printer.PrintOk("Container %s is running", container)
 				} else if result == "created" || result == "paused" || result == "restarting" {
-					util.PrettyPrintWarn("Container %s is %s", container, result)
+					printer.PrintWarn("Container %s is %s", container, result)
 				} else if result == "exited" || result == "removing" || result == "dead" {
-					util.PrettyPrintErr("Container %s is %s", container, result)
+					printer.PrintErr("Container %s is %s", container, result)
 				} else {
-					util.PrettyPrintIgnored("Container %s not found or in unknown state: %s", container, result)
+					printer.PrintIgnored("Container %s not found or in unknown state: %s", container, result)
 				}
 			}
 		}
 	}
 }
 
-func checkCertificatesExpiration(sshOpts types.SSHConfig, element string, certificates []string, nodes []types.Node) {
-	util.PrintHeader(fmt.Sprintf("Checking certificate status of group [%s] ", element), '=')
+func checkCertificatesExpiration(cmdExecutor *ssh.CommandExecutor, element string, certificates []string, nodes []types.Node) {
+	integration.PrintHeader(fmt.Sprintf("Checking certificate status of group [%s] ", element), '=')
 	if nodes == nil || len(nodes) == 0 {
-		util.PrettyPrintSkipped("No host configured for [%s]", element)
+		printer.PrintSkipped("No host configured for [%s]", element)
 		return
 	}
 	if certificates == nil || len(certificates) == 0 {
-		util.PrettyPrintSkipped("No certificates configured for [%s]", element)
+		printer.PrintSkipped("No certificates configured for [%s]", element)
 		return
 	}
 
 	for _, node := range nodes {
 		if !util.IsNodeAddressValid(node) {
-			util.PrettyPrintErr("Current node %q has no valid address", node)
+			printer.PrintErr("Current node %q has no valid address", node)
 			break
 		}
 
-		util.PrettyNewLine()
-		util.PrettyPrint("On node %s:", util.ToNodeLabel(node))
+		integration.PrettyNewLine()
+		printer.Print("On node %s:", util.ToNodeLabel(node))
 
 		for _, cert := range certificates {
-			cert = parseTemplate(cert, node, clusterStatusOpts.Debug)
-			sshOut, err := ssh.PerformCmd(sshOpts, node,
-				fmt.Sprintf("sudo bash -c 'openssl x509 -enddate -noout -in %s | cut -d= -f 2'", cert), clusterStatusOpts.Debug)
+			cert = parseTemplate(cert, node)
+			sshOut, err := cmdExecutor.PerformCmd(fmt.Sprintf("sudo bash -c 'openssl x509 -enddate -noout -in %s | cut -d= -f 2'", cert))
 
 			if err != nil {
-				util.PrettyPrintErr("Error checking expiration of %s: %s", cert, err)
+				printer.PrintErr("Error checking expiration of %s: %s", cert, err)
 			} else {
-				_, err = ssh.PerformCmd(sshOpts, node,
-					fmt.Sprintf("sudo openssl x509 -checkend 86400 -noout -in %s", cert), clusterStatusOpts.Debug)
+				//TODO this is not robust enough
+				_, err = cmdExecutor.PerformCmd(fmt.Sprintf("sudo openssl x509 -checkend 86400 -noout -in %s", cert))
 
 				if err == nil {
-					util.PrettyPrintOk("Certificate %s is valid until %s", cert, sshOut.Stdout)
+					printer.PrintOk("Certificate %s is valid until %s", cert, sshOut.Stdout)
 				} else {
-					util.PrettyPrintWarn("Certificate %s is only valid until %s", cert, sshOut.Stdout)
+					printer.PrintWarn("Certificate %s is only valid until %s", cert, sshOut.Stdout)
 				}
 			}
 		}
 	}
 }
 
-func parseTemplate(value string, node types.Node, debug bool) string {
+func parseTemplate(value string, node types.Node) string {
 	if strings.Contains(value, leftTemplateDelim) && strings.Contains(value, rightTemplateDelim) {
-		if debug {
-			util.PrettyPrintDebug("Value containts templating. Parsing: %s", value)
-		}
+		printer.PrintDebug("Value containts templating. Parsing: %s", value)
 
 		t := template.New("Template")
 		t, err := t.Parse(value)
 		if err != nil {
-			if debug {
-				util.PrettyPrintDebug("Error parsing template: %s", err)
-			}
+			printer.PrintDebug("Error parsing template: %s", err)
 			return value
 		}
 
 		var tplResult bytes.Buffer
 		err = t.Execute(&tplResult, node)
 		if err != nil {
-			if debug {
-				util.PrettyPrintDebug("Error executing template: %s", err)
-			}
+			printer.PrintDebug("Error executing template: %s", err)
 		} else {
 			value = tplResult.String()
-			if debug {
-				util.PrettyPrintDebug("Template executed successfully: %s", value)
-			}
+			printer.PrintDebug("Template executed successfully: %s", value)
 			return value
 		}
 	}
 
-	if debug {
-		util.PrettyPrintDebug("Value does not containts templating: %s", value)
-	}
+	printer.PrintDebug("Value does not containts templating: %s", value)
 
 	return value
 }
 
-func checkDiskStatus(sshOpts types.SSHConfig, element string, diskSpace types.DiskUsage, nodes []types.Node) {
-	util.PrintHeader(fmt.Sprintf("Checking disk status of group [%s] ", element), '-')
+func checkDiskStatus(cmdExecutor *ssh.CommandExecutor, element string, diskSpace types.DiskUsage, nodes []types.Node) {
+	integration.PrintHeader(fmt.Sprintf("Checking disk status of group [%s] ", element), '-')
 	if nodes == nil || len(nodes) == 0 {
-		util.PrettyPrintSkipped("No host configured for [%s]", element)
+		printer.PrintSkipped("No host configured for [%s]", element)
 		return
 	}
 
 	for _, node := range nodes {
 		if !util.IsNodeAddressValid(node) {
-			util.PrettyPrintErr("Current node %q has no valid address", node)
+			printer.PrintErr("Current node %q has no valid address", node)
 			break
 		}
 
-		util.PrettyNewLine()
-		util.PrettyPrint("On node %s:", util.ToNodeLabel(node))
+		integration.PrettyNewLine()
+		printer.Print("On node %s:", util.ToNodeLabel(node))
 
 		spacesRegex := regexp.MustCompile("\\s+")
 		if len(diskSpace.FileSystemUsage) > 0 {
 			for _, fsUsage := range diskSpace.FileSystemUsage {
-				sshOut, err := ssh.PerformCmd(sshOpts, node,
-					fmt.Sprintf("sudo df -h | grep %s", fsUsage), clusterStatusOpts.Debug)
+				sshOut, err := cmdExecutor.PerformCmd(fmt.Sprintf("sudo df -h | grep %s", fsUsage))
 
 				if err != nil {
-					util.PrettyPrintErr("Error estimating file system usage for %s: %s", fsUsage, err)
+					printer.PrintErr("Error estimating file system usage for %s: %s", fsUsage, err)
 				} else {
 					splits := spacesRegex.Split(sshOut.Stdout, 6)
 					fsUsed := splits[2]
@@ -335,16 +331,16 @@ func checkDiskStatus(sshOpts types.SSHConfig, element string, diskSpace types.Di
 					fsUsePercentVal, err := strconv.Atoi(fsUsePercent)
 
 					if err != nil {
-						util.PrettyPrintErr("Error determining file system usage percent for %s: %s", fsUsage, err)
+						printer.PrintErr("Error determining file system usage percent for %s: %s", fsUsage, err)
 					} else {
 						if fsUsePercentVal < 65 {
-							util.PrettyPrintOk("File system usage of %s amounts to - Used: %s Available: %s (%s%%)",
+							printer.PrintOk("File system usage of %s amounts to - Used: %s Available: %s (%s%%)",
 								fsUsage, fsUsed, fsAvail, fsUsePercent)
 						} else if fsUsePercentVal < 85 {
-							util.PrettyPrintWarn("File system usage of %s amounts to - Used: %s Available: %s (%s%%)",
+							printer.PrintWarn("File system usage of %s amounts to - Used: %s Available: %s (%s%%)",
 								fsUsage, fsUsed, fsAvail, fsUsePercent)
 						} else {
-							util.PrettyPrintErr("File system usage of %s amounts to - Used: %s Available: %s (%s%%)",
+							printer.PrintErr("File system usage of %s amounts to - Used: %s Available: %s (%s%%)",
 								fsUsage, fsUsed, fsAvail, fsUsePercent)
 						}
 					}
@@ -354,44 +350,43 @@ func checkDiskStatus(sshOpts types.SSHConfig, element string, diskSpace types.Di
 
 		if len(diskSpace.DirectoryUsage) > 0 {
 			for _, dirUsage := range diskSpace.DirectoryUsage {
-				sshOut, err := ssh.PerformCmd(sshOpts, node,
-					fmt.Sprintf("sudo du -h -d 0 --exclude=/proc --exclude=/run %s | grep %s", dirUsage, dirUsage),
-					clusterStatusOpts.Debug)
+				cmd := fmt.Sprintf("sudo du -h -d 0 --exclude=/proc --exclude=/run %s | grep %s", dirUsage, dirUsage)
+				sshOut, err := cmdExecutor.PerformCmd(cmd)
 
 				if err != nil {
-					util.PrettyPrintErr("Error estimating directory usage for %s: %s", dirUsage, err)
+					printer.PrintErr("Error estimating directory usage for %s: %s", dirUsage, err)
 				} else {
 					splits := spacesRegex.Split(sshOut.Stdout, 2)
 					dirUse := splits[0]
 
-					util.PrettyPrintOk("Directory usage of %s amounts to %s", dirUsage, dirUse)
+					printer.PrintOk("Directory usage of %s amounts to %s", dirUsage, dirUse)
 				}
 			}
 		}
 	}
 }
 
-func checkKubernetesStatus(sshOpts types.SSHConfig, element string,
+func checkKubernetesStatus(cmdExecutor *ssh.CommandExecutor, element string,
 	resources []types.KubernetesResource, nodes []types.Node) {
-	util.PrintHeader(fmt.Sprintf("Checking status of [%s] ", element), '=')
+	integration.PrintHeader(fmt.Sprintf("Checking status of [%s] ", element), '=')
 
 	if nodes == nil || len(nodes) == 0 {
-		util.PrettyPrintErr("No host configured for [%s]", element)
+		printer.PrintErr("No host configured for [%s]", element)
 		os.Exit(1)
 	}
 	if resources == nil || len(resources) == 0 {
-		util.PrettyPrintErr("No resources configured for [%s]", element)
+		printer.PrintErr("No resources configured for [%s]", element)
 		os.Exit(1)
 	}
 
-	node := ssh.GetFirstAccessibleNode(sshOpts, nodes, clusterStatusOpts.Debug)
+	node := ssh.GetFirstAccessibleNode(sshOpts, nodes, cmdParams.Printer)
 
 	if !util.IsNodeAddressValid(node) {
-		util.PrettyPrintErr("No master available for Kubernetes status check")
+		printer.PrintErr("No master available for Kubernetes status check")
 		os.Exit(1)
 	}
 
-	util.PrettyPrint("Running kubectl on node %s\n", util.ToNodeLabel(node))
+	printer.Print("Running kubectl on node %s\n", util.ToNodeLabel(node))
 
 	for _, resource := range resources {
 		msg := fmt.Sprintf("Status of %s", resource.Type)
@@ -405,15 +400,15 @@ func checkKubernetesStatus(sshOpts types.SSHConfig, element string,
 			command += " -o wide"
 		}
 
-		util.PrettyPrint(msg + namespace_msg + ":")
-		sshOut, err := ssh.PerformCmd(sshOpts, node, command, clusterStatusOpts.Debug)
-		util.PrettyNewLine()
+		printer.Print(msg + namespace_msg + ":")
+		sshOut, err := cmdExecutor.PerformCmd(command)
+		integration.PrettyNewLine()
 
 		if err != nil {
-			util.PrettyPrintErr("Error checking %s%s: %s", resource.Type, namespace_msg, err)
+			printer.PrintErr("Error checking %s%s: %s", resource.Type, namespace_msg, err)
 		} else {
-			util.PrettyPrintOk(sshOut.Stdout)
+			printer.PrintOk(sshOut.Stdout)
 		}
-		util.PrettyNewLine()
+		integration.PrettyNewLine()
 	}
 }

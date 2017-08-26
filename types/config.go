@@ -13,7 +13,7 @@ const DISKUSAGE_CHECKNAME = "DiskUsage"
 type Config struct {
 	Ssh           SSHConfig
 	ClusterGroups []ClusterGroup
-	Kubernetes struct {
+    Kubernetes struct {
 		Resources []KubernetesResource
 	}
 }

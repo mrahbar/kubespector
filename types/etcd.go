@@ -1,9 +1,5 @@
 package types
 
-type RootOpts struct {
-	Debug bool
-}
-
 type EtcdOpts struct {
 	ClientCertAuth bool
 	Endpoint       string
@@ -16,5 +12,4 @@ type EtcdBackupOpts struct {
 	Output  string
 	DataDir string
 	EtcdOpts
-	RootOpts
 }

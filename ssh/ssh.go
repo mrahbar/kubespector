@@ -7,22 +7,48 @@ import (
 	"strings"
 
 	"bytes"
+    "github.com/mrahbar/kubernetes-inspector/integration"
 	"github.com/mrahbar/kubernetes-inspector/ssh/communicator"
 	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/util"
 	"golang.org/x/crypto/ssh"
 )
 
-func PerformCmd(sshOpts types.SSHConfig, node types.Node, cmd string, debug bool) (*types.SSHOutput, error) {
-	if util.NodeEquals(sshOpts.LocalOn, node) {
-		return shell(cmd, debug)
-	}
+type Executor interface {
+    PerformCmd(command string) (*types.SSHOutput, error)
 
-	comm, err := establishSSHCommunication(sshOpts, util.GetNodeAddress(node), debug)
+    DownloadFile(remotePath string, localPath string) error
+    DownloadDirectory(remotePath string, localPath string) error
+    UploadFile(remotePath string, localPath string) error
+    UploadDirectory(node types.Node, remotePath string, localPath string)
+    DeleteRemoteFile(node types.Node, remoteFile string) error
+
+    RunKubectlCommand(args []string) (*types.SSHOutput, error)
+    DeployKubernetesResource(tpl string, data interface{}) (*types.SSHOutput, error)
+
+    GetNumberOfReadyNodes() (int, error)
+    CreateNamespace(namespace string) error
+    CreateService(serviceData interface{})
+    CreateReplicationController(data interface{}) error
+    ScaleReplicationController(namespace string, rc string, replicas int) error
+    GetPods(namespace string, wide bool) (*types.SSHOutput, error)
+    RemoveResource(namespace, full_qualified_name string) error
+}
+
+type CommandExecutor struct {
+    SshOpts types.SSHConfig
+    Node    types.Node
+    Printer *integration.Printer
+}
+
+func (c *CommandExecutor) PerformCmd(cmd string) (*types.SSHOutput, error) {
+    if util.NodeEquals(c.SshOpts.LocalOn, c.Node) {
+        return shell(cmd, c.Printer)
+    }
+
+    comm, err := establishSSHCommunication(c.SshOpts, util.GetNodeAddress(c.Node), c.Printer)
 	if err != nil {
-		if debug {
-			util.PrettyPrintDebug("Creating communicator failed: %s", err)
-		}
+        c.Printer.PrintDebug("Creating communicator failed: %s", err)
 		return &types.SSHOutput{}, err
 	}
 
@@ -36,9 +62,7 @@ func PerformCmd(sshOpts types.SSHConfig, node types.Node, cmd string, debug bool
 
 	err = comm.Start(remoteCmd)
 	if err != nil {
-		if debug {
-			util.PrettyPrintDebug("Starting remote command failed: %s", err)
-		}
+        c.Printer.PrintDebug("Starting remote command failed: %s", err)
 		return &types.SSHOutput{}, err
 	}
 	remoteCmd.Wait()
@@ -46,24 +70,26 @@ func PerformCmd(sshOpts types.SSHConfig, node types.Node, cmd string, debug bool
 	outErr := strings.TrimSpace(stderr.String())
 	o := &types.SSHOutput{Stdout: output, Stderr: outErr}
 
-	if debug {
-		errFormatted := ""
-		if err != nil {
-			errFormatted = fmt.Sprintf("%s", err)
-		}
-		util.PrettyPrintDebug("Result of command:\nStdout: %s\nStderr: %s\nExitStatus: %d\nErr: %s\n",
-			output, outErr, remoteCmd.ExitStatus, errFormatted)
-	}
+    if remoteCmd.ExitStatus != 0 {
+        err = fmt.Errorf("%s", outErr)
+    }
+
+    errFormatted := ""
+    if err != nil {
+        errFormatted = fmt.Sprintf("%s", err)
+    }
+    c.Printer.PrintDebug("Result of command:\nStdout: %s\nStderr: %s\nExitStatus: %d\nErr: %s\n",
+        output, outErr, remoteCmd.ExitStatus, errFormatted)
 
 	return o, err
 }
 
-func shell(cmd string, debug bool) (*types.SSHOutput, error) {
+func shell(cmd string, printer *integration.Printer) (*types.SSHOutput, error) {
 	shell := "/bin/bash"
-	err := findExecutable(shell);
+    err := findExecutable(shell)
 	if err != nil {
 		shell = "/bin/sh"
-		err := findExecutable(shell);
+        err := findExecutable(shell)
 		if err != nil {
 			return &types.SSHOutput{}, err
 		}
@@ -71,13 +97,12 @@ func shell(cmd string, debug bool) (*types.SSHOutput, error) {
 
 	execCmd := exec.Command(shell, "-c", cmd)
 
-	if debug {
-		fmt.Printf("Executing command: %s %s\n", execCmd.Path, execCmd.Args)
-	}
+    printer.PrintDebug("Executing command: %s %s\n", execCmd.Path, execCmd.Args)
 
 	var stderr bytes.Buffer
 	execCmd.Stdin = os.Stdin
 	execCmd.Stderr = &stderr
+
 	out, err := execCmd.Output()
 	output := strings.TrimSpace(string(out))
 	outErr := strings.TrimSpace(stderr.String())
@@ -90,14 +115,12 @@ func shell(cmd string, debug bool) (*types.SSHOutput, error) {
 		}
 	}
 
-	if debug {
-		errFormatted := ""
-		if err != nil {
-			errFormatted = fmt.Sprintf("%s", err)
-		}
-		util.PrettyPrintDebug("Result of command\n- Stdout: %s\n- Stderr: %s\n- ExitStatus: %d\n- Err: %s\n",
-			output, outErr, exitStatus, errFormatted)
-	}
+    errFormatted := ""
+    if err != nil {
+        errFormatted = fmt.Sprintf("%s", err)
+    }
+    printer.PrintDebug("Result of command\n- Stdout: %s\n- Stderr: %s\n- ExitStatus: %d\n- Err: %s\n",
+        output, outErr, exitStatus, errFormatted)
 
 	return o, err
 }
