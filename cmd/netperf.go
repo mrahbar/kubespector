@@ -26,6 +26,10 @@ func init() {
 
 func netperfRun(_ *cobra.Command, _ []string) {
 	config := util.UnmarshalConfig()
-	netperfOpts.Debug = RootOpts.Debug
-	pkg.Netperf(config, netperfOpts)
+    params := &types.CommandParams{
+        Printer: printer,
+        Config:  config,
+        Opts:    netperfOpts,
+    }
+    pkg.Netperf(params)
 }

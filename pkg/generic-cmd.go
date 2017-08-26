@@ -1,13 +1,17 @@
 package pkg
 
 import (
+    "github.com/mrahbar/kubernetes-inspector/ssh"
 	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/util"
 	"os"
 	"strings"
 )
 
-func runGeneric(config types.Config, opts *types.GenericOpts, initializer types.Initializer, processor types.Processor) {
+type Initializer func(target string, node string, group string)
+type Processor func(cmdExecutor *ssh.CommandExecutor, target string)
+
+func runGeneric(config types.Config, opts *types.GenericOpts, initializer Initializer, processor Processor) {
 	if opts.NodeArg != "" {
 		node := types.Node{}
 
@@ -21,11 +25,17 @@ func runGeneric(config types.Config, opts *types.GenericOpts, initializer types.
 		}
 
 		if !util.IsNodeAddressValid(node) {
-			util.PrettyPrintErr("No node found for %v in config", opts.NodeArg)
+            printer.PrintErr("No node found for %v in config", opts.NodeArg)
 			os.Exit(1)
 		} else {
 			initializer(opts.TargetArg, util.ToNodeLabel(node), "")
-			processor(config.Ssh, opts.TargetArg, node, opts.Debug)
+
+            cmdExecutor := &ssh.CommandExecutor{
+                SshOpts: config.Ssh,
+                Node:    node,
+                Printer: printer,
+            }
+            processor(cmdExecutor, opts.TargetArg)
 		}
 	} else {
 		var groups = []string{}
@@ -46,17 +56,22 @@ func runGeneric(config types.Config, opts *types.GenericOpts, initializer types.
 				initializer(opts.TargetArg, util.ToNodeLabel(types.Node{}), element)
 				for _, node := range group.Nodes {
 					if !util.IsNodeAddressValid(node) {
-						util.PrettyPrintErr("Current node %q has no valid address", node)
+                        printer.PrintErr("Current node %q has no valid address", node)
 						continue
 					} else {
 						if !util.ElementInArray(nodes, node.Host) {
-							processor(config.Ssh, opts.TargetArg, node, opts.Debug)
+                            cmdExecutor := &ssh.CommandExecutor{
+                                SshOpts: config.Ssh,
+                                Node:    node,
+                                Printer: printer,
+                            }
+                            processor(cmdExecutor, opts.TargetArg)
 							nodes = append(nodes, node.Host)
 						}
 					}
 				}
 			} else {
-				util.PrettyPrintErr("No Nodes found for group: %s", element)
+                printer.PrintErr("No Nodes found for group: %s", element)
 			}
 		}
 	}

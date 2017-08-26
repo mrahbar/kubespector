@@ -29,7 +29,6 @@ type Comm struct {
 	config  *Config
 	conn    net.Conn
 	address string
-	debug   bool
 }
 
 // Config is the structure used to configure the SSH communicator.
@@ -60,19 +59,16 @@ var logPrinter func(msg string, a ...interface{})
 
 // Creates a new Communicator implementation over SSH. This takes
 // an already existing TCP connection and SSH configuration.
-func New(address string, config *Config, debug bool, lp func(msg string, a ...interface{})) (result *Comm, err error) {
+func New(address string, config *Config, lp func(msg string, a ...interface{})) (result *Comm, err error) {
 	logPrinter = lp
 
 	// Establish an initial connection and connect
 	result = &Comm{
 		config:  config,
 		address: address,
-		debug:   debug,
 	}
 
-	if debug {
-		logPrinter("Attempting SSH connection...")
-	}
+    logPrinter("Attempting SSH connection...")
 	if err = result.reconnect(); err != nil {
 		result = nil
 		return
@@ -105,9 +101,7 @@ func (c *Comm) Start(cmd *RemoteCmd) (err error) {
 		}
 	}
 
-	if c.debug {
-		logPrinter("Starting remote command: %s", cmd.Command)
-	}
+    logPrinter("Starting remote command: %s", cmd.Command)
 	err = session.Start(cmd.Command + "\n")
 	if err != nil {
 		return
@@ -125,20 +119,14 @@ func (c *Comm) Start(cmd *RemoteCmd) (err error) {
 			case *ssh.ExitError:
 				exitStatus = err.(*ssh.ExitError).ExitStatus()
 
-				if c.debug {
-					logPrinter("Remote command exited with '%d': %s", exitStatus, cmd.Command)
-				}
+                logPrinter("Remote command '%s' exited with '%d': %s", cmd.Command, exitStatus, err)
 			case *ssh.ExitMissingError:
 
-				if c.debug {
-					logPrinter("Remote command exited without exit status or exit signal.")
-				}
+                logPrinter("Remote command exited without exit status or exit signal.")
 				exitStatus = CmdDisconnect
 			default:
 
-				if c.debug {
-					logPrinter("Error occurred waiting for ssh session: %s", err.Error())
-				}
+                logPrinter("Error occurred waiting for ssh session: %s", err.Error())
 			}
 		}
 		cmd.SetExited(exitStatus)
@@ -156,9 +144,7 @@ func (c *Comm) Upload(path string, input io.Reader, fi *os.FileInfo) error {
 
 func (c *Comm) UploadDir(dst string, src string, excl []string) error {
 
-	if c.debug {
-		logPrinter("Upload dir '%s' to '%s'", src, dst)
-	}
+    logPrinter("Upload dir '%s' to '%s'", src, dst)
 	if c.config.UseSftp {
 		return c.sftpUploadDirSession(dst, src, excl)
 	} else {
@@ -168,9 +154,7 @@ func (c *Comm) UploadDir(dst string, src string, excl []string) error {
 
 func (c *Comm) DownloadDir(src string, dst string, excl []string) error {
 
-	if c.debug {
-		logPrinter("Download dir '%s' to '%s'", src, dst)
-	}
+    logPrinter("Download dir '%s' to '%s'", src, dst)
 	scpFunc := func(w io.Writer, stdoutR *bufio.Reader) error {
 		dirStack := []string{dst}
 		for {
@@ -205,9 +189,8 @@ func (c *Comm) DownloadDir(src string, dst string, excl []string) error {
 			var mode int64
 			var size int64
 			var name string
-			if c.debug {
-				logPrinter("Download dir str:%s", fi)
-			}
+
+            logPrinter("Download dir str:%s", fi)
 			n, err := fmt.Sscanf(fi[1:], "%o %d %s", &mode, &size, &name)
 			if err != nil || n != 3 {
 				return fmt.Errorf("can't parse server response (%s)", fi)
@@ -216,9 +199,7 @@ func (c *Comm) DownloadDir(src string, dst string, excl []string) error {
 				return fmt.Errorf("negative file size")
 			}
 
-			if c.debug {
-				logPrinter("Download dir mode:%0o size:%d name:%s", mode, size, name)
-			}
+            logPrinter("Download dir mode:%0o size:%d name:%s", mode, size, name)
 
 			dst = filepath.Join(dirStack...)
 			switch fi[0] {
@@ -253,9 +234,7 @@ func (c *Comm) Download(path string, output io.Writer) error {
 }
 
 func (c *Comm) newSession() (session *ssh.Session, err error) {
-	if c.debug {
-		logPrinter("Opening new ssh session")
-	}
+    logPrinter("Opening new ssh session")
 
 	if c.client == nil {
 		err = errors.New("Client not available")
@@ -264,9 +243,7 @@ func (c *Comm) newSession() (session *ssh.Session, err error) {
 	}
 
 	if err != nil {
-		if c.debug {
-			logPrinter("Ssh session open error: '%s', attempting reconnect", err)
-		}
+        logPrinter("Ssh session open error: '%s', attempting reconnect", err)
 		if err := c.reconnect(); err != nil {
 			return nil, err
 		}
@@ -291,9 +268,7 @@ func (c *Comm) reconnect() (err error) {
 	c.conn = nil
 	c.client = nil
 
-	if c.debug {
-		logPrinter("Reconnecting to TCP connection for SSH")
-	}
+    logPrinter("Reconnecting to TCP connection for SSH")
 	c.conn, err = c.config.Connection()
 	if err != nil {
 		// Explicitly set this to the REAL nil. Connection() can return
@@ -304,15 +279,11 @@ func (c *Comm) reconnect() (err error) {
 		// http://golang.org/doc/faq#nil_error
 		c.conn = nil
 
-		if c.debug {
-			logPrinter("Reconnection error: %s", err)
-		}
+        logPrinter("Reconnection error: %s", err)
 		return
 	}
 
-	if c.debug {
-		logPrinter("Handshaking with SSH")
-	}
+    logPrinter("Handshaking with SSH")
 	// Default timeout to 1 minute if it wasn't specified (zero value). For
 	// when you need to handshake from low orbit.
 	var duration time.Duration
@@ -349,15 +320,11 @@ func (c *Comm) reconnect() (err error) {
 
 	if err != nil {
 
-		if c.debug {
-			logPrinter("Handshake error: %s", err)
-		}
+        logPrinter("Handshake error: %s", err)
 		return
 	}
 
-	if c.debug {
-		logPrinter("Handshake complete!")
-	}
+    logPrinter("Handshake complete!")
 	if sshConn != nil {
 		c.client = ssh.NewClient(sshConn, sshChan, req)
 	}
@@ -373,9 +340,7 @@ func (c *Comm) connectToAgent() {
 
 	if c.config.DisableAgent {
 
-		if c.debug {
-			logPrinter("SSH agent forwarding is disabled.")
-		}
+        logPrinter("SSH agent forwarding is disabled.")
 		return
 	}
 
@@ -383,17 +348,13 @@ func (c *Comm) connectToAgent() {
 	socketLocation := os.Getenv("SSH_AUTH_SOCK")
 	if socketLocation == "" {
 
-		if c.debug {
-			logPrinter("No local agent socket, will not connect agent")
-		}
+        logPrinter("No local agent socket, will not connect agent")
 		return
 	}
 	agentConn, err := net.Dial("unix", socketLocation)
 	if err != nil {
 
-		if c.debug {
-			logPrinter("Could not connect to local agent socket: %s", socketLocation)
-		}
+        logPrinter("Could not connect to local agent socket: %s", socketLocation)
 		return
 	}
 
@@ -401,9 +362,7 @@ func (c *Comm) connectToAgent() {
 	forwardingAgent := agent.NewClient(agentConn)
 	if forwardingAgent == nil {
 
-		if c.debug {
-			logPrinter("Could not create agent client")
-		}
+        logPrinter("Could not create agent client")
 		agentConn.Close()
 		return
 	}
@@ -424,31 +383,24 @@ func (c *Comm) connectToAgent() {
 	err = agent.RequestAgentForwarding(session)
 	if err != nil {
 
-		if c.debug {
-			logPrinter("RequestAgentForwarding: %#v", err)
-		}
+        logPrinter("RequestAgentForwarding: %#v", err)
 		return
 	}
 
-	if c.debug {
-		logPrinter("Agent forwarding enabled")
-	}
+    logPrinter("Agent forwarding enabled")
 	return
 }
 
 func (c *Comm) sftpUploadSession(path string, input io.Reader, fi *os.FileInfo) error {
 	sftpFunc := func(client *sftp.Client) error {
-		return sftpUploadFile(path, input, client, fi, c.debug)
+        return sftpUploadFile(path, input, client, fi)
 	}
 
 	return c.sftpSession(sftpFunc)
 }
 
-func sftpUploadFile(path string, input io.Reader, client *sftp.Client, fi *os.FileInfo, debug bool) error {
-
-	if debug {
-		logPrinter("SFTP: uploading %s", path)
-	}
+func sftpUploadFile(path string, input io.Reader, client *sftp.Client, fi *os.FileInfo) error {
+    logPrinter("SFTP: uploading %s", path)
 
 	f, err := client.Create(path)
 	if err != nil {
@@ -476,9 +428,7 @@ func (c *Comm) sftpUploadDirSession(dst string, src string, excl []string) error
 		rootDst := dst
 		if src[len(src)-1] != '/' {
 
-			if c.debug {
-				logPrinter("No trailing slash, creating the source directory name")
-			}
+            logPrinter("No trailing slash, creating the source directory name")
 			rootDst = filepath.Join(dst, filepath.Base(src))
 		}
 		walkFunc := func(path string, info os.FileInfo, err error) error {
@@ -503,7 +453,7 @@ func (c *Comm) sftpUploadDirSession(dst string, src string, excl []string) error
 				return nil
 			}
 
-			return sftpVisitFile(finalDst, path, info, client, c.debug)
+            return sftpVisitFile(finalDst, path, info, client)
 		}
 
 		return filepath.Walk(src, walkFunc)
@@ -512,11 +462,9 @@ func (c *Comm) sftpUploadDirSession(dst string, src string, excl []string) error
 	return c.sftpSession(sftpFunc)
 }
 
-func sftpMkdir(path string, client *sftp.Client, fi os.FileInfo, debug bool) error {
+func sftpMkdir(path string, client *sftp.Client, fi os.FileInfo) error {
 
-	if debug {
-		logPrinter("SFTP: creating dir %s", path)
-	}
+    logPrinter("SFTP: creating dir %s", path)
 
 	if err := client.Mkdir(path); err != nil {
 		// Do not consider it an error if the directory existed
@@ -533,16 +481,16 @@ func sftpMkdir(path string, client *sftp.Client, fi os.FileInfo, debug bool) err
 	return nil
 }
 
-func sftpVisitFile(dst string, src string, fi os.FileInfo, client *sftp.Client, debug bool) error {
+func sftpVisitFile(dst string, src string, fi os.FileInfo, client *sftp.Client) error {
 	if !fi.IsDir() {
 		f, err := os.Open(src)
 		if err != nil {
 			return err
 		}
 		defer f.Close()
-		return sftpUploadFile(dst, f, client, &fi, debug)
+        return sftpUploadFile(dst, f, client, &fi)
 	} else {
-		err := sftpMkdir(dst, client, fi, debug)
+        err := sftpMkdir(dst, client, fi)
 		return err
 	}
 }
@@ -609,7 +557,7 @@ func (c *Comm) scpUploadSession(path string, input io.Reader, fi *os.FileInfo) e
 	target_dir = filepath.ToSlash(target_dir)
 
 	scpFunc := func(w io.Writer, stdoutR *bufio.Reader) error {
-		return scpUploadFile(target_file, input, w, stdoutR, fi, c.debug)
+        return scpUploadFile(target_file, input, w, stdoutR, fi)
 	}
 
 	return c.scpSession("scp -vt "+target_dir, scpFunc)
@@ -629,18 +577,16 @@ func (c *Comm) scpUploadDirSession(dst string, src string, excl []string) error 
 				return err
 			}
 
-			return scpUploadDir(src, entries, w, r, c.debug)
+            return scpUploadDir(src, entries, w, r)
 		}
 
 		if src[len(src)-1] != '/' {
-			if c.debug {
-				logPrinter("No trailing slash, creating the source directory name")
-			}
+            logPrinter("No trailing slash, creating the source directory name")
 			fi, err := os.Stat(src)
 			if err != nil {
 				return err
 			}
-			return scpUploadDirProtocol(filepath.Base(src), w, r, uploadEntries, fi, c.debug)
+            return scpUploadDirProtocol(filepath.Base(src), w, r, uploadEntries, fi)
 		} else {
 			// Trailing slash, so only upload the contents
 			return uploadEntries()
@@ -736,9 +682,7 @@ func (c *Comm) scpSession(scpCommand string, f func(io.Writer, *bufio.Reader) er
 
 	// Start the sink mode on the other side
 	// TODO(mitchellh): There are probably issues with shell escaping the path
-	if c.debug {
-		logPrinter("Starting remote scp process: %s", scpCommand)
-	}
+    logPrinter("Starting remote scp process: %s", scpCommand)
 	if err := session.Start(scpCommand); err != nil {
 		return err
 	}
@@ -746,9 +690,7 @@ func (c *Comm) scpSession(scpCommand string, f func(io.Writer, *bufio.Reader) er
 	// Call our callback that executes in the context of SCP. We ignore
 	// EOF errors if they occur because it usually means that SCP prematurely
 	// ended on the other side.
-	if c.debug {
-		logPrinter("Started SCP session, beginning transfers...")
-	}
+    logPrinter("Started SCP session, beginning transfers...")
 	if err := f(stdinW, stdoutR); err != nil && err != io.EOF {
 		return err
 	}
@@ -756,34 +698,26 @@ func (c *Comm) scpSession(scpCommand string, f func(io.Writer, *bufio.Reader) er
 	// Close the stdin, which sends an EOF, and then set w to nil so that
 	// our defer func doesn't close it again since that is unsafe with
 	// the Go SSH package.
-	if c.debug {
-		logPrinter("SCP session complete, closing stdin pipe.")
-	}
+    logPrinter("SCP session complete, closing stdin pipe.")
 	stdinW.Close()
 	stdinW = nil
 
 	// Wait for the SCP connection to close, meaning it has consumed all
 	// our data and has completed. Or has errored.
-	if c.debug {
-		logPrinter("Waiting for SSH session to complete.")
-	}
+    logPrinter("Waiting for SSH session to complete.")
 	err = session.Wait()
 	if err != nil {
 		if exitErr, ok := err.(*ssh.ExitError); ok {
 			// Otherwise, we have an ExitErorr, meaning we can just read
 			// the exit status
 
-			if c.debug {
-				logPrinter("Non-zero exit status: %d", exitErr.ExitStatus())
-			}
+            logPrinter("Non-zero exit status: %d", exitErr.ExitStatus())
 			stdoutB, err := ioutil.ReadAll(stdoutR)
 			if err != nil {
 				return err
 			}
 
-			if c.debug {
-				logPrinter("SCP output: %s", stdoutB)
-			}
+            logPrinter("SCP output: %s", stdoutB)
 
 			// If we exited with status 127, it means SCP isn't available.
 			// Return a more descriptive error for that.
@@ -797,9 +731,7 @@ func (c *Comm) scpSession(scpCommand string, f func(io.Writer, *bufio.Reader) er
 		return err
 	}
 
-	if c.debug {
-		logPrinter("SCP stderr (length %d): %s", stderr.Len(), stderr.String())
-	}
+    logPrinter("SCP stderr (length %d): %s", stderr.Len(), stderr.String())
 	return nil
 }
 
@@ -837,7 +769,7 @@ func scpDownloadFile(dst string, src io.Reader, size int64, mode os.FileMode) er
 	return nil
 }
 
-func scpUploadFile(dst string, src io.Reader, w io.Writer, r *bufio.Reader, fi *os.FileInfo, debug bool) error {
+func scpUploadFile(dst string, src io.Reader, w io.Writer, r *bufio.Reader, fi *os.FileInfo) error {
 	var mode os.FileMode
 	var size int64
 
@@ -856,9 +788,7 @@ func scpUploadFile(dst string, src io.Reader, w io.Writer, r *bufio.Reader, fi *
 
 		mode = 0644
 
-		if debug {
-			logPrinter("Copying input data into temporary file so we can read the length")
-		}
+        logPrinter("Copying input data into temporary file so we can read the length")
 		if _, err := io.Copy(tf, src); err != nil {
 			return err
 		}
@@ -886,9 +816,7 @@ func scpUploadFile(dst string, src io.Reader, w io.Writer, r *bufio.Reader, fi *
 	// Start the protocol
 	perms := fmt.Sprintf("C%04o", mode)
 
-	if debug {
-		logPrinter("SCP: Uploading %s: perms=%s size=%d", dst, perms, size)
-	}
+    logPrinter("SCP: Uploading %s: perms=%s size=%d", dst, perms, size)
 
 	fmt.Fprintln(w, perms, size, dst)
 	if err := checkSCPStatus(r); err != nil {
@@ -903,11 +831,8 @@ func scpUploadFile(dst string, src io.Reader, w io.Writer, r *bufio.Reader, fi *
 	return checkSCPStatus(r)
 }
 
-func scpUploadDirProtocol(name string, w io.Writer, r *bufio.Reader, f func() error, fi os.FileInfo, debug bool) error {
-
-	if debug {
-		logPrinter("SCP: starting directory upload: %s", name)
-	}
+func scpUploadDirProtocol(name string, w io.Writer, r *bufio.Reader, f func() error, fi os.FileInfo) error {
+    logPrinter("SCP: starting directory upload: %s", name)
 
 	mode := fi.Mode().Perm()
 
@@ -927,7 +852,7 @@ func scpUploadDirProtocol(name string, w io.Writer, r *bufio.Reader, f func() er
 	return err
 }
 
-func scpUploadDir(root string, fs []os.FileInfo, w io.Writer, r *bufio.Reader, debug bool) error {
+func scpUploadDir(root string, fs []os.FileInfo, w io.Writer, r *bufio.Reader) error {
 	for _, fi := range fs {
 		realPath := filepath.Join(root, fi.Name())
 
@@ -959,7 +884,7 @@ func scpUploadDir(root string, fs []os.FileInfo, w io.Writer, r *bufio.Reader, d
 
 			err = func() error {
 				defer f.Close()
-				return scpUploadFile(fi.Name(), f, w, r, &fi, debug)
+                return scpUploadFile(fi.Name(), f, w, r, &fi)
 			}()
 
 			if err != nil {
@@ -982,8 +907,8 @@ func scpUploadDir(root string, fs []os.FileInfo, w io.Writer, r *bufio.Reader, d
 				return err
 			}
 
-			return scpUploadDir(realPath, entries, w, r, debug)
-		}, fi, debug)
+            return scpUploadDir(realPath, entries, w, r)
+        }, fi)
 		if err != nil {
 			return err
 		}

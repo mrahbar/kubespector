@@ -3,7 +3,7 @@ package cmd
 import (
 	"runtime"
 
-	"github.com/mrahbar/kubernetes-inspector/util"
+    "github.com/mrahbar/kubernetes-inspector/integration"
 	"github.com/spf13/cobra"
 )
 
@@ -13,10 +13,10 @@ var versionCmd = &cobra.Command{
 	Short: "Prints the current version and build date",
 	Long:  `The version is aligned with the SemVer specification, e.q. 1.0.0`,
 	Run: func(cmd *cobra.Command, args []string) {
-		util.PrettyPrint("kubernetes-inspector:")
-		util.PrettyPrint("-  Version: %s", Version)
-		util.PrettyPrint("-  Built: %s", BuildDate)
-		util.PrettyPrint("-  Go Version: %s", runtime.Version())
+        integration.PrettyPrint("kubernetes-inspector:")
+        integration.PrettyPrint("-  Version: %s", Version)
+        integration.PrettyPrint("-  Built: %s", BuildDate)
+        integration.PrettyPrint("-  Go Version: %s", runtime.Version())
 	},
 }
 

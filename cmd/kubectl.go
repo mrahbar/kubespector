@@ -28,6 +28,10 @@ func init() {
 
 func kubectlRun(_ *cobra.Command, _ []string) {
 	config := util.UnmarshalConfig()
-	kubectlOpts.Debug = RootOpts.Debug
-	pkg.Kubectl(config, kubectlOpts)
+    params := &types.CommandParams{
+        Printer: printer,
+        Config:  config,
+        Opts:    kubectlOpts,
+    }
+    pkg.Kubectl(params)
 }

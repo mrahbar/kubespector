@@ -30,6 +30,10 @@ func init() {
 
 func restartRun(_ *cobra.Command, _ []string) {
 	config := util.UnmarshalConfig()
-	restartOpts.Debug = RootOpts.Debug
-	pkg.Restart(config, restartOpts)
+    params := &types.CommandParams{
+        Printer: printer,
+        Config:  config,
+        Opts:    restartOpts,
+    }
+    pkg.Restart(params)
 }

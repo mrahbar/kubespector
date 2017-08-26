@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"fmt"
+	"github.com/mrahbar/kubernetes-inspector/integration"
 	"github.com/mrahbar/kubernetes-inspector/ssh"
 	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/util"
@@ -11,35 +12,36 @@ import (
 
 var logOpts *types.LogsOpts
 
-func Logs(config types.Config, opts *types.LogsOpts) {
-	logOpts = opts
-	runGeneric(config, &opts.GenericOpts, initializeLogs, logs)
+func Logs(cmdParams *types.CommandParams) {
+	initParams(cmdParams)
+	logOpts = cmdParams.Opts.(*types.LogsOpts)
+	runGeneric(cmdParams.Config, &logOpts.GenericOpts, initializeLogs, logs)
 }
 
 func initializeLogs(target string, node string, group string) {
 	if group != "" {
-		util.PrintHeader(fmt.Sprintf("Retrieving logs for %s %s in group [%s] ",
+		integration.PrintHeader(fmt.Sprintf("Retrieving logs for %s %s in group [%s] ",
 			logOpts.Type, target, group), '=')
 	}
 
 	if node != "" {
-		util.PrintHeader(fmt.Sprintf("Retrieving logs for %s %s on node %s :\n",
+		integration.PrintHeader(fmt.Sprintf("Retrieving logs for %s %s on node %s :\n",
 			logOpts.Type, target, node), '=')
 	}
 
 	if logOpts.FileOutput != "" {
 		err := util.InitializeOutputFile(logOpts.FileOutput)
 		if err != nil {
-			util.PrettyPrintErr("Failed to open output file %s: %s", logOpts.FileOutput, err)
+			printer.PrintErr("Failed to open output file %s: %s", logOpts.FileOutput, err)
 			os.Exit(1)
 		} else {
-			util.PrettyPrintInfo("Result is written to file %s screen output is suppressed.", logOpts.FileOutput)
+			printer.PrintInfo("Result is written to file %s screen output is suppressed.", logOpts.FileOutput)
 		}
 	}
-	util.PrettyNewLine()
+	integration.PrettyNewLine()
 }
 
-func logs(sshOpts types.SSHConfig, element string, node types.Node, debug bool) {
+func logs(cmdExecutor *ssh.CommandExecutor, element string) {
 	command := []string{}
 	switch logOpts.Type {
 	case "service":
@@ -92,26 +94,26 @@ func logs(sshOpts types.SSHConfig, element string, node types.Node, debug bool) 
 		cmd = fmt.Sprintf("sudo %s", strings.Join(command, " "))
 	}
 
-	sshOut, err := ssh.PerformCmd(sshOpts, node, cmd, debug)
+	sshOut, err := cmdExecutor.PerformCmd(cmd)
 
-	util.PrettyPrint(fmt.Sprintf("Result on node %s:\n", util.ToNodeLabel(node)))
+	printer.Print(fmt.Sprintf("Result on node %s:\n", util.ToNodeLabel(node)))
 	if err != nil {
-		util.PrettyPrintErr("Error executing command: %s", err)
+		printer.PrintErr("Error executing command: %s", err)
 	} else {
 		result := ssh.CombineOutput(sshOut)
 		if logOpts.FileOutput != "" {
 			out := fmt.Sprintf("Result of '%s' on node %s:\n\n%s\n\n", command, util.ToNodeLabel(node), result)
 			err := util.WriteOutputFile(logOpts.FileOutput, out)
 			if err != nil {
-				util.PrettyPrintWarn("Failed to write to output file %s forwarding to screen: %s", logOpts.FileOutput, err)
-				util.PrettyPrintOk(result)
+				printer.PrintWarn("Failed to write to output file %s forwarding to screen: %s", logOpts.FileOutput, err)
+				printer.PrintOk(result)
 			} else {
-				util.PrettyPrintOk("Result written to file")
+				printer.PrintOk("Result written to file")
 			}
 		} else {
-			util.PrettyPrintOk(result)
+			printer.PrintOk(result)
 		}
 	}
 
-	util.PrettyNewLine()
+	integration.PrettyNewLine()
 }

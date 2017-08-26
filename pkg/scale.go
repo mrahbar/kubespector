@@ -1,31 +1,29 @@
 package pkg
 
 import (
+    "encoding/json"
+    "github.com/mrahbar/kubernetes-inspector/integration"
+    "github.com/mrahbar/kubernetes-inspector/ssh"
 	"github.com/mrahbar/kubernetes-inspector/types"
-	"os"
 	"github.com/mrahbar/kubernetes-inspector/util"
-	"github.com/mrahbar/kubernetes-inspector/ssh"
+    "github.com/streadway/quantile"
+    "os"
 	"path"
-	"time"
 	"strings"
-	"fmt"
-	"io/ioutil"
-	"net/http"
-	"github.com/streadway/quantile"
-	"encoding/json"
 	"sync"
+    "time"
 )
 
 const (
 	scaleTestNamespace = "scaletest"
 
-	vegetaImage = "gcr.io/google_containers/loader:0.6"
-	nginxImage  = "endianogino/simple-webserver:1.0"
+    vegetaImage    = "gcr.io/google_containers/loader:0.6"
+    webserverImage = "endianogino/simple-webserver:1.0"
 
-	vegetaName = "vegeta"
-	nginxName  = "nginx"
+    vegetaName    = "vegeta"
+    webserverName = "webserver"
 
-	nginxPort = 80
+    webserverPort = 80
 )
 
 type (
@@ -90,21 +88,23 @@ type (
 )
 
 var scaleTestOpts *types.ScaleTestOpts
+var scaleCmdExecutor *ssh.CommandExecutor
 
-func ScaleTest(config types.Config, opts *types.ScaleTestOpts) {
-	scaleTestOpts = opts
+func ScaleTest(cmdParams *types.CommandParams) {
+    initParams(cmdParams)
+    scaleTestOpts = cmdParams.Opts.(*types.ScaleTestOpts)
 	group := util.FindGroupByName(config.ClusterGroups, types.MASTER_GROUPNAME)
 
 	if group.Nodes == nil || len(group.Nodes) == 0 {
-		util.PrettyPrintErr("No host configured for group [%s]", types.MASTER_GROUPNAME)
+        printer.PrintErr("No host configured for group [%s]", types.MASTER_GROUPNAME)
 		os.Exit(1)
 	}
 
 	sshOpts = config.Ssh
-	node = ssh.GetFirstAccessibleNode(sshOpts, group.Nodes, scaleTestOpts.Debug)
+    node = ssh.GetFirstAccessibleNode(sshOpts, group.Nodes, printer)
 
 	if !util.IsNodeAddressValid(node) {
-		util.PrettyPrintErr("No master available")
+        printer.PrintErr("No master available")
 		os.Exit(1)
 	}
 
@@ -118,11 +118,17 @@ func ScaleTest(config types.Config, opts *types.ScaleTestOpts) {
 
 	err := os.MkdirAll(scaleTestOpts.OutputDir, os.ModePerm)
 	if err != nil {
-		util.PrettyPrintErr("Failed to open output file for path %s Error: %v", scaleTestOpts.OutputDir, err)
+        printer.PrintErr("Failed to open output file for path %s Error: %v", scaleTestOpts.OutputDir, err)
 		os.Exit(1)
 	}
 
-	util.PrettyPrint("Running kubectl commands on node %s", util.ToNodeLabel(node))
+    printer.Print("Running kubectl commands on node %s", util.ToNodeLabel(node))
+
+    scaleCmdExecutor = &ssh.CommandExecutor{
+        SshOpts: config.Ssh,
+        Node:    node,
+        Printer: printer,
+    }
 
 	checkingScaleTestPreconditions()
 	createScaleTestNamespace()
@@ -132,115 +138,131 @@ func ScaleTest(config types.Config, opts *types.ScaleTestOpts) {
 	waitForScaleTestServicesToBeRunning()
 	displayScaleTestPods()
 
-	//TODO scale scenario: run  nginx - vegeta
-	// 1-1 (idle)
-	// 10-1 (under-load)
-	// 10-10 (equal-load)
-	// 10-100 (overload-load)
-	// 100-1000 (one million requests per second)
-	// scale/wait, query QPS, iterate
+    runScaleTest()
 
 	if scaleTestOpts.Cleanup {
-		util.PrettyPrintInfo("Cleaning up...")
+        printer.PrintInfo("Cleaning up...")
 		removeScaleTest()
 	}
 
-	util.PrettyPrintOk("DONE")
+    printer.PrintOk("DONE")
 }
 
 func checkingScaleTestPreconditions() {
-	count, err := ssh.GetNumberOfReadyNodes(sshOpts, node, scaleTestOpts.Debug)
+    count, err := scaleCmdExecutor.GetNumberOfReadyNodes()
 
 	if err != nil {
-		util.PrettyPrintErr("Error checking node count: %s", err)
+        printer.PrintErr("Error checking node count: %s", err)
 		os.Exit(1)
 	} else if count < 1 {
-		util.PrettyPrintErr("Insufficient number of nodes for netperf test (need minimum of 1 node)")
+        printer.PrintErr("Insufficient number of nodes for scale test (need minimum of 1 node)")
 		os.Exit(1)
 	}
 }
 
 func createScaleTestNamespace() {
-	util.PrettyPrintInfo("Creating namespace")
-	err := ssh.CreateNamespace(sshOpts, node, scaleTestNamespace, scaleTestOpts.Debug)
+    printer.PrintInfo("Creating namespace")
+    err := scaleCmdExecutor.CreateNamespace(scaleTestNamespace)
 
 	if err != nil {
-		util.PrettyPrintErr("Error creating test namespace: %s", err)
+        printer.PrintErr("Error creating test namespace: %s", err)
 		os.Exit(1)
 	} else {
-		util.PrettyPrintOk("Namespace %s created", scaleTestNamespace)
-	}
-	util.PrettyNewLine()
+        printer.PrintOk("Namespace %s created", scaleTestNamespace)
+    }
+    integration.PrettyNewLine()
 }
 
 func createScaleTestServices() {
-	util.PrettyPrintInfo("Creating services")
+    printer.PrintInfo("Creating service")
 
-	data := types.Service{Name: nginxName, Namespace: scaleTestNamespace, Ports: []types.ServicePort{
+    data := types.Service{Name: webserverName, Namespace: scaleTestNamespace, Ports: []types.ServicePort{
 		{
 			Name:       "http-port",
-			Port:       nginxPort,
+            Port:       webserverPort,
 			Protocol:   "TCP",
-			TargetPort: nginxPort,
+            TargetPort: webserverPort,
 		},
 	}}
 
-	exists, err := ssh.CreateService(sshOpts, node, data, scaleTestOpts.Debug)
+    exists, err := scaleCmdExecutor.CreateService(data)
 	if exists {
-		util.PrettyPrintIgnored("Service: %s already exists.", nginxName)
-	} else {
-		util.PrettyPrintErr("Error adding service %v: %s", nginxName, err)
+        printer.PrintIgnored("Service: %s already exists.", webserverName)
+    } else if err != nil {
+        printer.PrintErr("Error adding service %v: %s", webserverName, err)
 		os.Exit(1)
 	}
 
-	util.PrettyNewLine()
+    printer.PrintOk("Service %s created.", webserverName)
+    integration.PrettyNewLine()
 }
 
 func createScaleTestReplicationControllers() {
-	util.PrettyPrintInfo("Creating ReplicationControllers")
+    printer.PrintInfo("Creating ReplicationControllers")
 
 	vegetaRC := types.ReplicationController{Name: vegetaName, Namespace: scaleTestNamespace, Image: vegetaImage,
-		Commands: []string{"/loader", "-host=nginx", "-rate=1000", "-address=:8080", "-workers=10", "-duration=1s"},
+        Args: []types.Arg{
+            {
+                Key:   "-host",
+                Value: webserverName,
+            },
+            {
+                Key:   "-rate",
+                Value: 1000,
+            },
+            {
+                Key:   "-address",
+                Value: ":8080",
+            },
+            {
+                Key:   "-workers",
+                Value: 10,
+            },
+            {
+                Key:   "-duration",
+                Value: "1s",
+            },
+        },
 		ResourceRequest: types.ResourceRequest{Cpu: "100m"},
 	}
 
-	nginxRc := types.ReplicationController{Name: nginxName, Namespace: scaleTestNamespace, Image: nginxImage,
+    webserverRc := types.ReplicationController{Name: webserverName, Namespace: scaleTestNamespace, Image: webserverImage,
 		ResourceRequest: types.ResourceRequest{Cpu: "1000m"},
 	}
 
-	err := ssh.CreateReplicationController(sshOpts, node, vegetaRC, scaleTestOpts.Debug)
+    err := scaleCmdExecutor.CreateReplicationController(vegetaRC)
 	if err != nil {
-		util.PrettyPrintErr("Error creating %s replication controller: %s", vegetaName, err)
+        printer.PrintErr("Error creating %s replication controller: %s", vegetaName, err)
 		os.Exit(1)
 	} else {
-		util.PrettyPrintOk("Created %s replication-controller", vegetaName)
-	}
+        printer.PrintOk("Created %s replication-controller", vegetaName)
+    }
 
-	err = ssh.CreateReplicationController(sshOpts, node, nginxRc, scaleTestOpts.Debug)
+    err = scaleCmdExecutor.CreateReplicationController(webserverRc)
 	if err != nil {
-		util.PrettyPrintErr("Error creating %s replication controller: %s", nginxName, err)
+        printer.PrintErr("Error creating %s replication controller: %s", webserverName, err)
 		os.Exit(1)
 	} else {
-		util.PrettyPrintOk("Created %s replication-controller", nginxName)
+        printer.PrintOk("Created %s replication-controller", webserverName)
 	}
 }
 
 func waitForScaleTestServicesToBeRunning() {
-	util.PrettyPrintInfo("Waiting for pods to be Running...")
+    printer.PrintInfo("Waiting for pods to be Running...")
 	waitTime := time.Second
 	done := false
 	for !done {
 		tmpl := "\"{..status.phase}\""
 		args := []string{"--namespace=" + scaleTestNamespace, "get", "pods", "-o", "jsonpath=" + tmpl}
-		sshOut, err := ssh.RunKubectlCommand(sshOpts, node, args, netperfOpts.Debug)
+        sshOut, err := scaleCmdExecutor.RunKubectlCommand(args)
 
 		if err != nil {
-			util.PrettyPrintWarn("Error running kubectl command '%v': %s", args, err)
+            printer.PrintWarn("Error running kubectl command '%v': %s", args, err)
 		}
 
 		lines := strings.Split(sshOut.Stdout, " ")
 		if len(lines) < 2 {
-			util.PrettyPrint("Service status output too short. Waiting %v then checking again.", waitTime)
+            printer.Print("Service status output too short. Waiting %v then checking again.", waitTime)
 			time.Sleep(waitTime)
 			waitTime *= 2
 			continue
@@ -254,25 +276,37 @@ func waitForScaleTestServicesToBeRunning() {
 			}
 		}
 		if !allRunning {
-			util.PrettyPrint("Services not running. Waiting %v then checking again.", waitTime)
+            printer.Print("Services not running. Waiting %v then checking again.", waitTime)
 			time.Sleep(waitTime)
 			waitTime *= 2
 		} else {
 			done = true
 		}
 	}
-	util.PrettyNewLine()
+    integration.PrettyNewLine()
 }
 
 func displayScaleTestPods() {
-	result, err := ssh.GetPods(sshOpts, node, scaleTestNamespace, true, netperfOpts.Debug)
+    result, err := scaleCmdExecutor.GetPods(scaleTestNamespace, true)
 	if err != nil {
-		util.PrettyPrintWarn("Error running kubectl command '%v'", err)
+        printer.PrintWarn("Error running kubectl command '%v'", err)
 	} else {
-		util.PrettyPrint("Pods are running\n%s", result)
-	}
+        printer.Print("Pods are running\n%s", result)
+    }
 
-	util.PrettyNewLine()
+    integration.PrettyNewLine()
+}
+
+func runScaleTest() {
+    fetchResults()
+    //scaleCmdExecutor.ScaleReplicationController(scaleTestNamespace, webserverName, 10)
+    //TODO scale scenario: run  webserver - vegeta
+    // 1-1 (idle)
+    // 10-1 (under-load)
+    // 10-10 (equal-load)
+    // 10-100 (overload-load)
+    // 100-1000 (one million requests per second)
+    // scale/wait, query QPS, iterate
 }
 
 func fetchResults() {
@@ -283,15 +317,13 @@ func fetchResults() {
 	for {
 		ips, err = getLoadbotPodIPs()
 		if err != nil {
-			if scaleTestOpts.Debug {
-				util.PrettyPrintDebug("Could not get loadbot ips: %s", err)
-			}
+            printer.PrintDebug("Could not get loadbot ips: %s", err)
 			attempts += 1
 			if attempts < 3 {
 				time.Sleep(2 * time.Second)
 				continue
 			} else {
-				util.PrettyPrintErr("Failed to get loadbot ips after 3 attempts: %v", err)
+                printer.PrintErr("Failed to get loadbot ips after 3 attempts: %v", err)
 				os.Exit(1)
 			}
 		} else {
@@ -306,21 +338,16 @@ func fetchResults() {
 	for _, ip := range ips {
 		go func(ip string) {
 			defer wg.Done()
-			url := "http://" + ip + ":8080/"
-			resp, err := http.Get(url)
+            cmd := "curl --silent http://" + ip + ":8080/"
+            resp, err := scaleCmdExecutor.PerformCmd(cmd)
 			if err != nil {
-				fmt.Printf("Error getting: %v\n", err)
+                printer.PrintWarn("Error calling %s on node %s: %s", cmd, util.GetNodeAddress(node), err)
 				return
 			}
-			defer resp.Body.Close()
-			var data []byte
-			if data, err = ioutil.ReadAll(resp.Body); err != nil {
-				fmt.Printf("Error reading: %v\n", err)
-				return
-			}
+
 			var metrics loadbotMetrics
-			if err := json.Unmarshal(data, &metrics); err != nil {
-				fmt.Printf("Error decoding: %v\n", err)
+            if err := json.Unmarshal([]byte(resp.Stdout), &metrics); err != nil {
+                printer.PrintWarn("Error decoding response of %s on node %s: %v\n", cmd, util.GetNodeAddress(node), err)
 				return
 			}
 			lock.Lock()
@@ -330,70 +357,71 @@ func fetchResults() {
 	}
 	wg.Wait()
 	evaluateData(parts)
-	fmt.Printf("Updated.\n")
+
+    printer.PrintDebug("Updated loadbots results.\n")
 }
 
 func evaluateData(metrics []loadbotMetrics) {
 	/*
-	ScaleApp.prototype.getQPS = function() {
-    if (!this.fullData) {
-	return 0;
-    }
-    var qps = 0;
-    angular.forEach(this.fullData, function(value) {
-	    if (value && value.rate) {
-		qps += value.rate;
-	    }
-	});
-    return qps;
-};
+			ScaleApp.prototype.getQPS = function() {
+		    if (!this.fullData) {
+			return 0;
+		    }
+		    var qps = 0;
+		    angular.forEach(this.fullData, function(value) {
+			    if (value && value.rate) {
+				qps += value.rate;
+			    }
+			});
+		    return qps;
+		};
 
-ScaleApp.prototype.getSuccess = function() {
-    if (!this.fullData) {
-	return 0;
-    }
-    var success = 0;
-    var count = 0;
-    angular.forEach(this.fullData, function(value) {
-	    if (value && value.success) {
-		success += value.success * 100;
-		count++;
-	    }
-	});
-    return success / count;
-};
+		ScaleApp.prototype.getSuccess = function() {
+		    if (!this.fullData) {
+			return 0;
+		    }
+		    var success = 0;
+		    var count = 0;
+		    angular.forEach(this.fullData, function(value) {
+			    if (value && value.success) {
+				success += value.success * 100;
+				count++;
+			    }
+			});
+		    return success / count;
+		};
 
-ScaleApp.prototype.getLatency = function() {
-    if (!this.fullData) {
-	return {};
-    }
-    var latency = {
-	"mean": 0,
-	"99th": 0
-    };
-    var count = 0;
-    angular.forEach(this.fullData, function(datum) {
-	    if (datum.latencies) {
-		latency.mean += datum.latencies.mean / 1000000;
-		latency["99th"] += datum.latencies["99th"] / 1000000;
-		count++;
-	    }
-	});
-    if (count == 0) {
-	return {};
-    }
-    latency.mean = (latency.mean/count);
-    latency["99th"] = (latency["99th"]/count);
+		ScaleApp.prototype.getLatency = function() {
+		    if (!this.fullData) {
+			return {};
+		    }
+		    var latency = {
+			"mean": 0,
+			"99th": 0
+		    };
+		    var count = 0;
+		    angular.forEach(this.fullData, function(datum) {
+			    if (datum.latencies) {
+				latency.mean += datum.latencies.mean / 1000000;
+				latency["99th"] += datum.latencies["99th"] / 1000000;
+				count++;
+			    }
+			});
+		    if (count == 0) {
+			return {};
+		    }
+		    latency.mean = (latency.mean/count);
+		    latency["99th"] = (latency["99th"]/count);
 
-    return latency;
-};
-*/
+		    return latency;
+		};
+	*/
 }
 
 func getLoadbotPodIPs() ([]string, error) {
 	tmpl := "\"{..status.podIP}\""
 	args := []string{"--namespace=" + scaleTestNamespace, "get", "pods", "-l", "app=" + vegetaName, "-o", "jsonpath=" + tmpl}
-	sshOut, err := ssh.RunKubectlCommand(sshOpts, node, args, netperfOpts.Debug)
+    sshOut, err := scaleCmdExecutor.RunKubectlCommand(args)
 
 	if err != nil {
 		return []string{}, err
@@ -403,19 +431,19 @@ func getLoadbotPodIPs() ([]string, error) {
 }
 
 func removeScaleTest() {
-	name := "svc/" + nginxName
-	err := ssh.RemoveResource(sshOpts, node, scaleTestNamespace, name, netperfOpts.Debug)
+    name := "svc/" + webserverName
+    err := scaleCmdExecutor.RemoveResource(scaleTestNamespace, name)
 	if err != nil {
-		util.PrettyPrintWarn("Error deleting service '%v'", name, err)
-	}
+        printer.PrintWarn("Error deleting service '%v'", name, err)
+    }
 
-	err = ssh.RemoveResource(sshOpts, node, scaleTestNamespace, vegetaName, netperfOpts.Debug)
+    err = scaleCmdExecutor.RemoveResource(scaleTestNamespace, vegetaName)
 	if err != nil {
-		util.PrettyPrintWarn("Error deleting replication-controller '%v'", vegetaName, err)
-	}
+        printer.PrintWarn("Error deleting replication-controller '%v'", vegetaName, err)
+    }
 
-	err = ssh.RemoveResource(sshOpts, node, scaleTestNamespace, nginxName, netperfOpts.Debug)
+    err = scaleCmdExecutor.RemoveResource(scaleTestNamespace, webserverName)
 	if err != nil {
-		util.PrettyPrintWarn("Error deleting replication-controller '%v'", nginxName, err)
+        printer.PrintWarn("Error deleting replication-controller '%v'", webserverName, err)
 	}
 }

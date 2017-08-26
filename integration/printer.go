@@ -1,4 +1,4 @@
-package util
+package integration
 
 import (
 	"fmt"
@@ -22,6 +22,7 @@ const (
 	ignoredType = "[IGNORED]"
 	infoType    = "[INFO]"
 	debugType   = "[DEBUG]"
+    traceType   = "[TRACE]"
 )
 
 const tabWidth = 124
@@ -35,6 +36,85 @@ var Blue = color.New(color.FgCyan)
 var Magenta = color.New(color.FgMagenta)
 var Yellow = color.New(color.FgYellow)
 var White = color.New(color.FgHiWhite)
+var Grey = color.New(color.FgWhite)
+
+type Printer struct {
+    LogLevel LogLevel
+}
+
+// Print no type will be displayed, used for just single line printing
+func (p *Printer) Print(msg string, a ...interface{}) {
+    if p.LogLevel >= INFO {
+        PrettyPrint(msg, a...)
+    }
+}
+
+// PrintErr [ERROR](Red) with formatted string
+func (p *Printer) PrintErr(msg string, a ...interface{}) {
+    if p.LogLevel >= ERROR {
+        PrettyPrintErr(msg, a...)
+    }
+}
+
+// PrintWarn [WARNING](Orange) with formatted string
+func (p *Printer) PrintWarn(msg string, a ...interface{}) {
+    if p.LogLevel >= WARNING {
+        PrettyPrintWarn(msg, a...)
+    }
+}
+
+// PrintIgnored [IGNORED](Red) with formatted string
+func (p *Printer) PrintIgnored(msg string, a ...interface{}) {
+    if p.LogLevel >= INFO {
+        PrettyPrintIgnored(msg, a...)
+    }
+}
+
+// PrettyPrintOk [OK](Green) with formatted string
+func (p *Printer) PrintOk(msg string, a ...interface{}) {
+    if p.LogLevel >= INFO {
+        printMsg(msg, okType, a...)
+    }
+}
+
+// PrintInfo [INFO] with formatted string
+func (p *Printer) PrintInfo(msg string, a ...interface{}) {
+    if p.LogLevel >= INFO {
+        PrettyPrintInfo(msg, a...)
+    }
+}
+
+// PrintDebug [DEBUG] with formatted string
+func (p *Printer) PrintDebug(msg string, a ...interface{}) {
+    if p.LogLevel >= DEBUG {
+        PrettyPrintDebug(msg, a...)
+    }
+}
+
+// PrintDebug [TRACE] with formatted string
+func (p *Printer) PrintTrace(msg string, a ...interface{}) {
+    if p.LogLevel >= TRACE {
+        PrettyPrintTrace(msg, a...)
+    }
+}
+
+// PrintUnknown [UNKNOWN](Red) with formatted string
+func (p *Printer) PrintUnknown(msg string, a ...interface{}) {
+    if p.LogLevel >= INFO {
+        PrettyPrintUnknown(msg, a...)
+    }
+}
+
+// PrintSkipped [SKIPPED](blue) with formatted string
+func (p *Printer) PrintSkipped(msg string, a ...interface{}) {
+    if p.LogLevel >= INFO {
+        PrettyPrintSkipped(msg, a...)
+    }
+}
+
+func PrettyNewLine() {
+    printMsg("", noType)
+}
 
 // PrettyPrintOk [OK](Green) with formatted string
 func PrettyPrintOk(msg string, a ...interface{}) {
@@ -49,10 +129,6 @@ func PrettyPrintErr(msg string, a ...interface{}) {
 // PrettyPrint no type will be displayed, used for just single line printing
 func PrettyPrint(msg string, a ...interface{}) {
 	printMsg(msg, noType, a...)
-}
-
-func PrettyNewLine() {
-	printMsg("", noType)
 }
 
 // PrettyPrintWarn [WARNING](Orange) with formatted string
@@ -75,6 +151,11 @@ func PrettyPrintDebug(msg string, a ...interface{}) {
 	printMsg(msg, debugType, a...)
 }
 
+// PrettyPrintDebug [TRACE] with formatted string
+func PrettyPrintTrace(msg string, a ...interface{}) {
+    printMsg(msg, traceType, a...)
+}
+
 // PrettyPrintUnknown [UNKNOWN](Red) with formatted string
 func PrettyPrintUnknown(msg string, a ...interface{}) {
 	printMsg(msg, unknownType, a...)
@@ -83,31 +164,6 @@ func PrettyPrintUnknown(msg string, a ...interface{}) {
 // PrettyPrintSkipped [SKIPPED](blue) with formatted string
 func PrettyPrintSkipped(msg string, a ...interface{}) {
 	printMsg(msg, skippedType, a...)
-}
-
-// PrintOk print whole message in green(Red) format
-func PrintOk(out io.Writer) {
-	PrintColor(Green, okType)
-}
-
-// PrintOkln print whole message in green(Red) format
-func PrintOkln(out io.Writer) {
-	PrintColor(Green, okType+"\n")
-}
-
-// PrintError print whole message in error(Red) format
-func PrintError(out io.Writer) {
-	PrintColor(Red, errType)
-}
-
-// PrintWarn print whole message in warn(Orange) format
-func PrintWarn(out io.Writer) {
-	PrintColor(Orange, warnType)
-}
-
-// PrintSkipped print whole message in green(Red) format
-func PrintSkipped(out io.Writer) {
-	PrintColor(Blue, skippedType)
 }
 
 // PrintHeader will print header with predefined width
@@ -163,6 +219,8 @@ func printMsg(msg, status string, a ...interface{}) {
 			clr = Magenta
 		case debugType:
 			clr = Yellow
+        case traceType:
+            clr = Grey
 		}
 
 		fmt.Fprintf(w, "%s\n", clr.SprintFunc()(status))

@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"fmt"
+    "github.com/mrahbar/kubernetes-inspector/integration"
 	"github.com/mrahbar/kubernetes-inspector/ssh"
 	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/util"
@@ -18,26 +19,34 @@ const localEtcdBackupDir = "/tmp/etcd-backup"
 var etcdBackupOpts *types.EtcdBackupOpts
 var archiveName string
 
-func Backup(config types.Config, opts *types.EtcdBackupOpts) {
-	etcdBackupOpts = opts
-	group := util.FindGroupByName(config.ClusterGroups, types.ETCD_GROUPNAME)
+func Backup(cmdParams *types.CommandParams) {
+    initParams(cmdParams)
+    etcdBackupOpts = cmdParams.Opts.(*types.EtcdBackupOpts)
+
+    group := util.FindGroupByName(cmdParams.Config.ClusterGroups, types.ETCD_GROUPNAME)
 
 	if group.Nodes == nil || len(group.Nodes) == 0 {
-		util.PrettyPrintErr("No host configured for group [%s]", types.ETCD_GROUPNAME)
+        cmdParams.Printer.PrintErr("No host configured for group [%s]", types.ETCD_GROUPNAME)
 		os.Exit(1)
 	}
 
-	node := ssh.GetFirstAccessibleNode(config.Ssh, group.Nodes, etcdBackupOpts.Debug)
+    node := ssh.GetFirstAccessibleNode(cmdParams.Config.Ssh, group.Nodes, printer)
+
+    cmdExecutor := &ssh.CommandExecutor{
+        SshOpts: cmdParams.Config.Ssh,
+        Printer: printer,
+        Node:    node,
+    }
 
 	if !util.IsNodeAddressValid(node) {
-		util.PrettyPrintErr("No node available for etcd backup")
+        printer.PrintErr("No node available for etcd backup")
 		os.Exit(1)
 	}
 
-	util.PrettyNewLine()
+    integration.PrettyNewLine()
 	initializeOutputFile()
-	backup(config.Ssh, node)
-	transferBackup(config.Ssh, node)
+    backup(cmdExecutor)
+    transferBackup(cmdExecutor)
 }
 
 func initializeOutputFile() {
@@ -55,7 +64,7 @@ func initializeOutputFile() {
 	}
 }
 
-func backup(sshConf types.SSHConfig, node types.Node) {
+func backup(cmdExecutor *ssh.CommandExecutor) {
 	etcdConnection := fmt.Sprintf("--endpoint='%s'", etcdBackupOpts.Endpoint)
 
 	if etcdBackupOpts.ClientCertAuth {
@@ -63,50 +72,46 @@ func backup(sshConf types.SSHConfig, node types.Node) {
 			etcdConnection, etcdBackupOpts.ClientCertFile, etcdBackupOpts.ClientKeyFile, etcdBackupOpts.CaFile)
 	}
 
-	util.PrettyPrintInfo("Start backup process")
-	cleanUp(sshConf, node, localEtcdBackupDir)
+    printer.PrintInfo("Start backup process")
+    cmdExecutor.DeleteRemoteFile(localEtcdBackupDir)
 	backupCmd := fmt.Sprintf("sudo etcdctl %s backup --data-dir %s --backup-dir %s", etcdConnection, etcdBackupOpts.DataDir, localEtcdBackupDir)
-	_, err := ssh.PerformCmd(sshConf, node, backupCmd, etcdBackupOpts.Debug)
+    _, err := cmdExecutor.PerformCmd(backupCmd)
 
 	if err != nil {
-		util.PrettyPrintErr("Error trying to backup etcd: %s", err)
+        printer.PrintErr("Error trying to backup etcd: %s", err)
 		os.Exit(1)
 	} else {
-		ssh.PerformCmd(sshConf, node, fmt.Sprintf("sudo chmod -R 777 %s", localEtcdBackupDir), etcdBackupOpts.Debug)
-		util.PrettyPrintOk("Backup created")
-	}
+        cmdExecutor.PerformCmd(fmt.Sprintf("sudo chmod -R 777 %s", localEtcdBackupDir))
+        printer.PrintOk("Backup created")
+    }
 
-	util.PrettyNewLine()
+    integration.PrettyNewLine()
 }
 
-func transferBackup(sshConf types.SSHConfig, node types.Node) {
-	util.PrettyPrintInfo("Creating archive of etcd backup")
+func transferBackup(cmdExecutor *ssh.CommandExecutor) {
+    printer.PrintInfo("Creating archive of etcd backup")
 	backupArchive := path.Join(localBackupDir, archiveName)
 
 	archiveCmd := fmt.Sprintf("tar -czvf %s -C %s .", backupArchive, localEtcdBackupDir)
-	_, err := ssh.PerformCmd(sshConf, node, archiveCmd, etcdBackupOpts.Debug)
+    _, err := cmdExecutor.PerformCmd(archiveCmd)
 
 	if err != nil {
-		util.PrettyPrintErr("Error trying to archive backup etcd: %s", err)
+        printer.PrintErr("Error trying to archive backup etcd: %s", err)
 		os.Exit(1)
 	} else {
-		cleanUp(sshConf, node, localEtcdBackupDir)
+        cmdExecutor.DeleteRemoteFile(localEtcdBackupDir)
 
-		util.PrettyPrintInfo("Transferring archive")
-		util.PrettyNewLine()
+        printer.PrintInfo("Transferring archive")
+        integration.PrettyNewLine()
 
-		err = ssh.DownloadFile(sshConf, node, backupArchive, etcdBackupOpts.Output, etcdBackupOpts.Debug)
-		cleanUp(sshConf, node, backupArchive)
+        err = cmdExecutor.DownloadFile(backupArchive, etcdBackupOpts.Output)
+        cmdExecutor.DeleteRemoteFile(backupArchive)
 
 		if err != nil {
-			util.PrettyPrintErr("Error trying transfer backup archive: %s", err)
+            printer.PrintErr("Error trying transfer backup archive: %s", err)
 			os.Exit(1)
 		} else {
-			util.PrettyPrintOk("Etcd backup is at %s", etcdBackupOpts.Output)
+            printer.PrintOk("Etcd backup is at %s", etcdBackupOpts.Output)
 		}
 	}
-}
-
-func cleanUp(sshConf types.SSHConfig, node types.Node, dir string) {
-	ssh.DeleteRemoteFile(sshConf, node, dir, etcdBackupOpts.Debug)
 }

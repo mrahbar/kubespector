@@ -2,28 +2,23 @@ package ssh
 
 import (
 	"fmt"
-	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/util"
 	"io"
 	"os"
 )
 
-func DownloadFile(sshOpts types.SSHConfig, node types.Node, remotePath string, localPath string, debug bool) error {
-	nodeAddress := util.GetNodeAddress(node)
+func (c *CommandExecutor) DownloadFile(remotePath string, localPath string) error {
+    nodeAddress := util.GetNodeAddress(c.Node)
 
-	if debug {
-		util.PrettyPrintDebug("Copying from remote file %s:%s to %s", nodeAddress, remotePath, localPath)
-	}
+    c.Printer.PrintDebug("Copying from remote file %s:%s to %s", nodeAddress, remotePath, localPath)
 
-	if util.NodeEquals(sshOpts.LocalOn, node) {
+    if util.NodeEquals(c.SshOpts.LocalOn, c.Node) {
 		return copyFile(remotePath, localPath)
 	}
 
-	comm, err := establishSSHCommunication(sshOpts, util.GetNodeAddress(node), debug)
+    comm, err := establishSSHCommunication(c.SshOpts, util.GetNodeAddress(c.Node), c.Printer)
 	if err != nil {
-		if debug {
-			util.PrettyPrintDebug("Creating communicator failed: %s", err)
-		}
+        c.Printer.PrintDebug("Creating communicator failed: %s", err)
 		return err
 	}
 
@@ -34,56 +29,44 @@ func DownloadFile(sshOpts types.SSHConfig, node types.Node, remotePath string, l
 	defer dstFile.Close()
 
 	err = comm.Download(remotePath, dstFile)
-	if debug {
-		errFormatted := "no-error"
-		if err != nil {
-			errFormatted = fmt.Sprintf("%s", err)
-		}
-		util.PrettyPrintDebug("Result of scp from remote: %s", errFormatted)
-	}
+    errFormatted := "no-error"
+    if err != nil {
+        errFormatted = fmt.Sprintf("%s", err)
+    }
+    c.Printer.PrintDebug("Result of scp from remote: %s", errFormatted)
 
 	return err
 }
 
-func DownloadDirectory(sshOpts types.SSHConfig, node types.Node, remotePath string, localPath string, debug bool) error {
-	nodeAddress := util.GetNodeAddress(node)
+func (c *CommandExecutor) DownloadDirectory(remotePath string, localPath string) error {
+    nodeAddress := util.GetNodeAddress(c.Node)
+    c.Printer.PrintDebug("Copying from remote file %s:%s to %s", nodeAddress, remotePath, localPath)
 
-	if debug {
-		util.PrettyPrintDebug("Copying from remote file %s:%s to %s", nodeAddress, remotePath, localPath)
-	}
-
-	if util.NodeEquals(sshOpts.LocalOn, node) {
+    if util.NodeEquals(c.SshOpts.LocalOn, c.Node) {
 		return fmt.Errorf("Local scp ist not supported")
 	}
 
-	comm, err := establishSSHCommunication(sshOpts, util.GetNodeAddress(node), debug)
+    comm, err := establishSSHCommunication(c.SshOpts, util.GetNodeAddress(c.Node), c.Printer)
 	if err != nil {
-		if debug {
-			util.PrettyPrintDebug("Creating communicator failed: %s", err)
-		}
+        c.Printer.PrintDebug("Creating communicator failed: %s", err)
 		return err
 	}
 
 	err = comm.DownloadDir(remotePath, localPath, []string{})
-	if debug {
-		errFormatted := "no-error"
-		if err != nil {
-			errFormatted = fmt.Sprintf("%s", err)
-		}
-		util.PrettyPrintDebug("Result of scp from remote: %s", errFormatted)
-	}
+    errFormatted := "no-error"
+    if err != nil {
+        errFormatted = fmt.Sprintf("%s", err)
+    }
+    c.Printer.PrintDebug("Result of scp from remote: %s", errFormatted)
 
 	return err
 }
 
-func UploadFile(sshOpts types.SSHConfig, node types.Node, remotePath string, localPath string, debug bool) error {
-	nodeAddress := util.GetNodeAddress(node)
+func (c *CommandExecutor) UploadFile(remotePath string, localPath string) error {
+    nodeAddress := util.GetNodeAddress(c.Node)
+    c.Printer.PrintDebug("Copying file %s to remote %s:%s", localPath, nodeAddress, remotePath)
 
-	if debug {
-		util.PrettyPrintDebug("Copying file %s to remote %s:%s", localPath, nodeAddress, remotePath)
-	}
-
-	if util.NodeEquals(sshOpts.LocalOn, node) {
+    if util.NodeEquals(c.SshOpts.LocalOn, c.Node) {
 		return copyFile(localPath, remotePath)
 	}
 
@@ -98,61 +81,50 @@ func UploadFile(sshOpts types.SSHConfig, node types.Node, remotePath string, loc
 		return err
 	}
 
-	comm, err := establishSSHCommunication(sshOpts, util.GetNodeAddress(node), debug)
+    comm, err := establishSSHCommunication(c.SshOpts, util.GetNodeAddress(c.Node), c.Printer)
 	if err != nil {
-		if debug {
-			util.PrettyPrintDebug("Creating communicator failed: %s", err)
-		}
+        c.Printer.PrintDebug("Creating communicator failed: %s", err)
 		return err
 	}
 
 	err = comm.Upload(remotePath, srcFile, &fi)
-	if debug {
-		errFormatted := "no-error"
-		if err != nil {
-			errFormatted = fmt.Sprintf("%s", err)
-		}
-		util.PrettyPrintDebug("Result of scp from remote: %s", errFormatted)
-	}
+    errFormatted := "no-error"
+    if err != nil {
+        errFormatted = fmt.Sprintf("%s", err)
+    }
+    c.Printer.PrintDebug("Result of scp from remote: %s", errFormatted)
 
 	return err
 }
 
-func UploadDirectory(sshOpts types.SSHConfig, node types.Node, remotePath string, localPath string, debug bool) error {
-	nodeAddress := util.GetNodeAddress(node)
+func (c *CommandExecutor) UploadDirectory(remotePath string, localPath string) error {
+    nodeAddress := util.GetNodeAddress(c.Node)
+    c.Printer.PrintDebug("Copying directory %s to remote %s:%s", localPath, nodeAddress, remotePath)
 
-	if debug {
-		util.PrettyPrintDebug("Copying directory %s to remote %s:%s", localPath, nodeAddress, remotePath)
-	}
-
-	if util.NodeEquals(sshOpts.LocalOn, node) {
+    if util.NodeEquals(c.SshOpts.LocalOn, c.Node) {
 		return fmt.Errorf("Local scp ist not supported")
 	}
 
-	comm, err := establishSSHCommunication(sshOpts, util.GetNodeAddress(node), debug)
+    comm, err := establishSSHCommunication(c.SshOpts, util.GetNodeAddress(c.Node), c.Printer)
 	if err != nil {
-		if debug {
-			util.PrettyPrintDebug("Creating communicator failed: %s", err)
-		}
+        c.Printer.PrintDebug("Creating communicator failed: %s", err)
 		return err
 	}
 
 	err = comm.UploadDir(remotePath, localPath, []string{})
-	if debug {
-		errFormatted := "no-error"
-		if err != nil {
-			errFormatted = fmt.Sprintf("%s", err)
-		}
-		util.PrettyPrintDebug("Result of scp from remote: %s", errFormatted)
-	}
+    errFormatted := "no-error"
+    if err != nil {
+        errFormatted = fmt.Sprintf("%s", err)
+    }
+    c.Printer.PrintDebug("Result of scp from remote: %s", errFormatted)
 
 	return err
 }
 
-func DeleteRemoteFile(sshOpts types.SSHConfig, node types.Node, remoteFile string, debug bool) error {
-	_, err := PerformCmd(sshOpts, node, fmt.Sprintf("rm -f %s", remoteFile), debug)
+func (c *CommandExecutor) DeleteRemoteFile(remoteFile string) error {
+    _, err := c.PerformCmd(fmt.Sprintf("rm -f %s", remoteFile))
 	if err != nil {
-		_, err2 := PerformCmd(sshOpts, node, fmt.Sprintf("sudo rm -f %s", remoteFile), debug)
+        _, err2 := c.PerformCmd(fmt.Sprintf("sudo rm -f %s", remoteFile))
 		if err2 != nil {
 			return flattenMultiError([]error{err, err2})
 		} else {

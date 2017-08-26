@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+    "github.com/mrahbar/kubernetes-inspector/integration"
 	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -15,7 +16,7 @@ func UnmarshalConfig() types.Config {
 	err := viper.Unmarshal(&config)
 
 	if err != nil {
-		PrettyPrintErr("Unable to decode config: %v", err)
+        integration.PrettyPrintErr("Unable to decode config: %v", err)
 		os.Exit(1)
 	}
 
