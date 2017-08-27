@@ -2,11 +2,9 @@ package pkg
 
 import (
 	"fmt"
-    "github.com/mrahbar/kubernetes-inspector/integration"
 	"github.com/mrahbar/kubernetes-inspector/ssh"
 	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/util"
-	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -26,19 +24,17 @@ func Backup(cmdParams *types.CommandContext) {
     group := util.FindGroupByName(cmdParams.Config.ClusterGroups, types.ETCD_GROUPNAME)
 
 	if group.Nodes == nil || len(group.Nodes) == 0 {
-        cmdParams.Printer.PrintErr("No host configured for group [%s]", types.ETCD_GROUPNAME)
-		os.Exit(1)
+        cmdParams.Printer.PrintCritical("No host configured for group [%s]", types.ETCD_GROUPNAME)
 	}
 
     node := ssh.GetFirstAccessibleNode(cmdParams.Config.Ssh, group.Nodes, printer)
 
 	if !util.IsNodeAddressValid(node) {
-        printer.PrintErr("No node available for etcd backup")
-		os.Exit(1)
+        printer.PrintCritical("No node available for etcd backup")
 	}
 
 	cmdExecutor.SetNode(node)
-    integration.PrettyNewLine()
+    printer.PrettyNewLine()
 	initializeOutputFile()
 	backup()
 	transferBackup()
@@ -50,7 +46,7 @@ func initializeOutputFile() {
 	if etcdBackupOpts.Output == "" {
 		ex, err := util.GetExecutablePath()
 		if err != nil {
-			os.Exit(1)
+			printer.PrintCritical("Could not get current executable path: %s", err)
 		}
 
 		etcdBackupOpts.Output = filepath.Join(ex, archiveName)
@@ -73,14 +69,13 @@ func backup() {
     _, err := cmdExecutor.PerformCmd(backupCmd)
 
 	if err != nil {
-        printer.PrintErr("Error trying to backup etcd: %s", err)
-		os.Exit(1)
+        printer.PrintCritical("Error trying to backup etcd: %s", err)
 	} else {
         cmdExecutor.PerformCmd(fmt.Sprintf("sudo chmod -R 777 %s", localEtcdBackupDir))
         printer.PrintOk("Backup created")
     }
 
-    integration.PrettyNewLine()
+    printer.PrettyNewLine()
 }
 
 func transferBackup() {
@@ -91,20 +86,18 @@ func transferBackup() {
     _, err := cmdExecutor.PerformCmd(archiveCmd)
 
 	if err != nil {
-        printer.PrintErr("Error trying to archive backup etcd: %s", err)
-		os.Exit(1)
+        printer.PrintCritical("Error trying to archive backup etcd: %s", err)
 	} else {
         cmdExecutor.DeleteRemoteFile(localEtcdBackupDir)
 
         printer.PrintInfo("Transferring archive")
-        integration.PrettyNewLine()
+        printer.PrettyNewLine()
 
         err = cmdExecutor.DownloadFile(backupArchive, etcdBackupOpts.Output)
         cmdExecutor.DeleteRemoteFile(backupArchive)
 
 		if err != nil {
-            printer.PrintErr("Error trying transfer backup archive: %s", err)
-			os.Exit(1)
+            printer.PrintCritical("Error trying transfer backup archive: %s", err)
 		} else {
             printer.PrintOk("Etcd backup is at %s", etcdBackupOpts.Output)
 		}

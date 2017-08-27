@@ -2,7 +2,7 @@ package pkg
 
 import (
 	"fmt"
-    "github.com/mrahbar/kubernetes-inspector/integration"
+
 	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/util"
 )
@@ -15,16 +15,16 @@ func Stop(cmdParams *types.CommandContext) {
 
 func initializeStopService(service string, node string, group string) {
 	if group != "" {
-        integration.PrintHeader(fmt.Sprintf("Stopping service %v in group [%s] ",
+        printer.PrintHeader(fmt.Sprintf("Stopping service %v in group [%s] ",
 			service, group), '=')
 	}
 
 	if node != "" {
-        integration.PrintHeader(fmt.Sprintf("Stopping service %v on node %s:",
+        printer.PrintHeader(fmt.Sprintf("Stopping service %v on node %s:",
 			service, node), '=')
 	}
 
-    integration.PrettyNewLine()
+    printer.PrettyNewLine()
 }
 
 func stopService(service string) {
@@ -37,5 +37,5 @@ func stopService(service string) {
         printer.PrintOk("Service %s stopped.", service)
     }
 
-    integration.PrettyNewLine()
+    printer.PrettyNewLine()
 }

@@ -2,11 +2,10 @@ package pkg
 
 import (
 	"fmt"
-	"github.com/mrahbar/kubernetes-inspector/integration"
+
 	"github.com/mrahbar/kubernetes-inspector/ssh"
 	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/util"
-	"os"
 	"strings"
 )
 
@@ -20,25 +19,24 @@ func Logs(cmdParams *types.CommandContext) {
 
 func initializeLogs(target string, node string, group string) {
 	if group != "" {
-		integration.PrintHeader(fmt.Sprintf("Retrieving logs for %s %s in group [%s] ",
+		printer.PrintHeader(fmt.Sprintf("Retrieving logs for %s %s in group [%s] ",
 			logOpts.Type, target, group), '=')
 	}
 
 	if node != "" {
-		integration.PrintHeader(fmt.Sprintf("Retrieving logs for %s %s on node %s :\n",
+		printer.PrintHeader(fmt.Sprintf("Retrieving logs for %s %s on node %s :\n",
 			logOpts.Type, target, node), '=')
 	}
 
 	if logOpts.FileOutput != "" {
 		err := util.InitializeOutputFile(logOpts.FileOutput)
 		if err != nil {
-			printer.PrintErr("Failed to open output file %s: %s", logOpts.FileOutput, err)
-			os.Exit(1)
+			printer.PrintCritical("Failed to open output file %s: %s", logOpts.FileOutput, err)
 		} else {
 			printer.PrintInfo("Result is written to file %s screen output is suppressed.", logOpts.FileOutput)
 		}
 	}
-	integration.PrettyNewLine()
+	printer.PrettyNewLine()
 }
 
 func logs(element string) {
@@ -115,5 +113,5 @@ func logs(element string) {
 		}
 	}
 
-	integration.PrettyNewLine()
+	printer.PrettyNewLine()
 }

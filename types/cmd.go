@@ -6,7 +6,7 @@ import (
 
 type CommandContext struct {
     Config          Config
-    Printer         *integration.Printer
+    Printer         integration.LogWriter
     Opts            interface{}
     CommandExecutor CommandExecutor
 }

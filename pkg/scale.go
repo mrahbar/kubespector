@@ -2,7 +2,7 @@ package pkg
 
 import (
     "encoding/json"
-    "github.com/mrahbar/kubernetes-inspector/integration"
+
     "github.com/mrahbar/kubernetes-inspector/ssh"
 	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/util"
@@ -95,30 +95,27 @@ func ScaleTest(cmdParams *types.CommandContext) {
 	group := util.FindGroupByName(config.ClusterGroups, types.MASTER_GROUPNAME)
 
 	if group.Nodes == nil || len(group.Nodes) == 0 {
-        printer.PrintErr("No host configured for group [%s]", types.MASTER_GROUPNAME)
-		os.Exit(1)
+        printer.PrintCritical("No host configured for group [%s]", types.MASTER_GROUPNAME)
 	}
 
 	sshOpts = config.Ssh
     node = ssh.GetFirstAccessibleNode(sshOpts, group.Nodes, printer)
 
 	if !util.IsNodeAddressValid(node) {
-        printer.PrintErr("No master available")
-		os.Exit(1)
+        printer.PrintCritical("No master available")
 	}
 
 	if scaleTestOpts.OutputDir == "" {
 		exPath, err := util.GetExecutablePath()
 		if err != nil {
-			os.Exit(1)
+            printer.PrintCritical("Could not get current executable path: %s", err)
 		}
 		scaleTestOpts.OutputDir = path.Join(exPath, "scaletest-results")
 	}
 
 	err := os.MkdirAll(scaleTestOpts.OutputDir, os.ModePerm)
 	if err != nil {
-        printer.PrintErr("Failed to open output file for path %s Error: %v", scaleTestOpts.OutputDir, err)
-		os.Exit(1)
+        printer.PrintCritical("Failed to open output file for path %s Error: %v", scaleTestOpts.OutputDir, err)
 	}
 
     printer.Print("Running kubectl commands on node %s", util.ToNodeLabel(node))
@@ -146,11 +143,10 @@ func checkingScaleTestPreconditions() {
     count, err := cmdExecutor.GetNumberOfReadyNodes()
 
 	if err != nil {
-        printer.PrintErr("Error checking node count: %s", err)
-		os.Exit(1)
+        printer.PrintCritical("Error checking node count: %s", err)
 	} else if count < 1 {
         printer.PrintErr("Insufficient number of nodes for scale test (need minimum of 1 node)")
-		os.Exit(1)
+        os.Exit(2)
 	}
 }
 
@@ -159,12 +155,11 @@ func createScaleTestNamespace() {
     err := cmdExecutor.CreateNamespace(scaleTestNamespace)
 
 	if err != nil {
-        printer.PrintErr("Error creating test namespace: %s", err)
-		os.Exit(1)
+        printer.PrintCritical("Error creating test namespace: %s", err)
 	} else {
         printer.PrintOk("Namespace %s created", scaleTestNamespace)
     }
-    integration.PrettyNewLine()
+    printer.PrettyNewLine()
 }
 
 func createScaleTestServices() {
@@ -183,12 +178,11 @@ func createScaleTestServices() {
 	if exists {
         printer.PrintIgnored("Service: %s already exists.", webserverName)
     } else if err != nil {
-        printer.PrintErr("Error adding service %v: %s", webserverName, err)
-		os.Exit(1)
+        printer.PrintCritical("Error adding service %v: %s", webserverName, err)
 	}
 
     printer.PrintOk("Service %s created.", webserverName)
-    integration.PrettyNewLine()
+    printer.PrettyNewLine()
 }
 
 func createScaleTestReplicationControllers() {
@@ -226,16 +220,14 @@ func createScaleTestReplicationControllers() {
 
     err := cmdExecutor.CreateReplicationController(vegetaRC)
 	if err != nil {
-        printer.PrintErr("Error creating %s replication controller: %s", vegetaName, err)
-		os.Exit(1)
+        printer.PrintCritical("Error creating %s replication controller: %s", vegetaName, err)
 	} else {
         printer.PrintOk("Created %s replication-controller", vegetaName)
     }
 
     err = cmdExecutor.CreateReplicationController(webserverRc)
 	if err != nil {
-        printer.PrintErr("Error creating %s replication controller: %s", webserverName, err)
-		os.Exit(1)
+        printer.PrintCritical("Error creating %s replication controller: %s", webserverName, err)
 	} else {
         printer.PrintOk("Created %s replication-controller", webserverName)
 	}
@@ -277,7 +269,7 @@ func waitForScaleTestServicesToBeRunning() {
 			done = true
 		}
 	}
-    integration.PrettyNewLine()
+    printer.PrettyNewLine()
 }
 
 func displayScaleTestPods() {
@@ -288,7 +280,7 @@ func displayScaleTestPods() {
         printer.Print("Pods are running\n%s", result)
     }
 
-    integration.PrettyNewLine()
+    printer.PrettyNewLine()
 }
 
 func runScaleTest() {
@@ -317,8 +309,7 @@ func fetchResults() {
 				time.Sleep(2 * time.Second)
 				continue
 			} else {
-                printer.PrintErr("Failed to get loadbot ips after 3 attempts: %v", err)
-				os.Exit(1)
+                printer.PrintCritical("Failed to get loadbot ips after 3 attempts: %v", err)
 			}
 		} else {
 			break

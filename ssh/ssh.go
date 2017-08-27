@@ -17,7 +17,7 @@ import (
 type Executor struct {
     SshOpts types.SSHConfig
     Node    types.Node
-    Printer *integration.Printer
+    Printer integration.LogWriter
 }
 
 func (c *Executor) SetNode(node types.Node) {
@@ -67,7 +67,7 @@ func (c *Executor) PerformCmd(cmd string) (*types.SSHOutput, error) {
 	return o, err
 }
 
-func shell(cmd string, printer *integration.Printer) (*types.SSHOutput, error) {
+func shell(cmd string, printer integration.LogWriter) (*types.SSHOutput, error) {
 	shell := "/bin/bash"
     err := findExecutable(shell)
 	if err != nil {
