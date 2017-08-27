@@ -5,7 +5,7 @@ import (
     "github.com/mrahbar/kubernetes-inspector/types"
 )
 
-var printer *integration.Printer
+var printer integration.LogWriter
 var cmdParams *types.CommandContext
 var cmdExecutor types.CommandExecutor
 var config types.Config

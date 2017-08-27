@@ -4,7 +4,6 @@ import (
 	"github.com/mrahbar/kubernetes-inspector/ssh"
 	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/util"
-	"os"
 	"strings"
 )
 
@@ -14,15 +13,13 @@ func Kubectl(cmdParams *types.CommandContext) {
 	group := util.FindGroupByName(config.ClusterGroups, types.MASTER_GROUPNAME)
 
 	if group.Nodes == nil || len(group.Nodes) == 0 {
-		printer.PrintErr("No host configured for group [%s]", types.MASTER_GROUPNAME)
-		os.Exit(1)
+		printer.PrintCritical("No host configured for group [%s]", types.MASTER_GROUPNAME)
 	}
 
 	node := ssh.GetFirstAccessibleNode(config.Ssh, group.Nodes, printer)
 
 	if !util.IsNodeAddressValid(node) {
-		printer.PrintErr("No master available")
-		os.Exit(1)
+		printer.PrintCritical("No master available")
 	}
 
 	cmdExecutor.SetNode(node)

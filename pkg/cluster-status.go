@@ -3,11 +3,9 @@ package pkg
 import (
 	"bytes"
 	"fmt"
-	"github.com/mrahbar/kubernetes-inspector/integration"
 	"github.com/mrahbar/kubernetes-inspector/ssh"
 	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/util"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -76,7 +74,7 @@ func ClusterStatus(cmdParams *types.CommandContext) {
 }
 
 func getNodesStats(element string, nodes []types.Node) {
-	integration.PrintHeader(fmt.Sprintf("Retrieving node stats of group [%s] ", element), '=')
+	printer.PrintHeader(fmt.Sprintf("Retrieving node stats of group [%s] ", element), '=')
 
 	for _, node := range nodes {
 		if !util.IsNodeAddressValid(node) {
@@ -84,7 +82,7 @@ func getNodesStats(element string, nodes []types.Node) {
 			break
 		}
 
-		integration.PrettyNewLine()
+		printer.PrettyNewLine()
 		printer.Print("On node %s:", util.ToNodeLabel(node))
 		cmdExecutor.SetNode(node)
 
@@ -146,7 +144,7 @@ func getNodesStats(element string, nodes []types.Node) {
 }
 
 func checkServiceStatus(element string, services []string, nodes []types.Node) {
-	integration.PrintHeader(fmt.Sprintf("Checking service status of group [%s] ", element), '=')
+	printer.PrintHeader(fmt.Sprintf("Checking service status of group [%s] ", element), '=')
 	if nodes == nil || len(nodes) == 0 {
 		printer.PrintSkipped("No host configured for [%s]", element)
 		return
@@ -162,7 +160,7 @@ func checkServiceStatus(element string, services []string, nodes []types.Node) {
 			break
 		}
 
-		integration.PrettyNewLine()
+		printer.PrettyNewLine()
 		printer.Print("On node %s:", util.ToNodeLabel(node))
 
 		for _, service := range services {
@@ -187,7 +185,7 @@ func checkServiceStatus(element string, services []string, nodes []types.Node) {
 }
 
 func checkContainerStatus(element string, containers []string, nodes []types.Node) {
-	integration.PrintHeader(fmt.Sprintf("Checking container status of group [%s] ", element), '=')
+	printer.PrintHeader(fmt.Sprintf("Checking container status of group [%s] ", element), '=')
 	if nodes == nil || len(nodes) == 0 {
 		printer.PrintSkipped("No host configured for [%s]", element)
 		return
@@ -203,7 +201,7 @@ func checkContainerStatus(element string, containers []string, nodes []types.Nod
 			break
 		}
 
-		integration.PrettyNewLine()
+		printer.PrettyNewLine()
 		printer.Print("On node %s:", util.ToNodeLabel(node))
 
 		for _, container := range containers {
@@ -229,7 +227,7 @@ func checkContainerStatus(element string, containers []string, nodes []types.Nod
 }
 
 func checkCertificatesExpiration(element string, certificates []string, nodes []types.Node) {
-	integration.PrintHeader(fmt.Sprintf("Checking certificate status of group [%s] ", element), '=')
+	printer.PrintHeader(fmt.Sprintf("Checking certificate status of group [%s] ", element), '=')
 	if nodes == nil || len(nodes) == 0 {
 		printer.PrintSkipped("No host configured for [%s]", element)
 		return
@@ -245,7 +243,7 @@ func checkCertificatesExpiration(element string, certificates []string, nodes []
 			break
 		}
 
-		integration.PrettyNewLine()
+		printer.PrettyNewLine()
 		printer.Print("On node %s:", util.ToNodeLabel(node))
 
 		for _, cert := range certificates {
@@ -296,7 +294,7 @@ func parseTemplate(value string, node types.Node) string {
 }
 
 func checkDiskStatus(element string, diskSpace types.DiskUsage, nodes []types.Node) {
-	integration.PrintHeader(fmt.Sprintf("Checking disk status of group [%s] ", element), '-')
+	printer.PrintHeader(fmt.Sprintf("Checking disk status of group [%s] ", element), '-')
 	if nodes == nil || len(nodes) == 0 {
 		printer.PrintSkipped("No host configured for [%s]", element)
 		return
@@ -308,7 +306,7 @@ func checkDiskStatus(element string, diskSpace types.DiskUsage, nodes []types.No
 			break
 		}
 
-		integration.PrettyNewLine()
+		printer.PrettyNewLine()
 		printer.Print("On node %s:", util.ToNodeLabel(node))
 
 		spacesRegex := regexp.MustCompile("\\s+")
@@ -363,22 +361,19 @@ func checkDiskStatus(element string, diskSpace types.DiskUsage, nodes []types.No
 
 func checkKubernetesStatus(element string,
 	resources []types.KubernetesResource, nodes []types.Node) {
-	integration.PrintHeader(fmt.Sprintf("Checking status of [%s] ", element), '=')
+	printer.PrintHeader(fmt.Sprintf("Checking status of [%s] ", element), '=')
 
 	if nodes == nil || len(nodes) == 0 {
-		printer.PrintErr("No host configured for [%s]", element)
-		os.Exit(1)
+		printer.PrintCritical("No host configured for [%s]", element)
 	}
 	if resources == nil || len(resources) == 0 {
-		printer.PrintErr("No resources configured for [%s]", element)
-		os.Exit(1)
+		printer.PrintCritical("No resources configured for [%s]", element)
 	}
 
-	node := ssh.GetFirstAccessibleNode(sshOpts, nodes, cmdParams.Printer)
+	node := ssh.GetFirstAccessibleNode(sshOpts, nodes, printer)
 
 	if !util.IsNodeAddressValid(node) {
-		printer.PrintErr("No master available for Kubernetes status check")
-		os.Exit(1)
+		printer.PrintCritical("No master available for Kubernetes status check")
 	}
 
 	printer.Print("Running kubectl on node %s\n", util.ToNodeLabel(node))
@@ -397,13 +392,13 @@ func checkKubernetesStatus(element string,
 
 		printer.Print(msg + namespace_msg + ":")
 		sshOut, err := cmdExecutor.PerformCmd(command)
-		integration.PrettyNewLine()
+		printer.PrettyNewLine()
 
 		if err != nil {
 			printer.PrintErr("Error checking %s%s: %s", resource.Type, namespace_msg, err)
 		} else {
 			printer.PrintOk(sshOut.Stdout)
 		}
-		integration.PrettyNewLine()
+		printer.PrettyNewLine()
 	}
 }

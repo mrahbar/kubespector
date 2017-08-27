@@ -61,8 +61,7 @@ func initConfig() {
 	if err == nil {
         integration.PrettyPrint("Loading config file: %s", viper.ConfigFileUsed())
 	} else {
-        integration.PrettyPrintErr("Error loading config file: %s", err.Error())
-        os.Exit(-1)
+        integration.PrettyPrintCritical("Error loading config file: %s", err.Error())
     }
 
     setLogLevel()

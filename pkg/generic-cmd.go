@@ -3,7 +3,6 @@ package pkg
 import (
 	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/util"
-	"os"
 	"strings"
 )
 
@@ -24,8 +23,7 @@ func runGeneric(config types.Config, opts *types.GenericOpts, initializer Initia
 		}
 
 		if !util.IsNodeAddressValid(node) {
-            printer.PrintErr("No node found for %v in config", opts.NodeArg)
-			os.Exit(1)
+            printer.PrintCritical("No node found for %v in config", opts.NodeArg)
 		} else {
 			initializer(opts.TargetArg, util.ToNodeLabel(node), "")
 			cmdExecutor.SetNode(node)
