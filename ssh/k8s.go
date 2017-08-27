@@ -13,12 +13,12 @@ import (
 	"text/template"
 )
 
-func (c *CommandExecutor) RunKubectlCommand(args []string) (*types.SSHOutput, error) {
+func (c *Executor) RunKubectlCommand(args []string) (*types.SSHOutput, error) {
 	a := strings.Join(args, " ")
     return c.PerformCmd(fmt.Sprintf("kubectl %s", a))
 }
 
-func (c *CommandExecutor) DeployKubernetesResource(tpl string, data interface{}) (*types.SSHOutput, error) {
+func (c *Executor) DeployKubernetesResource(tpl string, data interface{}) (*types.SSHOutput, error) {
 	var definition bytes.Buffer
 
 	tmpl, _ := template.New("kube-template").Parse(tpl)
@@ -47,7 +47,7 @@ func (c *CommandExecutor) DeployKubernetesResource(tpl string, data interface{})
 	return result, err
 }
 
-func (c *CommandExecutor) GetNumberOfReadyNodes() (int, error) {
+func (c *Executor) GetNumberOfReadyNodes() (int, error) {
 	tmpl := "\"{range .items[*]}{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status};{end}{end}\""
 	args := []string{"get", "nodes", "-o", "jsonpath=" + tmpl, " | ", "tr", "';'", "\\\\n", " | ", "grep", "\"Ready=True\"", " | ", "wc", "-l"}
     sshOut, err := c.RunKubectlCommand(args)
@@ -65,7 +65,7 @@ func (c *CommandExecutor) GetNumberOfReadyNodes() (int, error) {
 	}
 }
 
-func (c *CommandExecutor) CreateNamespace(namespace string) error {
+func (c *Executor) CreateNamespace(namespace string) error {
 	data := make(map[string]string)
 	data["Namespace"] = namespace
     _, err := c.DeployKubernetesResource(types.NAMESPACE_TEMPLATE, data)
@@ -73,7 +73,7 @@ func (c *CommandExecutor) CreateNamespace(namespace string) error {
 	return err
 }
 
-func (c *CommandExecutor) CreateService(serviceData interface{}) (bool, error) {
+func (c *Executor) CreateService(serviceData interface{}) (bool, error) {
     sshOut, err := c.DeployKubernetesResource(types.SERVICE_TEMPLATE, serviceData)
 
 	if err != nil {
@@ -87,18 +87,18 @@ func (c *CommandExecutor) CreateService(serviceData interface{}) (bool, error) {
 	return false, nil
 }
 
-func (c *CommandExecutor) CreateReplicationController(data interface{}) error {
+func (c *Executor) CreateReplicationController(data interface{}) error {
     _, err := c.DeployKubernetesResource(types.REPLICATION_CONTROLLER_TEMPLATE, data)
 	return err
 }
 
-func (c *CommandExecutor) ScaleReplicationController(namespace string, rc string, replicas int) error {
+func (c *Executor) ScaleReplicationController(namespace string, rc string, replicas int) error {
     args := []string{"--namespace=" + namespace, "scale", "replicationcontroller", rc, fmt.Sprintf("--replicas=%d", replicas)}
     _, err := c.RunKubectlCommand(args)
     return err
 }
 
-func (c *CommandExecutor) GetPods(namespace string, wide bool) (*types.SSHOutput, error) {
+func (c *Executor) GetPods(namespace string, wide bool) (*types.SSHOutput, error) {
 	args := []string{"--namespace=" + namespace, "get", "pods"}
 	if wide {
 		args = append(args, "-o=wide")
@@ -107,7 +107,7 @@ func (c *CommandExecutor) GetPods(namespace string, wide bool) (*types.SSHOutput
     return c.RunKubectlCommand(args)
 }
 
-func (c *CommandExecutor) RemoveResource(namespace, fullQualifiedName string) error {
+func (c *Executor) RemoveResource(namespace, fullQualifiedName string) error {
     args := []string{"--namespace=" + namespace, "delete", fullQualifiedName}
     _, err := c.RunKubectlCommand(args)
 

@@ -12,7 +12,7 @@ import (
 
 var logOpts *types.LogsOpts
 
-func Logs(cmdParams *types.CommandParams) {
+func Logs(cmdParams *types.CommandContext) {
 	initParams(cmdParams)
 	logOpts = cmdParams.Opts.(*types.LogsOpts)
 	runGeneric(cmdParams.Config, &logOpts.GenericOpts, initializeLogs, logs)
@@ -41,7 +41,7 @@ func initializeLogs(target string, node string, group string) {
 	integration.PrettyNewLine()
 }
 
-func logs(cmdExecutor *ssh.CommandExecutor, element string) {
+func logs(element string) {
 	command := []string{}
 	switch logOpts.Type {
 	case "service":

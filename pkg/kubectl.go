@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func Kubectl(cmdParams *types.CommandParams) {
+func Kubectl(cmdParams *types.CommandContext) {
 	initParams(cmdParams)
 	kubectlOpts := cmdParams.Opts.(*types.KubectlOpts)
 	group := util.FindGroupByName(config.ClusterGroups, types.MASTER_GROUPNAME)
@@ -25,12 +25,7 @@ func Kubectl(cmdParams *types.CommandParams) {
 		os.Exit(1)
 	}
 
-	cmdExecutor := &ssh.CommandExecutor{
-		SshOpts: config.Ssh,
-		Node:    node,
-		Printer: printer,
-	}
-
+	cmdExecutor.SetNode(node)
 	printer.Print("Running kubectl command '%s' on node %s\n", kubectlOpts.Command, util.ToNodeLabel(node))
 	sshOut, err := cmdExecutor.RunKubectlCommand(strings.Split(kubectlOpts.Command, " "))
 

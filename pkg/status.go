@@ -8,7 +8,7 @@ import (
 	"github.com/mrahbar/kubernetes-inspector/util"
 )
 
-func Status(cmdParams *types.CommandParams) {
+func Status(cmdParams *types.CommandContext) {
     initParams(cmdParams)
     opts := cmdParams.Opts.(*types.GenericOpts)
 	runGeneric(config, opts, initializeStatusService, statusService)
@@ -28,7 +28,7 @@ func initializeStatusService(service string, node string, group string) {
     integration.PrettyNewLine()
 }
 
-func statusService(cmdExecutor *ssh.CommandExecutor, service string) {
+func statusService(service string) {
     sshOut, err := cmdExecutor.PerformCmd(fmt.Sprintf("sudo systemctl status %s -l", service))
 
     printer.Print(fmt.Sprintf("Result on node %s:", util.ToNodeLabel(node)))

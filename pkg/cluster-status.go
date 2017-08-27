@@ -23,7 +23,7 @@ const (
 var clusterStatusChecks = []string{types.SERVICES_CHECKNAME, types.CONTAINERS_CHECKNAME, types.CERTIFICATES_CHECKNAME, types.DISKUSAGE_CHECKNAME}
 var clusterStatusOpts = &types.ClusterStatusOpts{}
 
-func ClusterStatus(cmdParams *types.CommandParams) {
+func ClusterStatus(cmdParams *types.CommandContext) {
 	initParams(cmdParams)
 	clusterStatusOpts = cmdParams.Opts.(*types.ClusterStatusOpts)
 
@@ -44,43 +44,38 @@ func ClusterStatus(cmdParams *types.CommandParams) {
 	printer.Print("Performing status checks %s for groups: %v",
 		strings.Join(clusterStatusChecks, ","), strings.Join(groups, " "))
 
-	cmdExecutor := &ssh.CommandExecutor{
-		SshOpts: config.Ssh,
-		Printer: printer,
-	}
-
 	for _, element := range groups {
 		if element != types.KUBERNETES_GROUPNAME {
 			group := util.FindGroupByName(config.ClusterGroups, element)
 			if group.Nodes != nil {
-				getNodesStats(cmdExecutor, element, group.Nodes)
+				getNodesStats(element, group.Nodes)
 
 				if util.ElementInArray(clusterStatusChecks, types.SERVICES_CHECKNAME) {
-					checkServiceStatus(cmdExecutor, element, group.Services, group.Nodes)
+					checkServiceStatus(element, group.Services, group.Nodes)
 				}
 
 				if util.ElementInArray(clusterStatusChecks, types.CONTAINERS_CHECKNAME) {
-					checkContainerStatus(cmdExecutor, element, group.Containers, group.Nodes)
+					checkContainerStatus(element, group.Containers, group.Nodes)
 				}
 
 				if util.ElementInArray(clusterStatusChecks, types.CERTIFICATES_CHECKNAME) {
-					checkCertificatesExpiration(cmdExecutor, element, group.Certificates, group.Nodes)
+					checkCertificatesExpiration(element, group.Certificates, group.Nodes)
 				}
 
 				if util.ElementInArray(clusterStatusChecks, types.DISKUSAGE_CHECKNAME) {
-					checkDiskStatus(cmdExecutor, element, group.DiskUsage, group.Nodes)
+					checkDiskStatus(element, group.DiskUsage, group.Nodes)
 				}
 			} else {
 				printer.PrintErr("No Nodes found for group: %s", element)
 			}
 		} else {
 			group := util.FindGroupByName(config.ClusterGroups, types.MASTER_GROUPNAME)
-			checkKubernetesStatus(cmdExecutor, element, config.Kubernetes.Resources, group.Nodes)
+			checkKubernetesStatus(element, config.Kubernetes.Resources, group.Nodes)
 		}
 	}
 }
 
-func getNodesStats(cmdExecutor *ssh.CommandExecutor, element string, nodes []types.Node) {
+func getNodesStats(element string, nodes []types.Node) {
 	integration.PrintHeader(fmt.Sprintf("Retrieving node stats of group [%s] ", element), '=')
 
 	for _, node := range nodes {
@@ -91,7 +86,7 @@ func getNodesStats(cmdExecutor *ssh.CommandExecutor, element string, nodes []typ
 
 		integration.PrettyNewLine()
 		printer.Print("On node %s:", util.ToNodeLabel(node))
-		cmdExecutor.Node = node
+		cmdExecutor.SetNode(node)
 
 		sshOut, err := cmdExecutor.PerformCmd("cat /proc/uptime")
 		if err != nil {
@@ -150,7 +145,7 @@ func getNodesStats(cmdExecutor *ssh.CommandExecutor, element string, nodes []typ
 	}
 }
 
-func checkServiceStatus(cmdExecutor *ssh.CommandExecutor, element string, services []string, nodes []types.Node) {
+func checkServiceStatus(element string, services []string, nodes []types.Node) {
 	integration.PrintHeader(fmt.Sprintf("Checking service status of group [%s] ", element), '=')
 	if nodes == nil || len(nodes) == 0 {
 		printer.PrintSkipped("No host configured for [%s]", element)
@@ -191,7 +186,7 @@ func checkServiceStatus(cmdExecutor *ssh.CommandExecutor, element string, servic
 	}
 }
 
-func checkContainerStatus(cmdExecutor *ssh.CommandExecutor, element string, containers []string, nodes []types.Node) {
+func checkContainerStatus(element string, containers []string, nodes []types.Node) {
 	integration.PrintHeader(fmt.Sprintf("Checking container status of group [%s] ", element), '=')
 	if nodes == nil || len(nodes) == 0 {
 		printer.PrintSkipped("No host configured for [%s]", element)
@@ -233,7 +228,7 @@ func checkContainerStatus(cmdExecutor *ssh.CommandExecutor, element string, cont
 	}
 }
 
-func checkCertificatesExpiration(cmdExecutor *ssh.CommandExecutor, element string, certificates []string, nodes []types.Node) {
+func checkCertificatesExpiration(element string, certificates []string, nodes []types.Node) {
 	integration.PrintHeader(fmt.Sprintf("Checking certificate status of group [%s] ", element), '=')
 	if nodes == nil || len(nodes) == 0 {
 		printer.PrintSkipped("No host configured for [%s]", element)
@@ -300,7 +295,7 @@ func parseTemplate(value string, node types.Node) string {
 	return value
 }
 
-func checkDiskStatus(cmdExecutor *ssh.CommandExecutor, element string, diskSpace types.DiskUsage, nodes []types.Node) {
+func checkDiskStatus(element string, diskSpace types.DiskUsage, nodes []types.Node) {
 	integration.PrintHeader(fmt.Sprintf("Checking disk status of group [%s] ", element), '-')
 	if nodes == nil || len(nodes) == 0 {
 		printer.PrintSkipped("No host configured for [%s]", element)
@@ -366,7 +361,7 @@ func checkDiskStatus(cmdExecutor *ssh.CommandExecutor, element string, diskSpace
 	}
 }
 
-func checkKubernetesStatus(cmdExecutor *ssh.CommandExecutor, element string,
+func checkKubernetesStatus(element string,
 	resources []types.KubernetesResource, nodes []types.Node) {
 	integration.PrintHeader(fmt.Sprintf("Checking status of [%s] ", element), '=')
 

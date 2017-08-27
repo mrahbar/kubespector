@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-func (c *CommandExecutor) DownloadFile(remotePath string, localPath string) error {
+func (c *Executor) DownloadFile(remotePath string, localPath string) error {
     nodeAddress := util.GetNodeAddress(c.Node)
 
     c.Printer.PrintDebug("Copying from remote file %s:%s to %s", nodeAddress, remotePath, localPath)
@@ -38,7 +38,7 @@ func (c *CommandExecutor) DownloadFile(remotePath string, localPath string) erro
 	return err
 }
 
-func (c *CommandExecutor) DownloadDirectory(remotePath string, localPath string) error {
+func (c *Executor) DownloadDirectory(remotePath string, localPath string) error {
     nodeAddress := util.GetNodeAddress(c.Node)
     c.Printer.PrintDebug("Copying from remote file %s:%s to %s", nodeAddress, remotePath, localPath)
 
@@ -62,7 +62,7 @@ func (c *CommandExecutor) DownloadDirectory(remotePath string, localPath string)
 	return err
 }
 
-func (c *CommandExecutor) UploadFile(remotePath string, localPath string) error {
+func (c *Executor) UploadFile(remotePath string, localPath string) error {
     nodeAddress := util.GetNodeAddress(c.Node)
     c.Printer.PrintDebug("Copying file %s to remote %s:%s", localPath, nodeAddress, remotePath)
 
@@ -97,7 +97,7 @@ func (c *CommandExecutor) UploadFile(remotePath string, localPath string) error 
 	return err
 }
 
-func (c *CommandExecutor) UploadDirectory(remotePath string, localPath string) error {
+func (c *Executor) UploadDirectory(remotePath string, localPath string) error {
     nodeAddress := util.GetNodeAddress(c.Node)
     c.Printer.PrintDebug("Copying directory %s to remote %s:%s", localPath, nodeAddress, remotePath)
 
@@ -121,7 +121,7 @@ func (c *CommandExecutor) UploadDirectory(remotePath string, localPath string) e
 	return err
 }
 
-func (c *CommandExecutor) DeleteRemoteFile(remoteFile string) error {
+func (c *Executor) DeleteRemoteFile(remoteFile string) error {
     _, err := c.PerformCmd(fmt.Sprintf("rm -f %s", remoteFile))
 	if err != nil {
         _, err2 := c.PerformCmd(fmt.Sprintf("sudo rm -f %s", remoteFile))

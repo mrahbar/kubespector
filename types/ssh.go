@@ -30,3 +30,25 @@ type SSHOutput struct {
 	Stderr     string
 	ExitStatus int
 }
+
+type CommandExecutor interface {
+    SetNode(node Node)
+    PerformCmd(command string) (*SSHOutput, error)
+
+    DownloadFile(remotePath string, localPath string) error
+    DownloadDirectory(remotePath string, localPath string) error
+    UploadFile(remotePath string, localPath string) error
+    UploadDirectory(remotePath string, localPath string) error
+    DeleteRemoteFile(remoteFile string) error
+
+    RunKubectlCommand(args []string) (*SSHOutput, error)
+    DeployKubernetesResource(tpl string, data interface{}) (*SSHOutput, error)
+
+    GetNumberOfReadyNodes() (int, error)
+    CreateNamespace(namespace string) error
+    CreateService(serviceData interface{}) (bool, error)
+    CreateReplicationController(data interface{}) error
+    ScaleReplicationController(namespace string, rc string, replicas int) error
+    GetPods(namespace string, wide bool) (*SSHOutput, error)
+    RemoveResource(namespace, fullQualifiedName string) error
+}
