@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-func GetFirstAccessibleNode(sshOpts types.SSHConfig, nodes []types.Node, printer *integration.Printer) types.Node {
+func GetFirstAccessibleNode(sshOpts types.SSHConfig, nodes []types.Node, printer integration.LogWriter) types.Node {
 	if util.IsNodeAddressValid(sshOpts.LocalOn) {
 		for _, n := range nodes {
 			if util.NodeEquals(sshOpts.LocalOn, n) {
@@ -105,7 +105,7 @@ func prepareSSHConfig(sshConfig *types.SSHConfig) []error {
 	return errs
 }
 
-func establishSSHCommunication(sshOpts types.SSHConfig, address string, printer *integration.Printer) (*communicator.Comm, error) {
+func establishSSHCommunication(sshOpts types.SSHConfig, address string, printer integration.LogWriter) (*communicator.Comm, error) {
     commConfig, err := createCommunicationConfig(sshOpts, address, printer)
 	if err != nil {
 		return &communicator.Comm{}, err
@@ -147,7 +147,7 @@ func establishSSHCommunication(sshOpts types.SSHConfig, address string, printer 
 	return comm, nil
 }
 
-func createCommunicationConfig(sshOpts types.SSHConfig, nodeAddress string, printer *integration.Printer) (*communicator.Config, error) {
+func createCommunicationConfig(sshOpts types.SSHConfig, nodeAddress string, printer integration.LogWriter) (*communicator.Config, error) {
     errs := prepareSSHConfig(&sshOpts)
 	if len(errs) > 0 {
 		return &communicator.Config{}, flattenMultiError(errs)

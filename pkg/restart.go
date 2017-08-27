@@ -2,7 +2,7 @@ package pkg
 
 import (
 	"fmt"
-    "github.com/mrahbar/kubernetes-inspector/integration"
+
 	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/util"
 )
@@ -15,16 +15,16 @@ func Restart(cmdParams *types.CommandContext) {
 
 func initializeRestartService(service string, node string, group string) {
 	if group != "" {
-        integration.PrintHeader(fmt.Sprintf("Restarting service %v in group [%s] ",
+        printer.PrintHeader(fmt.Sprintf("Restarting service %v in group [%s] ",
 			service, group), '=')
 	}
 
 	if node != "" {
-        integration.PrintHeader(fmt.Sprintf("Restarting service %v on node %s:",
+        printer.PrintHeader(fmt.Sprintf("Restarting service %v on node %s:",
 			service, node), '=')
 	}
 
-    integration.PrettyNewLine()
+    printer.PrettyNewLine()
 }
 
 func restartService(service string) {
@@ -38,5 +38,5 @@ func restartService(service string) {
         printer.PrintOk("Service %s restarted.", service)
     }
 
-    integration.PrettyNewLine()
+    printer.PrettyNewLine()
 }

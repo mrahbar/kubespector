@@ -2,7 +2,7 @@ package pkg
 
 import (
 	"fmt"
-    "github.com/mrahbar/kubernetes-inspector/integration"
+
 	"github.com/mrahbar/kubernetes-inspector/ssh"
 	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/util"
@@ -47,30 +47,27 @@ func Netperf(cmdParams *types.CommandContext) {
 	group := util.FindGroupByName(config.ClusterGroups, types.MASTER_GROUPNAME)
 
 	if group.Nodes == nil || len(group.Nodes) == 0 {
-        printer.PrintErr("No host configured for group [%s]", types.MASTER_GROUPNAME)
-		os.Exit(1)
+        printer.PrintCritical("No host configured for group [%s]", types.MASTER_GROUPNAME)
 	}
 
 	sshOpts = config.Ssh
     node = ssh.GetFirstAccessibleNode(sshOpts, group.Nodes, printer)
 
 	if !util.IsNodeAddressValid(node) {
-        printer.PrintErr("No master available")
-		os.Exit(1)
+        printer.PrintCritical("No master available")
 	}
 
 	if netperfOpts.OutputDir == "" {
 		exPath, err := util.GetExecutablePath()
 		if err != nil {
-			os.Exit(1)
+			printer.PrintCritical("Could not get current executable path: %s", err)
 		}
 		netperfOpts.OutputDir = path.Join(exPath, "netperf-results")
 	}
 
 	err := os.MkdirAll(netperfOpts.OutputDir, os.ModePerm)
 	if err != nil {
-        printer.PrintErr("Failed to open output file for path %s Error: %v", netperfOpts.OutputDir, err)
-		os.Exit(1)
+        printer.PrintCritical("Failed to open output file for path %s Error: %v", netperfOpts.OutputDir, err)
 	}
 
     printer.Print("Running kubectl commands on node %s", util.ToNodeLabel(node))
@@ -98,11 +95,10 @@ func checkingNetperfPreconditions() {
 	count, err := cmdExecutor.GetNumberOfReadyNodes()
 
 	if err != nil {
-        printer.PrintErr("Error checking node count: %s", err)
-		os.Exit(1)
+        printer.PrintCritical("Error checking node count: %s", err)
 	} else if count < 2 {
         printer.PrintErr("Insufficient number of nodes for netperf test (need minimum of 2 nodes)")
-		os.Exit(1)
+		os.Exit(2)
 	}
 }
 
@@ -111,12 +107,11 @@ func createNetperfNamespace() {
 	err := cmdExecutor.CreateNamespace(netperfNamespace)
 
 	if err != nil {
-        printer.PrintErr("Error creating test namespace: %s", err)
-		os.Exit(1)
+        printer.PrintCritical("Error creating test namespace: %s", err)
 	} else {
         printer.PrintOk("Namespace %s created", netperfNamespace)
     }
-    integration.PrettyNewLine()
+    printer.PrettyNewLine()
 }
 
 func createNetperfServices() {
@@ -134,8 +129,7 @@ func createNetperfServices() {
 	if exists {
         printer.PrintIgnored("Service: %s already exists.", orchestratorName)
 	} else {
-        printer.PrintErr("Error adding service %v: %s", orchestratorName, err)
-		os.Exit(1)
+        printer.PrintCritical("Error adding service %v: %s", orchestratorName, err)
 	}
 
 	// Create the netperf-w2 service that points a clusterIP at the worker 2 pod
@@ -164,10 +158,9 @@ func createNetperfServices() {
 	if exists {
         printer.PrintIgnored("Service: %s already exists.", name)
 	} else {
-        printer.PrintErr("Error adding service %v: %s", name, err)
-		os.Exit(1)
+        printer.PrintCritical("Error adding service %v: %s", name, err)
 	}
-    integration.PrettyNewLine()
+    printer.PrettyNewLine()
 }
 
 func createNetperfReplicationControllers() {
@@ -192,8 +185,7 @@ func createNetperfReplicationControllers() {
 	err := cmdExecutor.CreateReplicationController(hostRC)
 
 	if err != nil {
-        printer.PrintErr("Error creating %s replication controller: %s", orchestratorName, err)
-		os.Exit(1)
+        printer.PrintCritical("Error creating %s replication controller: %s", orchestratorName, err)
 	} else {
         printer.PrintOk("Created %s replication-controller", orchestratorName)
 	}
@@ -202,15 +194,13 @@ func createNetperfReplicationControllers() {
 	sshOut, err := cmdExecutor.RunKubectlCommand(args)
 
 	if err != nil {
-        printer.PrintErr("Error getting nodes for worker replication controller: %s", err)
-		os.Exit(1)
+        printer.PrintCritical("Error getting nodes for worker replication controller: %s", err)
 	} else {
         printer.Print("Waiting 5s to give orchestrator pod time to start")
 		time.Sleep(5 * time.Second)
 		hostIP, err := getServiceIP(orchestratorName)
 		if hostIP == "" || err != nil {
-            printer.PrintErr("Error getting clusterIP of service %s: %s", orchestratorName, err)
-			os.Exit(1)
+            printer.PrintCritical("Error getting clusterIP of service %s: %s", orchestratorName, err)
 		}
 
 		lines := strings.SplitN(sshOut.Stdout, "\n", -1)
@@ -267,14 +257,13 @@ func createNetperfReplicationControllers() {
 			_, err := cmdExecutor.DeployKubernetesResource(types.REPLICATION_CONTROLLER_TEMPLATE, clientRC)
 
 			if err != nil {
-                printer.PrintErr("Error creating %s replication controller: %s", name, err)
-				os.Exit(1)
+                printer.PrintCritical("Error creating %s replication controller: %s", name, err)
 			} else {
                 printer.PrintOk("Created %s replication-controller", name)
 			}
 		}
 	}
-    integration.PrettyNewLine()
+    printer.PrettyNewLine()
 }
 
 func waitForNetperfServicesToBeRunning() {
@@ -313,7 +302,7 @@ func waitForNetperfServicesToBeRunning() {
 			done = true
 		}
 	}
-    integration.PrettyNewLine()
+    printer.PrettyNewLine()
 }
 
 func displayNetperfPods() {
@@ -324,7 +313,7 @@ func displayNetperfPods() {
         printer.Print("Pods are running\n%s", result)
     }
 
-    integration.PrettyNewLine()
+    printer.PrettyNewLine()
 }
 
 func fetchTestResults() {
@@ -339,7 +328,7 @@ func fetchTestResults() {
 	}
     printer.Print("The pods orchestrate themselves, waiting for the results file to show up in the orchestrator pod %s", orchestratorPodName)
 	sleep = 5 * time.Minute
-    integration.PrettyNewLine()
+    printer.PrettyNewLine()
 
 	for true {
 		// Monitor the orchestrator pod for the CSV results file

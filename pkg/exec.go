@@ -2,11 +2,10 @@ package pkg
 
 import (
 	"fmt"
-    "github.com/mrahbar/kubernetes-inspector/integration"
+
 	"github.com/mrahbar/kubernetes-inspector/ssh"
 	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/util"
-	"os"
 )
 
 var execOpts *types.ExecOpts
@@ -19,25 +18,24 @@ func Exec(cmdParams *types.CommandContext) {
 
 func initializeExec(target string, node string, group string) {
 	if group != "" {
-        integration.PrintHeader(fmt.Sprintf("Executing '%v' in group [%s] ",
+        printer.PrintHeader(fmt.Sprintf("Executing '%v' in group [%s] ",
 			target, group), '=')
 	}
 
 	if node != "" {
-        integration.PrintHeader(fmt.Sprintf("Executing '%v' on node %s :\n",
+        printer.PrintHeader(fmt.Sprintf("Executing '%v' on node %s :\n",
 			target, node), '=')
 	}
 
 	if execOpts.FileOutput != "" {
 		err := util.InitializeOutputFile(execOpts.FileOutput)
 		if err != nil {
-            printer.PrintErr("Failed to open output file %s: %s", execOpts.FileOutput, err)
-			os.Exit(1)
+            printer.PrintCritical("Failed to open output file %s: %s", execOpts.FileOutput, err)
 		} else {
             printer.PrintInfo("Result is written to file %s screen output is suppressed.", execOpts.FileOutput)
 		}
 	}
-    integration.PrettyNewLine()
+    printer.PrettyNewLine()
 }
 
 func exec(command string) {
@@ -68,5 +66,5 @@ func exec(command string) {
 		}
 	}
 
-    integration.PrettyNewLine()
+    printer.PrettyNewLine()
 }
