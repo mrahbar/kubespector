@@ -13,7 +13,7 @@ var stopOpts = &types.GenericOpts{}
 // stopCmd represents the stop command
 var stopCmd = &cobra.Command{
 	Use:   "stop",
-	Short: "Stop a Kubernetes service on a target group or node",
+    Short: "Stop a system service on a target group or node",
 	Long: `Service name is mandatory. Either specify node or group in which the service should be stoped.
 	When a target group is specified all nodes inside that group will be targeted for service stop.`,
 	PreRunE: util.CheckRequiredFlags,
@@ -29,11 +29,5 @@ func init() {
 }
 
 func stopRun(_ *cobra.Command, _ []string) {
-	config := util.UnmarshalConfig()
-    params := &types.CommandParams{
-        Printer: printer,
-        Config:  config,
-        Opts:    stopOpts,
-    }
-    pkg.Stop(params)
+    pkg.Stop(createCommandContext(stopOpts))
 }

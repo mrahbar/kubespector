@@ -88,9 +88,8 @@ type (
 )
 
 var scaleTestOpts *types.ScaleTestOpts
-var scaleCmdExecutor *ssh.CommandExecutor
 
-func ScaleTest(cmdParams *types.CommandParams) {
+func ScaleTest(cmdParams *types.CommandContext) {
     initParams(cmdParams)
     scaleTestOpts = cmdParams.Opts.(*types.ScaleTestOpts)
 	group := util.FindGroupByName(config.ClusterGroups, types.MASTER_GROUPNAME)
@@ -123,12 +122,7 @@ func ScaleTest(cmdParams *types.CommandParams) {
 	}
 
     printer.Print("Running kubectl commands on node %s", util.ToNodeLabel(node))
-
-    scaleCmdExecutor = &ssh.CommandExecutor{
-        SshOpts: config.Ssh,
-        Node:    node,
-        Printer: printer,
-    }
+    cmdExecutor.SetNode(node)
 
 	checkingScaleTestPreconditions()
 	createScaleTestNamespace()
@@ -149,7 +143,7 @@ func ScaleTest(cmdParams *types.CommandParams) {
 }
 
 func checkingScaleTestPreconditions() {
-    count, err := scaleCmdExecutor.GetNumberOfReadyNodes()
+    count, err := cmdExecutor.GetNumberOfReadyNodes()
 
 	if err != nil {
         printer.PrintErr("Error checking node count: %s", err)
@@ -162,7 +156,7 @@ func checkingScaleTestPreconditions() {
 
 func createScaleTestNamespace() {
     printer.PrintInfo("Creating namespace")
-    err := scaleCmdExecutor.CreateNamespace(scaleTestNamespace)
+    err := cmdExecutor.CreateNamespace(scaleTestNamespace)
 
 	if err != nil {
         printer.PrintErr("Error creating test namespace: %s", err)
@@ -185,7 +179,7 @@ func createScaleTestServices() {
 		},
 	}}
 
-    exists, err := scaleCmdExecutor.CreateService(data)
+    exists, err := cmdExecutor.CreateService(data)
 	if exists {
         printer.PrintIgnored("Service: %s already exists.", webserverName)
     } else if err != nil {
@@ -230,7 +224,7 @@ func createScaleTestReplicationControllers() {
 		ResourceRequest: types.ResourceRequest{Cpu: "1000m"},
 	}
 
-    err := scaleCmdExecutor.CreateReplicationController(vegetaRC)
+    err := cmdExecutor.CreateReplicationController(vegetaRC)
 	if err != nil {
         printer.PrintErr("Error creating %s replication controller: %s", vegetaName, err)
 		os.Exit(1)
@@ -238,7 +232,7 @@ func createScaleTestReplicationControllers() {
         printer.PrintOk("Created %s replication-controller", vegetaName)
     }
 
-    err = scaleCmdExecutor.CreateReplicationController(webserverRc)
+    err = cmdExecutor.CreateReplicationController(webserverRc)
 	if err != nil {
         printer.PrintErr("Error creating %s replication controller: %s", webserverName, err)
 		os.Exit(1)
@@ -254,7 +248,7 @@ func waitForScaleTestServicesToBeRunning() {
 	for !done {
 		tmpl := "\"{..status.phase}\""
 		args := []string{"--namespace=" + scaleTestNamespace, "get", "pods", "-o", "jsonpath=" + tmpl}
-        sshOut, err := scaleCmdExecutor.RunKubectlCommand(args)
+        sshOut, err := cmdExecutor.RunKubectlCommand(args)
 
 		if err != nil {
             printer.PrintWarn("Error running kubectl command '%v': %s", args, err)
@@ -287,7 +281,7 @@ func waitForScaleTestServicesToBeRunning() {
 }
 
 func displayScaleTestPods() {
-    result, err := scaleCmdExecutor.GetPods(scaleTestNamespace, true)
+    result, err := cmdExecutor.GetPods(scaleTestNamespace, true)
 	if err != nil {
         printer.PrintWarn("Error running kubectl command '%v'", err)
 	} else {
@@ -299,7 +293,7 @@ func displayScaleTestPods() {
 
 func runScaleTest() {
     fetchResults()
-    //scaleCmdExecutor.ScaleReplicationController(scaleTestNamespace, webserverName, 10)
+    //cmdExecutor.ScaleReplicationController(scaleTestNamespace, webserverName, 10)
     //TODO scale scenario: run  webserver - vegeta
     // 1-1 (idle)
     // 10-1 (under-load)
@@ -339,7 +333,7 @@ func fetchResults() {
 		go func(ip string) {
 			defer wg.Done()
             cmd := "curl --silent http://" + ip + ":8080/"
-            resp, err := scaleCmdExecutor.PerformCmd(cmd)
+            resp, err := cmdExecutor.PerformCmd(cmd)
 			if err != nil {
                 printer.PrintWarn("Error calling %s on node %s: %s", cmd, util.GetNodeAddress(node), err)
 				return
@@ -421,7 +415,7 @@ func evaluateData(metrics []loadbotMetrics) {
 func getLoadbotPodIPs() ([]string, error) {
 	tmpl := "\"{..status.podIP}\""
 	args := []string{"--namespace=" + scaleTestNamespace, "get", "pods", "-l", "app=" + vegetaName, "-o", "jsonpath=" + tmpl}
-    sshOut, err := scaleCmdExecutor.RunKubectlCommand(args)
+    sshOut, err := cmdExecutor.RunKubectlCommand(args)
 
 	if err != nil {
 		return []string{}, err
@@ -432,17 +426,17 @@ func getLoadbotPodIPs() ([]string, error) {
 
 func removeScaleTest() {
     name := "svc/" + webserverName
-    err := scaleCmdExecutor.RemoveResource(scaleTestNamespace, name)
+    err := cmdExecutor.RemoveResource(scaleTestNamespace, name)
 	if err != nil {
         printer.PrintWarn("Error deleting service '%v'", name, err)
     }
 
-    err = scaleCmdExecutor.RemoveResource(scaleTestNamespace, vegetaName)
+    err = cmdExecutor.RemoveResource(scaleTestNamespace, vegetaName)
 	if err != nil {
         printer.PrintWarn("Error deleting replication-controller '%v'", vegetaName, err)
     }
 
-    err = scaleCmdExecutor.RemoveResource(scaleTestNamespace, webserverName)
+    err = cmdExecutor.RemoveResource(scaleTestNamespace, webserverName)
 	if err != nil {
         printer.PrintWarn("Error deleting replication-controller '%v'", webserverName, err)
 	}

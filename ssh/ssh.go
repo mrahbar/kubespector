@@ -14,34 +14,17 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-type Executor interface {
-    PerformCmd(command string) (*types.SSHOutput, error)
-
-    DownloadFile(remotePath string, localPath string) error
-    DownloadDirectory(remotePath string, localPath string) error
-    UploadFile(remotePath string, localPath string) error
-	UploadDirectory(remotePath string, localPath string) error
-	DeleteRemoteFile(remoteFile string) error
-
-    RunKubectlCommand(args []string) (*types.SSHOutput, error)
-    DeployKubernetesResource(tpl string, data interface{}) (*types.SSHOutput, error)
-
-    GetNumberOfReadyNodes() (int, error)
-    CreateNamespace(namespace string) error
-	CreateService(serviceData interface{}) (bool, error)
-    CreateReplicationController(data interface{}) error
-    ScaleReplicationController(namespace string, rc string, replicas int) error
-    GetPods(namespace string, wide bool) (*types.SSHOutput, error)
-	RemoveResource(namespace, fullQualifiedName string) error
-}
-
-type CommandExecutor struct {
+type Executor struct {
     SshOpts types.SSHConfig
     Node    types.Node
     Printer *integration.Printer
 }
 
-func (c *CommandExecutor) PerformCmd(cmd string) (*types.SSHOutput, error) {
+func (c *Executor) SetNode(node types.Node) {
+    c.Node = node
+}
+
+func (c *Executor) PerformCmd(cmd string) (*types.SSHOutput, error) {
     if util.NodeEquals(c.SshOpts.LocalOn, c.Node) {
         return shell(cmd, c.Printer)
     }

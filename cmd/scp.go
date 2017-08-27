@@ -31,11 +31,5 @@ func init() {
 }
 
 func scpRun(_ *cobra.Command, _ []string) {
-	config := util.UnmarshalConfig()
-	params := &types.CommandParams{
-		Printer: printer,
-		Config:  config,
-		Opts:    scpOpts,
-	}
-	pkg.Scp(params)
+    pkg.Scp(createCommandContext(scpOpts))
 }

@@ -24,7 +24,7 @@ func GetFirstAccessibleNode(sshOpts types.SSHConfig, nodes []types.Node, printer
 		}
 	}
 
-    client := CommandExecutor{
+    client := Executor{
         SshOpts: sshOpts,
         Printer: printer,
     }

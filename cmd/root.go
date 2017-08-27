@@ -6,6 +6,9 @@ import (
     "github.com/mrahbar/kubernetes-inspector/integration"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+    "github.com/mrahbar/kubernetes-inspector/types"
+    "github.com/mrahbar/kubernetes-inspector/ssh"
+    "github.com/mrahbar/kubernetes-inspector/util"
 )
 
 var Version string
@@ -78,4 +81,17 @@ func setLogLevel() {
     printer = &integration.Printer{
         LogLevel: ll,
 	}
+}
+
+func createCommandContext(opts interface{}) *types.CommandContext {
+    config := util.UnmarshalConfig()
+    return &types.CommandContext{
+        Printer: printer,
+        Config:  config,
+        Opts:    opts,
+        CommandExecutor: &ssh.Executor{
+            SshOpts: config.Ssh,
+            Printer: printer,
+        },
+    }
 }

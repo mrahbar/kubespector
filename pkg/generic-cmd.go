@@ -1,7 +1,6 @@
 package pkg
 
 import (
-    "github.com/mrahbar/kubernetes-inspector/ssh"
 	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/util"
 	"os"
@@ -9,7 +8,7 @@ import (
 )
 
 type Initializer func(target string, node string, group string)
-type Processor func(cmdExecutor *ssh.CommandExecutor, target string)
+type Processor func(target string)
 
 func runGeneric(config types.Config, opts *types.GenericOpts, initializer Initializer, processor Processor) {
 	if opts.NodeArg != "" {
@@ -29,13 +28,8 @@ func runGeneric(config types.Config, opts *types.GenericOpts, initializer Initia
 			os.Exit(1)
 		} else {
 			initializer(opts.TargetArg, util.ToNodeLabel(node), "")
-
-            cmdExecutor := &ssh.CommandExecutor{
-                SshOpts: config.Ssh,
-                Node:    node,
-                Printer: printer,
-            }
-            processor(cmdExecutor, opts.TargetArg)
+			cmdExecutor.SetNode(node)
+			processor(opts.TargetArg)
 		}
 	} else {
 		var groups = []string{}
@@ -60,12 +54,8 @@ func runGeneric(config types.Config, opts *types.GenericOpts, initializer Initia
 						continue
 					} else {
 						if !util.ElementInArray(nodes, node.Host) {
-                            cmdExecutor := &ssh.CommandExecutor{
-                                SshOpts: config.Ssh,
-                                Node:    node,
-                                Printer: printer,
-                            }
-                            processor(cmdExecutor, opts.TargetArg)
+							cmdExecutor.SetNode(node)
+							processor(opts.TargetArg)
 							nodes = append(nodes, node.Host)
 						}
 					}

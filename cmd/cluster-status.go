@@ -25,11 +25,5 @@ func init() {
 }
 
 func clusterStatusRun(_ *cobra.Command, _ []string) {
-	config := util.UnmarshalConfig()
-    params := &types.CommandParams{
-        Printer: printer,
-        Config:  config,
-        Opts:    clusterStatusOpts,
-    }
-    pkg.ClusterStatus(params)
+    pkg.ClusterStatus(createCommandContext(clusterStatusOpts))
 }

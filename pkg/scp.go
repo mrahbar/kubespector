@@ -3,7 +3,6 @@ package pkg
 import (
 	"fmt"
 	"github.com/mrahbar/kubernetes-inspector/integration"
-	"github.com/mrahbar/kubernetes-inspector/ssh"
 	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/util"
 	"os"
@@ -20,7 +19,7 @@ const (
 
 var scpOpts *types.ScpOpts
 
-func Scp(cmdParams *types.CommandParams) {
+func Scp(cmdParams *types.CommandContext) {
 	initParams(cmdParams)
 	scpOpts = cmdParams.Opts.(*types.ScpOpts)
 	runGeneric(config, &scpOpts.GenericOpts, initializeScp, scp)
@@ -43,11 +42,11 @@ func initializeScp(target string, node string, group string) {
 	integration.PrettyNewLine()
 }
 
-func scp(cmdExecutor *ssh.CommandExecutor, target string) {
+func scp(target string) {
 	var scpErr error
 	direction := ""
 
-	remoteType, err := typeOfRemotePath(cmdExecutor)
+	remoteType, err := typeOfRemotePath()
 	if err != nil {
 		printer.PrintErr("Remote path %s is unprocessable: %s", scpOpts.RemotePath, err)
 		return
@@ -111,7 +110,7 @@ func scp(cmdExecutor *ssh.CommandExecutor, target string) {
 	integration.PrettyNewLine()
 }
 
-func typeOfRemotePath(cmdExecutor *ssh.CommandExecutor) (string, error) {
+func typeOfRemotePath() (string, error) {
 	command := fmt.Sprintf(`if [ -d %s ] ; then echo "%s" ; elif [ -f %s ] ; then echo "%s"; else echo "%s"; fi;`,
 		scpOpts.RemotePath, dirType, scpOpts.RemotePath, fileType, noneType)
 	sshOut, err := cmdExecutor.PerformCmd(command)
