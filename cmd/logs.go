@@ -35,11 +35,5 @@ func init() {
 }
 
 func logRun(_ *cobra.Command, _ []string) {
-	config := util.UnmarshalConfig()
-    params := &types.CommandParams{
-        Printer: printer,
-        Config:  config,
-        Opts:    logOpts,
-    }
-    pkg.Logs(params)
+	pkg.Logs(createCommandContext(logOpts))
 }

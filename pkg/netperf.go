@@ -40,9 +40,8 @@ const (
 )
 
 var netperfOpts *types.NetperfOpts
-var netperfCmdExecutor *ssh.CommandExecutor
 
-func Netperf(cmdParams *types.CommandParams) {
+func Netperf(cmdParams *types.CommandContext) {
     initParams(cmdParams)
     netperfOpts = cmdParams.Opts.(*types.NetperfOpts)
 	group := util.FindGroupByName(config.ClusterGroups, types.MASTER_GROUPNAME)
@@ -75,12 +74,7 @@ func Netperf(cmdParams *types.CommandParams) {
 	}
 
     printer.Print("Running kubectl commands on node %s", util.ToNodeLabel(node))
-
-    netperfCmdExecutor = &ssh.CommandExecutor{
-        SshOpts: config.Ssh,
-        Node:    node,
-        Printer: printer,
-    }
+	cmdExecutor.SetNode(node)
 
 	checkingNetperfPreconditions()
 	createNetperfNamespace()
@@ -101,7 +95,7 @@ func Netperf(cmdParams *types.CommandParams) {
 }
 
 func checkingNetperfPreconditions() {
-    count, err := netperfCmdExecutor.GetNumberOfReadyNodes()
+	count, err := cmdExecutor.GetNumberOfReadyNodes()
 
 	if err != nil {
         printer.PrintErr("Error checking node count: %s", err)
@@ -114,7 +108,7 @@ func checkingNetperfPreconditions() {
 
 func createNetperfNamespace() {
     printer.PrintInfo("Creating namespace")
-    err := netperfCmdExecutor.CreateNamespace(netperfNamespace)
+	err := cmdExecutor.CreateNamespace(netperfNamespace)
 
 	if err != nil {
         printer.PrintErr("Error creating test namespace: %s", err)
@@ -136,7 +130,7 @@ func createNetperfServices() {
 			TargetPort: orchestratorPort,
 		},
 	}}
-    exists, err := netperfCmdExecutor.CreateService(data)
+	exists, err := cmdExecutor.CreateService(data)
 	if exists {
         printer.PrintIgnored("Service: %s already exists.", orchestratorName)
 	} else {
@@ -166,7 +160,7 @@ func createNetperfServices() {
 			TargetPort: netperfPort,
 		},
 	}}
-    exists, err = netperfCmdExecutor.CreateService(data)
+	exists, err = cmdExecutor.CreateService(data)
 	if exists {
         printer.PrintIgnored("Service: %s already exists.", name)
 	} else {
@@ -195,7 +189,7 @@ func createNetperfReplicationControllers() {
 			},
 		},
 	}
-    err := netperfCmdExecutor.CreateReplicationController(hostRC)
+	err := cmdExecutor.CreateReplicationController(hostRC)
 
 	if err != nil {
         printer.PrintErr("Error creating %s replication controller: %s", orchestratorName, err)
@@ -205,7 +199,7 @@ func createNetperfReplicationControllers() {
 	}
 
 	args := []string{"get", "nodes", " | ", "grep", "-w", "\"Ready\"", " | ", "sed", "-e", "\"s/[[:space:]]\\+/,/g\""}
-    sshOut, err := netperfCmdExecutor.RunKubectlCommand(args)
+	sshOut, err := cmdExecutor.RunKubectlCommand(args)
 
 	if err != nil {
         printer.PrintErr("Error getting nodes for worker replication controller: %s", err)
@@ -270,7 +264,7 @@ func createNetperfReplicationControllers() {
 				},
 			}
 
-            _, err := netperfCmdExecutor.DeployKubernetesResource(types.REPLICATION_CONTROLLER_TEMPLATE, clientRC)
+			_, err := cmdExecutor.DeployKubernetesResource(types.REPLICATION_CONTROLLER_TEMPLATE, clientRC)
 
 			if err != nil {
                 printer.PrintErr("Error creating %s replication controller: %s", name, err)
@@ -290,7 +284,7 @@ func waitForNetperfServicesToBeRunning() {
 	for !done {
 		tmpl := "\"{..status.phase}\""
 		args := []string{"--namespace=" + netperfNamespace, "get", "pods", "-o", "jsonpath=" + tmpl}
-        sshOut, err := netperfCmdExecutor.RunKubectlCommand(args)
+		sshOut, err := cmdExecutor.RunKubectlCommand(args)
 
 		if err != nil {
             printer.PrintWarn("Error running kubectl command '%v': %s", args, err)
@@ -323,7 +317,7 @@ func waitForNetperfServicesToBeRunning() {
 }
 
 func displayNetperfPods() {
-    result, err := netperfCmdExecutor.GetPods(netperfNamespace, true)
+	result, err := cmdExecutor.GetPods(netperfNamespace, true)
 	if err != nil {
         printer.PrintWarn("Error running kubectl command '%v'", err)
 	} else {
@@ -365,7 +359,7 @@ func fetchTestResults() {
 // Retrieve the logs for the pod/container and check if csv data has been generated
 func getCsvResultsFromPod(podName string) *string {
 	args := []string{"--namespace=" + netperfNamespace, "logs", podName, "--timestamps=false"}
-    sshOut, err := netperfCmdExecutor.RunKubectlCommand(args)
+	sshOut, err := cmdExecutor.RunKubectlCommand(args)
 	logData := sshOut.Stdout
 	if err != nil {
         printer.PrintWarn("Error reading logs from pod %s: %s", podName, err)
@@ -385,14 +379,14 @@ func getCsvResultsFromPod(podName string) *string {
 // processCsvData : Fetch the CSV datafile
 func processCsvData(podName string) bool {
 	remote := fmt.Sprintf("%s/%s:%s", netperfNamespace, podName, resultCaptureFile)
-    _, err := netperfCmdExecutor.RunKubectlCommand([]string{"cp", remote, resultCaptureFile})
+	_, err := cmdExecutor.RunKubectlCommand([]string{"cp", remote, resultCaptureFile})
 	if err != nil {
         printer.PrintErr("Couldn't copy output CSV datafile %s from remote %s: %s",
 			resultCaptureFile, util.GetNodeAddress(node), err)
 		return false
 	}
 
-    err = netperfCmdExecutor.DownloadFile(resultCaptureFile, filepath.Join(netperfOpts.OutputDir, "result.csv"))
+	err = cmdExecutor.DownloadFile(resultCaptureFile, filepath.Join(netperfOpts.OutputDir, "result.csv"))
 	if err != nil {
         printer.PrintErr("Couldn't fetch output CSV datafile %s from remote %s: %s",
 			resultCaptureFile, util.GetNodeAddress(node), err)
@@ -400,13 +394,13 @@ func processCsvData(podName string) bool {
 	}
 
 	remote = fmt.Sprintf("%s/%s:%s", netperfNamespace, podName, outputCaptureFile)
-    _, err = netperfCmdExecutor.RunKubectlCommand([]string{"cp", remote, outputCaptureFile})
+	_, err = cmdExecutor.RunKubectlCommand([]string{"cp", remote, outputCaptureFile})
 	if err != nil {
         printer.PrintErr("Couldn't copy output RAW datafile %s from remote %s: %s",
 			outputCaptureFile, util.GetNodeAddress(node), err)
 		return false
 	}
-    err = netperfCmdExecutor.DownloadFile(outputCaptureFile, filepath.Join(netperfOpts.OutputDir, "output.txt"))
+	err = cmdExecutor.DownloadFile(outputCaptureFile, filepath.Join(netperfOpts.OutputDir, "output.txt"))
 	if err != nil {
         printer.PrintErr("Couldn't fetch output RAW datafile %s from remote %s: %s",
 			outputCaptureFile, util.GetNodeAddress(node), err)
@@ -418,27 +412,27 @@ func processCsvData(podName string) bool {
 
 func removeNetperfServices() {
 	name := "svc/" + orchestratorName
-    err := netperfCmdExecutor.RemoveResource(netperfNamespace, name)
+	err := cmdExecutor.RemoveResource(netperfNamespace, name)
 	if err != nil {
         printer.PrintWarn("Error deleting service '%v'", name, err)
 	}
 
 	name = fmt.Sprintf("svc/%s%d", workerName, 2)
-    err = netperfCmdExecutor.RemoveResource(netperfNamespace, name)
+	err = cmdExecutor.RemoveResource(netperfNamespace, name)
 	if err != nil {
         printer.PrintWarn("Error deleting service '%v'", name, err)
 	}
 }
 
 func removeNetperfReplicationControllers() {
-    err := netperfCmdExecutor.RemoveResource(netperfNamespace, orchestratorName)
+	err := cmdExecutor.RemoveResource(netperfNamespace, orchestratorName)
 	if err != nil {
         printer.PrintWarn("Error deleting replication-controller '%v'", orchestratorName, err)
 	}
 
 	for i := 1; i <= workerCount; i++ {
 		name := fmt.Sprintf("rc/%s%d", workerName, i)
-        err := netperfCmdExecutor.RemoveResource(netperfNamespace, name)
+		err := cmdExecutor.RemoveResource(netperfNamespace, name)
 		if err != nil {
             printer.PrintWarn("Error deleting replication-controller '%v'", name, err)
 		}
@@ -448,7 +442,7 @@ func removeNetperfReplicationControllers() {
 func getPodName(name string) string {
 	tmpl := "\"{..metadata.name}\""
 	args := []string{"--namespace=" + netperfNamespace, "get", "pods", "-l", "app=" + name, "-o", "jsonpath=" + tmpl}
-    sshOut, err := netperfCmdExecutor.RunKubectlCommand(args)
+	sshOut, err := cmdExecutor.RunKubectlCommand(args)
 
 	if err != nil {
 		return ""
@@ -460,7 +454,7 @@ func getPodName(name string) string {
 func getServiceIP(name string) (string, error) {
 	tmpl := "\"{..spec.clusterIP}\""
 	args := []string{"--namespace=" + netperfNamespace, "get", "service", "-l", "app=" + name, "-o", "jsonpath=" + tmpl}
-    sshOut, err := netperfCmdExecutor.RunKubectlCommand(args)
+	sshOut, err := cmdExecutor.RunKubectlCommand(args)
 
 	if err != nil {
 		return "", err

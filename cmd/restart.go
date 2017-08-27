@@ -13,7 +13,7 @@ var restartOpts = &types.GenericOpts{}
 // restartCmd represents the restart command
 var restartCmd = &cobra.Command{
 	Use:   "restart",
-	Short: "Restarts a Kubernetes service on a target group or node",
+    Short: "Restarts a system service on a target group or node",
 	Long: `Service name is mandatory. Either specify node or group in which the service should be restarted.
 	When a target group is specified all nodes inside that group will be targeted for service restart.`,
 	PreRunE: util.CheckRequiredFlags,
@@ -29,11 +29,5 @@ func init() {
 }
 
 func restartRun(_ *cobra.Command, _ []string) {
-	config := util.UnmarshalConfig()
-    params := &types.CommandParams{
-        Printer: printer,
-        Config:  config,
-        Opts:    restartOpts,
-    }
-    pkg.Restart(params)
+    pkg.Restart(createCommandContext(restartOpts))
 }

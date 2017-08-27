@@ -6,11 +6,13 @@ import (
 )
 
 var printer *integration.Printer
-var cmdParams *types.CommandParams
+var cmdParams *types.CommandContext
+var cmdExecutor types.CommandExecutor
 var config types.Config
 
-func initParams(cmdParams *types.CommandParams) {
-    cmdParams = cmdParams
-    printer = cmdParams.Printer
-    config = cmdParams.Config
+func initParams(commandContext *types.CommandContext) {
+    commandContext = commandContext
+    printer = commandContext.Printer
+    config = commandContext.Config
+    cmdExecutor = commandContext.CommandExecutor
 }

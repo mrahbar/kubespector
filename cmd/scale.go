@@ -26,11 +26,5 @@ func init() {
 }
 
 func scaleRun(_ *cobra.Command, _ []string) {
-	config := util.UnmarshalConfig()
-    params := &types.CommandParams{
-        Printer: printer,
-        Config:  config,
-        Opts:    scaleTestOpts,
-    }
-    pkg.ScaleTest(params)
+    pkg.ScaleTest(createCommandContext(scaleTestOpts))
 }

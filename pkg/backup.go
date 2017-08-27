@@ -19,7 +19,7 @@ const localEtcdBackupDir = "/tmp/etcd-backup"
 var etcdBackupOpts *types.EtcdBackupOpts
 var archiveName string
 
-func Backup(cmdParams *types.CommandParams) {
+func Backup(cmdParams *types.CommandContext) {
     initParams(cmdParams)
     etcdBackupOpts = cmdParams.Opts.(*types.EtcdBackupOpts)
 
@@ -32,21 +32,16 @@ func Backup(cmdParams *types.CommandParams) {
 
     node := ssh.GetFirstAccessibleNode(cmdParams.Config.Ssh, group.Nodes, printer)
 
-    cmdExecutor := &ssh.CommandExecutor{
-        SshOpts: cmdParams.Config.Ssh,
-        Printer: printer,
-        Node:    node,
-    }
-
 	if !util.IsNodeAddressValid(node) {
         printer.PrintErr("No node available for etcd backup")
 		os.Exit(1)
 	}
 
+	cmdExecutor.SetNode(node)
     integration.PrettyNewLine()
 	initializeOutputFile()
-    backup(cmdExecutor)
-    transferBackup(cmdExecutor)
+	backup()
+	transferBackup()
 }
 
 func initializeOutputFile() {
@@ -64,7 +59,7 @@ func initializeOutputFile() {
 	}
 }
 
-func backup(cmdExecutor *ssh.CommandExecutor) {
+func backup() {
 	etcdConnection := fmt.Sprintf("--endpoint='%s'", etcdBackupOpts.Endpoint)
 
 	if etcdBackupOpts.ClientCertAuth {
@@ -73,7 +68,7 @@ func backup(cmdExecutor *ssh.CommandExecutor) {
 	}
 
     printer.PrintInfo("Start backup process")
-    cmdExecutor.DeleteRemoteFile(localEtcdBackupDir)
+	cmdExecutor.DeleteRemoteFile(localEtcdBackupDir)
 	backupCmd := fmt.Sprintf("sudo etcdctl %s backup --data-dir %s --backup-dir %s", etcdConnection, etcdBackupOpts.DataDir, localEtcdBackupDir)
     _, err := cmdExecutor.PerformCmd(backupCmd)
 
@@ -88,7 +83,7 @@ func backup(cmdExecutor *ssh.CommandExecutor) {
     integration.PrettyNewLine()
 }
 
-func transferBackup(cmdExecutor *ssh.CommandExecutor) {
+func transferBackup() {
     printer.PrintInfo("Creating archive of etcd backup")
 	backupArchive := path.Join(localBackupDir, archiveName)
 

@@ -11,7 +11,7 @@ import (
 
 var execOpts *types.ExecOpts
 
-func Exec(cmdParams *types.CommandParams) {
+func Exec(cmdParams *types.CommandContext) {
     initParams(cmdParams)
     execOpts = cmdParams.Opts.(*types.ExecOpts)
     runGeneric(cmdParams.Config, &execOpts.GenericOpts, initializeExec, exec)
@@ -40,7 +40,7 @@ func initializeExec(target string, node string, group string) {
     integration.PrettyNewLine()
 }
 
-func exec(cmdExecutor *ssh.CommandExecutor, command string) {
+func exec(command string) {
 	if execOpts.Sudo {
 		command = fmt.Sprintf("sudo %s", command)
 	} else {
