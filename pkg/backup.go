@@ -27,7 +27,7 @@ func Backup(cmdParams *types.CommandContext) {
         cmdParams.Printer.PrintCritical("No host configured for group [%s]", types.ETCD_GROUPNAME)
 	}
 
-    node := ssh.GetFirstAccessibleNode(cmdParams.Config.Ssh, group.Nodes, printer)
+    node := ssh.GetFirstAccessibleNode(config.Ssh.LocalOn, cmdExecutor, group.Nodes)
 
 	if !util.IsNodeAddressValid(node) {
         printer.PrintCritical("No node available for etcd backup")

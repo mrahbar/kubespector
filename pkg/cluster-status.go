@@ -370,7 +370,7 @@ func checkKubernetesStatus(element string,
 		printer.PrintCritical("No resources configured for [%s]", element)
 	}
 
-	node := ssh.GetFirstAccessibleNode(sshOpts, nodes, printer)
+	node := ssh.GetFirstAccessibleNode(config.Ssh.LocalOn, cmdExecutor, nodes)
 
 	if !util.IsNodeAddressValid(node) {
 		printer.PrintCritical("No master available for Kubernetes status check")

@@ -3,6 +3,7 @@ package test
 import (
     "io"
     "fmt"
+    "os"
 )
 
 type MockLogWriter struct {
@@ -24,6 +25,7 @@ func (p *MockLogWriter) Print(msg string, a ...interface{}) {
 // LogWriterr [ERROR](Red) with formatted string
 func (p *MockLogWriter) PrintCritical(msg string, a ...interface{}) {
     fmt.Fprintf(p.Out, msg+"\n", a...)
+    os.Exit(1)
 }
 
 // LogWriterr [ERROR](Red) with formatted string

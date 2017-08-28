@@ -6,6 +6,7 @@ import (
 
 // ******************** MockExecutor ********************
 type MockExecutor struct {
+    Node types.Node
     MockSetNode    func(node types.Node)
     MockPerformCmd func(command string) (*types.SSHOutput, error)
 
@@ -30,6 +31,8 @@ type MockExecutor struct {
 func (e *MockExecutor) SetNode(node types.Node) {
     if e.MockSetNode != nil {
         e.MockSetNode(node)
+    } else {
+        e.Node = node
     }
 }
 
