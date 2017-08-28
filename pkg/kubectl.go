@@ -16,7 +16,7 @@ func Kubectl(cmdParams *types.CommandContext) {
 		printer.PrintCritical("No host configured for group [%s]", types.MASTER_GROUPNAME)
 	}
 
-	node := ssh.GetFirstAccessibleNode(config.Ssh, group.Nodes, printer)
+	node := ssh.GetFirstAccessibleNode(config.Ssh.LocalOn, cmdExecutor, group.Nodes)
 
 	if !util.IsNodeAddressValid(node) {
 		printer.PrintCritical("No master available")
@@ -27,7 +27,7 @@ func Kubectl(cmdParams *types.CommandContext) {
 	sshOut, err := cmdExecutor.RunKubectlCommand(strings.Split(kubectlOpts.Command, " "))
 
 	if err != nil {
-		printer.PrintErr("Error performing kubectl command %s: %s", kubectlOpts.Command, err)
+		printer.PrintErr("Error performing kubectl command '%s': %s", kubectlOpts.Command, err)
 	} else {
 		printer.PrintOk(sshOut.Stdout)
 	}

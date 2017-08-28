@@ -51,7 +51,7 @@ func Netperf(cmdParams *types.CommandContext) {
 	}
 
 	sshOpts = config.Ssh
-    node = ssh.GetFirstAccessibleNode(sshOpts, group.Nodes, printer)
+    node = ssh.GetFirstAccessibleNode(config.Ssh.LocalOn, cmdExecutor, group.Nodes)
 
 	if !util.IsNodeAddressValid(node) {
         printer.PrintCritical("No master available")
