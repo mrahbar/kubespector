@@ -15,23 +15,18 @@ import (
 	"time"
 )
 
-func GetFirstAccessibleNode(sshOpts types.SSHConfig, nodes []types.Node, printer integration.LogWriter) types.Node {
-	if util.IsNodeAddressValid(sshOpts.LocalOn) {
+func GetFirstAccessibleNode(localOn types.Node, cmdExecutor types.CommandExecutor, nodes []types.Node) types.Node {
+	if util.IsNodeAddressValid(localOn) {
 		for _, n := range nodes {
-			if util.NodeEquals(sshOpts.LocalOn, n) {
+			if util.NodeEquals(localOn, n) {
 				return n
 			}
 		}
 	}
 
-    client := Executor{
-        SshOpts: sshOpts,
-        Printer: printer,
-    }
-
 	for _, n := range nodes {
-        client.Node = n
-        _, err := client.PerformCmd("hostname")
+		cmdExecutor.SetNode(n)
+        _, err := cmdExecutor.PerformCmd("hostname")
 		if err == nil {
 			return n
 		}
