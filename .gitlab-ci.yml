@@ -16,7 +16,7 @@ build-project:
     - BUILD_DATE=$(date -u)
     - TAG=$(grep -Po 'TAG\s=\s\K([\d.\-\w]+)' Makefile)
     - echo "$TAG"
-    - dep ensure
+    - dep ensure -v
     - go build -a -installsuffix cgo -ldflags "-w -X main.version=$TAG -X 'main.buildDate=$BUILD_DATE'" -o kubespector-$TAG *.go
     - mv kubespector-$TAG /builds/mrahbar/kubernetes-inspector
   artifacts:

@@ -20,7 +20,7 @@ endif
 
 deps: build-container
 ifeq ($(BUILD_IN_CONTAINER),1)
-	$(DOCKER_RUN) $(GOLANG_CONTAINER) dep ensure
+	$(DOCKER_RUN) $(GOLANG_CONTAINER) dep ensure -v
 else
 	CGO_ENABLED=0 dep ensure
 endif
