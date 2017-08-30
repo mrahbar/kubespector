@@ -61,8 +61,8 @@ func (c *Executor) PerformCmd(cmd string) (*types.SSHOutput, error) {
     if err != nil {
         errFormatted = fmt.Sprintf("%s", err)
     }
-    c.Printer.PrintDebug("Result of command:\nStdout: %s\nStderr: %s\nExitStatus: %d\nErr: %s\n",
-        output, outErr, remoteCmd.ExitStatus, errFormatted)
+    c.Printer.PrintDebug("Result of command '%s':\nStdout: %s\nStderr: %s\nExitStatus: %d\nErr: %s\n",
+        cmd, output, outErr, remoteCmd.ExitStatus, errFormatted)
 
 	return o, err
 }
