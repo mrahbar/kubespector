@@ -108,7 +108,12 @@ func (c *Executor) GetPods(namespace string, wide bool) (*types.SSHOutput, error
 }
 
 func (c *Executor) RemoveResource(namespace, fullQualifiedName string) error {
-    args := []string{"--namespace=" + namespace, "delete", fullQualifiedName}
+    var args []string
+    if len(namespace) > 0 {
+        args = []string{"--namespace=" + namespace, "delete", fullQualifiedName}
+    } else {
+        args = []string{"delete", fullQualifiedName}
+    }
     _, err := c.RunKubectlCommand(args)
 
 	return err

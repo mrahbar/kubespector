@@ -252,7 +252,7 @@ func createScaleTestReplicationControllers() {
     }
 
     webserverRc := types.ReplicationController{Name: webserverName, Namespace: scaleTestNamespace, Image: webserverImage,
-        ResourceRequest: types.ResourceRequest{Cpu: "1000m"},
+        ResourceRequest: types.ResourceRequest{Cpu: "100m"},
         Args: []types.Arg{
             {
                 Key:   "-port",
@@ -341,16 +341,6 @@ func waitForScaleTestServicesToBeRunning(targets int) {
     }
 }
 
-func displayScaleTestPods() {
-    result, err := cmdExecutor.GetPods(scaleTestNamespace, true)
-    if err != nil {
-        printer.PrintWarn("Error running kubectl command '%v'", err)
-    } else {
-        printer.Print("Pods are running")
-        printer.PrintDebug("%s\n", result.Stdout)
-    }
-}
-
 func runScaleTest() {
     currentLoadbots := 1
     currentWebservers := 1
@@ -404,8 +394,14 @@ func runScaleTest() {
 
         waitForScaleTestServicesToBeRunning(currentWebservers + currentLoadbots)
         time.Sleep(3 * time.Second)
-        displayScaleTestPods()
-        printer.Print("Fetching metrics")
+        res, err := cmdExecutor.GetPods(scaleTestNamespace, true)
+        if err != nil {
+            printer.PrintWarn("Error running kubectl command '%v'", err)
+        } else {
+            printer.Print("Pods are running. Fetching metrics")
+            printer.PrintDebug("%s\n", res.Stdout)
+        }
+
         attempts := 0
         for {
             parts, err := fetchResults()
@@ -555,6 +551,10 @@ func removeScaleTest() {
 
     if err := cmdExecutor.RemoveResource(scaleTestNamespace, "rc/"+webserverName); err != nil {
         printer.PrintWarn("Error deleting replication-controller '%v': %s", webserverName, err)
+    }
+
+    if err := cmdExecutor.RemoveResource("", scaleTestNamespace); err != nil {
+        printer.PrintWarn("Error deleting namespace '%v': %s", scaleTestNamespace, err)
     }
 
     if err := cmdExecutor.DeleteRemoteFile(remoteScriptFile); err != nil {
