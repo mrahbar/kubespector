@@ -11,6 +11,7 @@ before_script:
 build-project:
   stage: build
   script:
+    - ls -lath .
     - python build/builder.py --debug --static --outdir ./
     - mv kubespector-* /builds/mrahbar/kubernetes-inspector
   artifacts:
