@@ -111,7 +111,7 @@ func createNetperfNamespace() {
 	} else {
         printer.PrintOk("Namespace %s created", netperfNamespace)
     }
-    printer.PrettyNewLine()
+    printer.PrintNewLine()
 }
 
 func createNetperfServices() {
@@ -160,7 +160,7 @@ func createNetperfServices() {
 	} else {
         printer.PrintCritical("Error adding service %v: %s", name, err)
 	}
-    printer.PrettyNewLine()
+    printer.PrintNewLine()
 }
 
 func createNetperfReplicationControllers() {
@@ -263,7 +263,7 @@ func createNetperfReplicationControllers() {
 			}
 		}
 	}
-    printer.PrettyNewLine()
+    printer.PrintNewLine()
 }
 
 func waitForNetperfServicesToBeRunning() {
@@ -302,7 +302,7 @@ func waitForNetperfServicesToBeRunning() {
 			done = true
 		}
 	}
-    printer.PrettyNewLine()
+    printer.PrintNewLine()
 }
 
 func displayNetperfPods() {
@@ -313,7 +313,7 @@ func displayNetperfPods() {
         printer.Print("Pods are running\n%s", result)
     }
 
-    printer.PrettyNewLine()
+    printer.PrintNewLine()
 }
 
 func fetchTestResults() {
@@ -328,7 +328,7 @@ func fetchTestResults() {
 	}
     printer.Print("The pods orchestrate themselves, waiting for the results file to show up in the orchestrator pod %s", orchestratorPodName)
 	sleep = 5 * time.Minute
-    printer.PrettyNewLine()
+    printer.PrintNewLine()
 
 	for true {
 		// Monitor the orchestrator pod for the CSV results file

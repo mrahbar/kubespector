@@ -82,7 +82,7 @@ func getNodesStats(element string, nodes []types.Node) {
 			break
 		}
 
-		printer.PrettyNewLine()
+		printer.PrintNewLine()
 		printer.Print("On node %s:", util.ToNodeLabel(node))
 		cmdExecutor.SetNode(node)
 
@@ -160,7 +160,7 @@ func checkServiceStatus(element string, services []string, nodes []types.Node) {
 			break
 		}
 
-		printer.PrettyNewLine()
+		printer.PrintNewLine()
 		printer.Print("On node %s:", util.ToNodeLabel(node))
 
 		for _, service := range services {
@@ -201,7 +201,7 @@ func checkContainerStatus(element string, containers []string, nodes []types.Nod
 			break
 		}
 
-		printer.PrettyNewLine()
+		printer.PrintNewLine()
 		printer.Print("On node %s:", util.ToNodeLabel(node))
 
 		for _, container := range containers {
@@ -243,7 +243,7 @@ func checkCertificatesExpiration(element string, certificates []string, nodes []
 			break
 		}
 
-		printer.PrettyNewLine()
+		printer.PrintNewLine()
 		printer.Print("On node %s:", util.ToNodeLabel(node))
 
 		for _, cert := range certificates {
@@ -306,7 +306,7 @@ func checkDiskStatus(element string, diskSpace types.DiskUsage, nodes []types.No
 			break
 		}
 
-		printer.PrettyNewLine()
+		printer.PrintNewLine()
 		printer.Print("On node %s:", util.ToNodeLabel(node))
 
 		spacesRegex := regexp.MustCompile("\\s+")
@@ -327,14 +327,14 @@ func checkDiskStatus(element string, diskSpace types.DiskUsage, nodes []types.No
 						printer.PrintErr("Error determining file system usage percent for %s: %s", fsUsage, err)
 					} else {
 						if fsUsePercentVal < 65 {
-							printer.PrintOk("File system usage of %s amounts to - Used: %s Available: %s (%s%%)",
-								fsUsage, fsUsed, fsAvail, fsUsePercent)
+							printer.PrintOk("File system usage of %s amounts to - Used: %s Available: %s (%s%s)",
+								fsUsage, fsUsed, fsAvail, fsUsePercent, "%%")
 						} else if fsUsePercentVal < 85 {
-							printer.PrintWarn("File system usage of %s amounts to - Used: %s Available: %s (%s%%)",
-								fsUsage, fsUsed, fsAvail, fsUsePercent)
+							printer.PrintWarn("File system usage of %s amounts to - Used: %s Available: %s (%s%s)",
+								fsUsage, fsUsed, fsAvail, fsUsePercent, "%%")
 						} else {
-							printer.PrintErr("File system usage of %s amounts to - Used: %s Available: %s (%s%%)",
-								fsUsage, fsUsed, fsAvail, fsUsePercent)
+							printer.PrintErr("File system usage of %s amounts to - Used: %s Available: %s (%s%s)",
+								fsUsage, fsUsed, fsAvail, fsUsePercent, "%%")
 						}
 					}
 				}
@@ -392,13 +392,13 @@ func checkKubernetesStatus(element string,
 
 		printer.Print(msg + namespace_msg + ":")
 		sshOut, err := cmdExecutor.PerformCmd(command)
-		printer.PrettyNewLine()
+		printer.PrintNewLine()
 
 		if err != nil {
 			printer.PrintErr("Error checking %s%s: %s", resource.Type, namespace_msg, err)
 		} else {
 			printer.PrintOk(sshOut.Stdout)
 		}
-		printer.PrettyNewLine()
+		printer.PrintNewLine()
 	}
 }

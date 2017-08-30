@@ -34,7 +34,7 @@ func Backup(cmdParams *types.CommandContext) {
 	}
 
 	cmdExecutor.SetNode(node)
-    printer.PrettyNewLine()
+    printer.PrintNewLine()
 	initializeOutputFile()
 	backup()
 	transferBackup()
@@ -75,7 +75,7 @@ func backup() {
         printer.PrintOk("Backup created")
     }
 
-    printer.PrettyNewLine()
+    printer.PrintNewLine()
 }
 
 func transferBackup() {
@@ -91,7 +91,7 @@ func transferBackup() {
         cmdExecutor.DeleteRemoteFile(localEtcdBackupDir)
 
         printer.PrintInfo("Transferring archive")
-        printer.PrettyNewLine()
+        printer.PrintNewLine()
 
         err = cmdExecutor.DownloadFile(backupArchive, etcdBackupOpts.Output)
         cmdExecutor.DeleteRemoteFile(backupArchive)

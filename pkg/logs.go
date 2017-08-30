@@ -36,7 +36,7 @@ func initializeLogs(target string, node string, group string) {
 			printer.PrintInfo("Result is written to file %s screen output is suppressed.", logOpts.FileOutput)
 		}
 	}
-	printer.PrettyNewLine()
+	printer.PrintNewLine()
 }
 
 func logs(element string) {
@@ -113,5 +113,5 @@ func logs(element string) {
 		}
 	}
 
-	printer.PrettyNewLine()
+	printer.PrintNewLine()
 }
