@@ -24,7 +24,7 @@ func initializeRestartService(service string, node string, group string) {
 			service, node), '=')
 	}
 
-    printer.PrettyNewLine()
+    printer.PrintNewLine()
 }
 
 func restartService(service string) {
@@ -38,5 +38,5 @@ func restartService(service string) {
         printer.PrintOk("Service %s restarted.", service)
     }
 
-    printer.PrettyNewLine()
+    printer.PrintNewLine()
 }

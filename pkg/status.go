@@ -25,7 +25,7 @@ func initializeStatusService(service string, node string, group string) {
 			service, node), '=')
 	}
 
-    printer.PrettyNewLine()
+    printer.PrintNewLine()
 }
 
 func statusService(service string) {
@@ -38,5 +38,5 @@ func statusService(service string) {
         printer.PrintOk(ssh.CombineOutput(sshOut))
     }
 
-    printer.PrettyNewLine()
+    printer.PrintNewLine()
 }

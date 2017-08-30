@@ -15,9 +15,11 @@ build-project:
     - export CGO_ENABLED=0
     - BUILD_DATE=$(date -u)
     - TAG=$(grep -Po 'TAG\s=\s\K([\d.\-\w]+)' Makefile)
+    - GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+    - GIT_COMMIT=$(git rev-parse HEAD)
     - echo "$TAG"
     - dep ensure -v
-    - go build -a -installsuffix cgo -ldflags "-w -X main.version=$TAG -X 'main.buildDate=$BUILD_DATE'" -o kubespector-$TAG *.go
+    - go build -a -installsuffix cgo -ldflags "-w -X main.version=$TAG -X 'main.buildDate=$BUILD_DATE' -X main.branch=$GIT_BRANCH -X main.commit=$GIT_COMMIT" -o kubespector-$TAG *.go
     - mv kubespector-$TAG /builds/mrahbar/kubernetes-inspector
   artifacts:
     when: on_success
