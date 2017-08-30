@@ -38,7 +38,7 @@ func initializeScp(target string, node string, group string) {
 		printer.PrintHeader(fmt.Sprintf("Executing scp on node %s :\n", node), '=')
 	}
 
-	printer.PrettyNewLine()
+	printer.PrintNewLine()
 }
 
 func scp(target string) {
@@ -102,7 +102,7 @@ func scp(target string) {
 		printer.PrintOk("Scp %s %s %s finished", scpOpts.LocalPath, direction, scpOpts.RemotePath)
 	}
 
-	printer.PrettyNewLine()
+	printer.PrintNewLine()
 }
 
 func typeOfRemotePath() (string, error) {

@@ -1,0 +1,387 @@
+/*
+Copyright 2015 The Kubernetes Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package main
+
+import (
+	"encoding/json"
+	"flag"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"sync"
+	"time"
+
+	"k8s.io/kubernetes/pkg/api"
+	client "k8s.io/kubernetes/pkg/client/unversioned"
+	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
+	"k8s.io/kubernetes/pkg/fields"
+	"k8s.io/kubernetes/pkg/labels"
+
+	vegeta "github.com/tsenart/vegeta/lib"
+	"github.com/streadway/quantile"
+)
+
+type (
+	// Metrics holds metrics computed out of a slice of Results which are used
+	// in some of the Reporters
+	loadbotMetrics struct {
+		// Latencies holds computed request latency metrics.
+		Latencies latencyMetrics `json:"latencies"`
+		// BytesIn holds computed incoming byte metrics.
+		BytesIn byteMetrics `json:"bytes_in"`
+		// BytesOut holds computed outgoing byte metrics.
+		BytesOut byteMetrics `json:"bytes_out"`
+		// First is the earliest timestamp in a Result set.
+		Earliest time.Time `json:"earliest"`
+		// Latest is the latest timestamp in a Result set.
+		Latest time.Time `json:"latest"`
+		// End is the latest timestamp in a Result set plus its latency.
+		End time.Time `json:"end"`
+		// Duration is the duration of the attack.
+		Duration time.Duration `json:"duration"`
+		// Wait is the extra time waiting for responses from targets.
+		Wait time.Duration `json:"wait"`
+		// Requests is the total number of requests executed.
+		Requests uint64 `json:"requests"`
+		// Rate is the rate of requests per second.
+		Rate float64 `json:"rate"`
+		// Success is the percentage of non-error responses.
+		Success float64 `json:"success"`
+		// StatusCodes is a histogram of the responses' status codes.
+		StatusCodes map[string]int `json:"status_codes"`
+		// Errors is a set of unique errors returned by the targets during the attack.
+		Errors []string `json:"errors"`
+
+		errors    map[string]struct{}
+		success   uint64
+		latencies *quantile.Estimator
+	}
+
+	// LatencyMetrics holds computed request latency metrics.
+	latencyMetrics struct {
+		// Total is the total latency sum of all requests in an attack.
+		Total time.Duration `json:"total"`
+		// Mean is the mean request latency.
+		Mean time.Duration `json:"mean"`
+		// P50 is the 50th percentile request latency.
+		P50 time.Duration `json:"50th"`
+		// P95 is the 95th percentile request latency.
+		P95 time.Duration `json:"95th"`
+		// P99 is the 99th percentile request latency.
+		P99 time.Duration `json:"99th"`
+		// Max is the maximum observed request latency.
+		Max time.Duration `json:"max"`
+	}
+
+	// ByteMetrics holds computed byte flow metrics.
+	byteMetrics struct {
+		// Total is the total number of flowing bytes in an attack.
+		Total uint64 `json:"total"`
+		// Mean is the mean number of flowing bytes per hit.
+		Mean float64 `json:"mean"`
+	}
+)
+
+type Replicas struct {
+	Title     string
+	Loadbots  int
+	Webserver int
+	Result    string
+}
+
+var scenarios = []Replicas{
+	{
+		Title:     "Idle",
+		Loadbots:  1,
+		Webserver: 1,
+	},
+	{
+		Title:     "Under load",
+		Loadbots:  1,
+		Webserver: 10,
+	},
+	{
+		Title:     "Equal load",
+		Loadbots:  10,
+		Webserver: 10,
+	},
+	{
+		Title:     "Over load",
+		Loadbots:  100,
+		Webserver: 10,
+	},
+	{
+		Title:     "High load",
+		Loadbots:  100,
+		Webserver: 100,
+	},
+}
+
+const (
+	summaryDataMarker    = "GENERATING SUMMARY OUTPUT"
+	summaryEndDataMarker = "END SUMMARY DATA"
+)
+
+var (
+	selector = flag.String("selector", "", "The label selector for pods")
+	loadbotsPort = flag.Int("loadbots-port", 80, "Target port of selected pods")
+	useIP    = flag.Bool("use-ip", true, "Use IP for aggregation")
+	sleep    = flag.Duration("sleep", 1*time.Second, "The sleep period between aggregations")
+)
+
+func main() {
+	flag.Parse()
+	runScaleTest()
+}
+
+func runScaleTest() {
+	iterations := 10
+	currentLoadbots := 1
+	currentWebservers := 1
+
+	for k, s := range scenarios {
+		var queryPerSecond float64
+		var success float64
+		var latencyMean time.Duration
+		var latency99th time.Duration
+		var latencyMeans time.Duration
+		var latency99ths time.Duration
+
+		fmt.Printf("Load scenario '%s': %d Loadbots - %d Webservers\n", s.Title, s.Loadbots, s.Webserver)
+		if k != 0 {
+			if currentLoadbots != s.Loadbots {
+				cmdExecutor.ScaleReplicationController(scaleTestNamespace, loadbotsName, s.Webserver)
+				currentWebservers = s.Loadbots
+			}
+			if currentWebservers != s.Webserver {
+				cmdExecutor.ScaleReplicationController(scaleTestNamespace, webserverName, s.Webserver)
+				currentWebservers = s.Webserver
+			}
+
+		}
+
+		waitForScaleTestServicesToBeRunning(currentWebservers + currentLoadbots)
+		time.Sleep(5*time.Second)
+		displayScaleTestPods()
+
+		for i := 1; i <= iterations; i++ {
+			start := time.Now()
+
+			parts := fetchResults()
+			qps, scs, lm, lp99 := evaluateData(parts)
+			queryPerSecond += qps
+			success += scs
+			latencyMeans += lm
+			latency99ths += lp99
+
+			latency := time.Since(start)
+			if latency < *sleep {
+				time.Sleep(*sleep - latency)
+			}
+		}
+
+		success /= float64(iterations)
+		latencyMean = time.Duration(latencyMeans.Nanoseconds() / int64(iterations))
+		latency99th = time.Duration(latency99ths.Nanoseconds() / int64(iterations))
+		s.Result = fmt.Sprintf("QPS: %.0f Success: %.2f%s - Latency mean: %s 99th: %s",
+			queryPerSecond, success, "%%", latencyMean, latency99th)
+
+		fmt.Printf("Summary of load scenario '%s':\n%s\n", s.Title, s.Result)
+		fmt.Println("")
+	}
+}
+
+
+func loadData() {
+	config := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(&clientcmd.ClientConfigLoadingRules{}, &clientcmd.ConfigOverrides{})
+	clientConfig, err := config.ClientConfig()
+	if err != nil {
+		fmt.Printf("Error creating client config: %v", err)
+		return
+	}
+	c, err := client.New(clientConfig)
+	if err != nil {
+		fmt.Printf("Error creating client: %v", err)
+		return
+	}
+	var labelSelector labels.Selector
+	if *selector != "" {
+		labelSelector, err = labels.Parse(*selector)
+		if err != nil {
+			fmt.Printf("Parse label selector err: %v", err)
+			return
+		}
+	} else {
+		labelSelector = labels.Everything()
+	}
+	pods, err := c.Pods(api.NamespaceDefault).List(api.ListOptions{
+		LabelSelector: labelSelector,
+		FieldSelector: fields.Everything(),
+	})
+	if err != nil {
+		fmt.Printf("Error getting pods: %v", err)
+		return
+	}
+	loadbots := []*api.Pod{}
+	for ix := range pods.Items {
+		pod := &pods.Items[ix]
+		if pod.Status.PodIP == "" {
+			continue
+		}
+		loadbots = append(loadbots, pod)
+	}
+	parts := []vegeta.Metrics{}
+	lock := sync.Mutex{}
+	wg := sync.WaitGroup{}
+	wg.Add(len(loadbots))
+	for ix := range loadbots {
+		go func(ix int) {
+			defer wg.Done()
+			pod := loadbots[ix]
+			var data []byte
+			if *useIP {
+				url := "http://" + pod.Status.PodIP + ":8080/"
+				resp, err := http.Get(url)
+				if err != nil {
+					fmt.Printf("Error getting: %v\n", err)
+					return
+				}
+				defer resp.Body.Close()
+				if data, err = ioutil.ReadAll(resp.Body); err != nil {
+					fmt.Printf("Error reading: %v\n", err)
+					return
+				}
+			} else {
+				var err error
+				data, err = c.RESTClient.Get().AbsPath("/api/v1/proxy/namespaces/default/pods/" + pod.Name + ":8080/").DoRaw()
+				if err != nil {
+					fmt.Printf("Error proxying to pod: %v\n", err)
+					return
+				}
+			}
+			var metrics vegeta.Metrics
+			if err := json.Unmarshal(data, &metrics); err != nil {
+				fmt.Printf("Error decoding: %v\n", err)
+				return
+			}
+			lock.Lock()
+			defer lock.Unlock()
+			parts = append(parts, metrics)
+		}(ix)
+	}
+	wg.Wait()
+	data, err := json.Marshal(parts)
+	if err != nil {
+		fmt.Printf("Error marshaling: %v", err)
+	}
+	setData(data)
+	fmt.Printf("Updated.\n")
+}
+
+func fetchResults() []loadbotMetrics {
+	var ips []string
+	var err error
+	attempts := 0
+
+	for {
+		ips, err = getLoadbotPodIPs()
+		if err != nil {
+			fmt.Printf("Could not get loadbot ips: %s\n", err)
+			attempts += 1
+			if attempts < 3 {
+				time.Sleep(2 * time.Second)
+				continue
+			} else {
+				fmt.Printf("Failed to get loadbot ips after 3 attempts: %v\n", err) //TODO critical?
+			}
+		} else {
+			break
+		}
+	}
+
+	parts := []loadbotMetrics{}
+	lock := sync.Mutex{}
+	wg := sync.WaitGroup{}
+	wg.Add(len(ips))
+	for _, ip := range ips {
+		go func(ip string) {
+			defer wg.Done()
+			cmd := fmt.Sprintf("curl --silent http://%s:%d/", ip, loadbotsPort)
+			resp, err := cmdExecutor.PerformCmd(cmd)
+			if err != nil {
+				fmt.Printf("Error calling '%s': %s\n", cmd, err)
+				return
+			}
+
+			var metrics loadbotMetrics
+			if err := json.Unmarshal([]byte(resp.Stdout), &metrics); err != nil {
+				fmt.Printf("Error decoding response of %s: %v\n", cmd, err)
+				return
+			}
+			lock.Lock()
+			defer lock.Unlock()
+			parts = append(parts, metrics)
+		}(ip)
+	}
+	wg.Wait()
+
+	return parts
+}
+
+func evaluateData(metrics []loadbotMetrics) (queryPerSecond float64, success float64, latencyMean time.Duration, latency99th time.Duration) {
+	var latencyMeans time.Duration
+	var latency99ths time.Duration
+
+	for _, v := range metrics {
+		if v.Rate > 0 {
+			queryPerSecond += v.Rate
+		}
+
+		success += v.Success * 100
+		latencyMeans += v.Latencies.Mean
+		latency99ths += v.Latencies.P99
+	}
+
+	success /= float64(len(metrics))
+	latencyMean = time.Duration(latencyMeans.Nanoseconds() / int64(len(metrics)))
+	latency99th = time.Duration(latency99ths.Nanoseconds() / int64(len(metrics)))
+
+	fmt.Printf("%s: QPS: %.0f Success: %.2f%s - Latency mean: %s 99th: %s\n",
+		time.Now().Format("2006-01-02T15:04:05"), queryPerSecond, success, "%%", latencyMean, latency99th)
+
+	return queryPerSecond, success, latencyMean, latency99th
+}
+
+func showSummary() {
+	fmt.Printf("Summary of load scenarios: %s\n", summaryDataMarker)
+	for _, s := range scenarios {
+		fmt.Printf("'%s': %s\n", s.Title, s.Result)
+	}
+	fmt.Printf("%s\n", summaryEndDataMarker)
+}
+
+func getLoadbotPodIPs() ([]string, error) {
+	tmpl := "\"{..status.podIP}\""
+	args := []string{"--namespace=" + scaleTestNamespace, "get", "pods", "-l", "app=" + loadbotsName, "-o", "jsonpath=" + tmpl}
+	sshOut, err := cmdExecutor.RunKubectlCommand(args)
+
+	if err != nil {
+		return []string{}, err
+	}
+
+	return strings.Split(sshOut.Stdout, " "), nil
+}

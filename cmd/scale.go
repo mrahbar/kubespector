@@ -22,7 +22,7 @@ var scaleCmd = &cobra.Command{
 func init() {
 	PerfCmd.AddCommand(scaleCmd)
     scaleCmd.Flags().StringVarP(&scaleTestOpts.OutputDir, "output", "o", "scaletest-results", "Full path to directory for result files")
-	scaleCmd.Flags().BoolVarP(&scaleTestOpts.Cleanup, "cleanup", "c", true, "Delete test pods when done")
+	scaleCmd.Flags().BoolVarP(&scaleTestOpts.Cleanup, "cleanup", "c", false, "Delete test pods when done")
 }
 
 func scaleRun(_ *cobra.Command, _ []string) {

@@ -2,6 +2,12 @@
 
 
 [[projects]]
+  name = "github.com/davecgh/go-spew"
+  packages = ["spew"]
+  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
+  version = "v1.1.0"
+
+[[projects]]
   name = "github.com/fatih/color"
   packages = ["."]
   revision = "570b54cabe6b8eb0bc2dfce68d964677d63b5260"
@@ -80,6 +86,12 @@
   version = "1.0.0"
 
 [[projects]]
+  name = "github.com/pmezard/go-difflib"
+  packages = ["difflib"]
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
+  version = "v1.0.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/spf13/afero"
   packages = [".","mem"]
@@ -122,6 +134,12 @@
   revision = "b0c588724d25ae13f5afb3d90efec0edc636432b"
 
 [[projects]]
+  name = "github.com/stretchr/testify"
+  packages = ["assert"]
+  revision = "69483b4bd14f5845b5a1e55bca19e954e827f1d0"
+  version = "v1.1.4"
+
+[[projects]]
   name = "github.com/tsenart/vegeta"
   packages = ["lib"]
   revision = "9f28db162ce19bb52817af4fd9b5801b1f2772c5"
@@ -160,6 +178,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "08c2aa9b2648f31804887d1b5fc72318369f3d7add49abfc6e2f0615dfe2a952"
+  inputs-digest = "8b88c53ef054c087d9c3c0bd70d7c6e8e315b51c44bbb26b8116f14baab8d27c"
   solver-name = "gps-cdcl"
   solver-version = 1

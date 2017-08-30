@@ -24,7 +24,7 @@ func initializeStopService(service string, node string, group string) {
 			service, node), '=')
 	}
 
-    printer.PrettyNewLine()
+    printer.PrintNewLine()
 }
 
 func stopService(service string) {
@@ -37,5 +37,5 @@ func stopService(service string) {
         printer.PrintOk("Service %s stopped.", service)
     }
 
-    printer.PrettyNewLine()
+    printer.PrintNewLine()
 }

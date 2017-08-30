@@ -40,7 +40,7 @@ var White = color.New(color.FgHiWhite)
 var Grey = color.New(color.FgWhite)
 
 type LogWriter interface {
-	PrettyNewLine()
+	PrintNewLine()
 	PrintHeader(msg string, padding byte)
 	Print(msg string, a ...interface{})
 	PrintCritical(msg string, a ...interface{})
@@ -137,7 +137,7 @@ func (p *Printer) PrintSkipped(msg string, a ...interface{}) {
     }
 }
 
-func (p *Printer) PrettyNewLine() {
+func (p *Printer) PrintNewLine() {
     printMsg("", noType)
 }
 

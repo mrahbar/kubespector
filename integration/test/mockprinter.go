@@ -10,7 +10,7 @@ type MockLogWriter struct {
     Out io.Writer
 }
 
-func (p *MockLogWriter) PrettyNewLine() {
+func (p *MockLogWriter) PrintNewLine() {
 
 }
 func (p *MockLogWriter) PrintHeader(msg string, padding byte) {

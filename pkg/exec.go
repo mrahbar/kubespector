@@ -35,7 +35,7 @@ func initializeExec(target string, node string, group string) {
             printer.PrintInfo("Result is written to file %s screen output is suppressed.", execOpts.FileOutput)
 		}
 	}
-    printer.PrettyNewLine()
+    printer.PrintNewLine()
 }
 
 func exec(command string) {
@@ -66,5 +66,5 @@ func exec(command string) {
 		}
 	}
 
-    printer.PrettyNewLine()
+    printer.PrintNewLine()
 }
