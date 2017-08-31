@@ -420,7 +420,7 @@ func runScaleTest() {
             }
         }
 
-        result := fmt.Sprintf("QPS: %.0f Success: %.2f%s - Latency mean: %s 99th: %s",
+        result := fmt.Sprintf("QPS: %-8.0f Success: %-8.2f%s Latency: %s (mean) %s (99th)",
             queryPerSecond, success, "%%", latencyMean, latency99th)
         summary = append(summary, resultEntry{
             title:  s.title,
@@ -520,7 +520,7 @@ func evaluateData(metrics []loadbotMetrics) (queryPerSecond float64, success flo
 func showSummary() {
     printer.PrintInfo("Summary of load scenarios:")
     for k, s := range summary {
-        printer.PrintInfo("%d. '%s': %s", k, s.title, s.result)
+        printer.PrintInfo("%d. %-10s: %s", k, s.title, s.result)
     }
     printer.PrintNewLine()
 }
