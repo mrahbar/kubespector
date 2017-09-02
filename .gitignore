@@ -5,3 +5,4 @@
 *.tmp
 *.bz2
 vendor/
+pkg/TestLogs_*
