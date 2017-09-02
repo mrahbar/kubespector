@@ -84,6 +84,8 @@ func logs(element string) {
 			}
 		}
 		command = append(command, element)
+	default:
+		printer.PrintCritical("Unknown type %s", logOpts.Type)
 	}
 
 	cmd := fmt.Sprintf("%s", strings.Join(command, " "))
@@ -100,7 +102,7 @@ func logs(element string) {
 	} else {
 		result := ssh.CombineOutput(sshOut)
 		if logOpts.FileOutput != "" {
-			out := fmt.Sprintf("Result of '%s' on node %s:\n\n%s\n\n", command, util.ToNodeLabel(node), result)
+			out := fmt.Sprintf("Result of '%s' on node %s:\n\n%s\n\n", strings.Join(command, " "), util.ToNodeLabel(node), result)
 			err := util.WriteOutputFile(logOpts.FileOutput, out)
 			if err != nil {
 				printer.PrintWarn("Failed to write to output file %s forwarding to screen: %s", logOpts.FileOutput, err)

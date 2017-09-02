@@ -5,6 +5,8 @@ import (
     "github.com/mrahbar/kubernetes-inspector/types"
     "github.com/stretchr/testify/assert"
     "fmt"
+    "github.com/bouk/monkey"
+    "os"
 )
 
 func TestKubectlService_NoMasters(t *testing.T) {
@@ -13,12 +15,19 @@ func TestKubectlService_NoMasters(t *testing.T) {
         Command: "version",
     }
 
+    osExitCalled := false
+    patch := monkey.Patch(os.Exit, func(int) {
+        osExitCalled = true
+    })
+    defer patch.Unpatch()
+
     context.Config.ClusterGroups = []types.ClusterGroup{}
     Kubectl(context)
+    assert.True(t, osExitCalled)
     assert.Contains(t, outBuffer.String(), "No host configured for group [Master]")
 }
 
-func TestKubectlService_SecondNodeAccessible(t *testing.T) {
+func TestKubectl_SecondNodeAccessible(t *testing.T) {
     mockExecutor, outBuffer, context := defaultContext()
     context.Opts = &types.KubectlOpts{
         Command: "version",
@@ -50,14 +59,13 @@ func TestKubectlService_SecondNodeAccessible(t *testing.T) {
 
     Kubectl(context)
     out := outBuffer.String()
-    fmt.Println(out)
     assert.Equal(t, calledTimes, 3)
     assert.NotEmpty(t, out)
     assert.Equal(t, "host2", mockExecutor.Node.Host)
     assert.Contains(t, out, kubectlVersion)
 }
 
-func TestKubectlService_Error(t *testing.T) {
+func TestKubectl_Error(t *testing.T) {
     mockExecutor, outBuffer, context := defaultContext()
     context.Opts = &types.KubectlOpts{
         Command: "version",
@@ -76,7 +84,6 @@ func TestKubectlService_Error(t *testing.T) {
 
     Kubectl(context)
     out := outBuffer.String()
-    fmt.Println(out)
     assert.True(t, called)
     assert.NotEmpty(t, out)
     assert.Contains(t, out, "Error performing kubectl command 'version': "+kubectlVersion)
