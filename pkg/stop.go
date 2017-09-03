@@ -30,7 +30,7 @@ func initializeStopService(service string, node string, group string) {
 func stopService(service string) {
     _, err := cmdExecutor.PerformCmd(fmt.Sprintf("sudo systemctl stop %s", service))
 
-    printer.Print(fmt.Sprintf("Result on node %s:", util.ToNodeLabel(node)))
+    printer.Print(fmt.Sprintf("Result on node %s:", util.ToNodeLabel(cmdExecutor.GetNode())))
 	if err != nil {
         printer.PrintErr("Error stopping service %s: %s", service, err)
 	} else {

@@ -30,7 +30,7 @@ func initializeRestartService(service string, node string, group string) {
 func restartService(service string) {
     _, err := cmdExecutor.PerformCmd(fmt.Sprintf("sudo systemctl restart %s", service))
 
-    printer.Print(fmt.Sprintf("Result on node %s:", util.ToNodeLabel(node)))
+    printer.Print(fmt.Sprintf("Result on node %s:", util.ToNodeLabel(cmdExecutor.GetNode())))
 
 	if err != nil {
         printer.PrintErr("Error restarting service %s: %s", service, err)

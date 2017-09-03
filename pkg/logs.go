@@ -96,13 +96,13 @@ func logs(element string) {
 
 	sshOut, err := cmdExecutor.PerformCmd(cmd)
 
-	printer.Print(fmt.Sprintf("Result on node %s:\n", util.ToNodeLabel(node)))
+	printer.Print(fmt.Sprintf("Result on node %s:\n", util.ToNodeLabel(cmdExecutor.GetNode())))
 	if err != nil {
 		printer.PrintErr("Error executing command: %s", err)
 	} else {
 		result := ssh.CombineOutput(sshOut)
 		if logOpts.FileOutput != "" {
-			out := fmt.Sprintf("Result of '%s' on node %s:\n\n%s\n\n", strings.Join(command, " "), util.ToNodeLabel(node), result)
+			out := fmt.Sprintf("Result of '%s' on node %s:\n\n%s\n\n", strings.Join(command, " "), util.ToNodeLabel(cmdExecutor.GetNode()), result)
 			err := util.WriteOutputFile(logOpts.FileOutput, out)
 			if err != nil {
 				printer.PrintWarn("Failed to write to output file %s forwarding to screen: %s", logOpts.FileOutput, err)

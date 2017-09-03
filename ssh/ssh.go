@@ -20,6 +20,10 @@ type Executor struct {
     Printer integration.LogWriter
 }
 
+func (c *Executor) GetNode() types.Node {
+    return c.Node
+}
+
 func (c *Executor) SetNode(node types.Node) {
     c.Node = node
 }

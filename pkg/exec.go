@@ -47,13 +47,13 @@ func exec(command string) {
 
     sshOut, err := cmdExecutor.PerformCmd(command)
 
-    printer.Print(fmt.Sprintf("Result on node %s:", util.ToNodeLabel(node)))
+    printer.Print(fmt.Sprintf("Result on node %s:", util.ToNodeLabel(cmdExecutor.GetNode())))
 	if err != nil {
         printer.PrintErr("Error executing command: %s", err)
 	} else {
 		result := ssh.CombineOutput(sshOut)
 		if execOpts.FileOutput != "" {
-			out := fmt.Sprintf("Result of '%s' on node %s:\n\n%s\n\n", command, util.ToNodeLabel(node), result)
+			out := fmt.Sprintf("Result of '%s' on node %s:\n\n%s\n\n", command, util.ToNodeLabel(cmdExecutor.GetNode()), result)
 			err := util.WriteOutputFile(execOpts.FileOutput, out)
 			if err != nil {
                 printer.PrintWarn("Failed to write to output file %s forwarding to screen: %s", execOpts.FileOutput, err)
