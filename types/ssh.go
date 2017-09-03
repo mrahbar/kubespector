@@ -33,6 +33,7 @@ type SSHOutput struct {
 
 type CommandExecutor interface {
     SetNode(node Node)
+    GetNode() Node
     PerformCmd(command string) (*SSHOutput, error)
 
     DownloadFile(remotePath string, localPath string) error

@@ -8,6 +8,7 @@ import (
 type MockExecutor struct {
     Node types.Node
     MockSetNode    func(node types.Node)
+    MockGetNode    func() types.Node
     MockPerformCmd func(command string) (*types.SSHOutput, error)
 
     MockDownloadFile      func(remotePath string, localPath string) error
@@ -26,6 +27,14 @@ type MockExecutor struct {
     MockScaleReplicationController  func(namespace string, rc string, replicas int) error
     MockGetPods                     func(namespace string, wide bool) (*types.SSHOutput, error)
     MockRemoveResource              func(namespace, fullQualifiedName string) error
+}
+
+func (e *MockExecutor) GetNode() types.Node {
+    if e.MockGetNode != nil {
+        return e.MockGetNode()
+    } else {
+        return e.Node
+    }
 }
 
 func (e *MockExecutor) SetNode(node types.Node) {
