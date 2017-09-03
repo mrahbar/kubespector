@@ -31,7 +31,7 @@ func initializeStatusService(service string, node string, group string) {
 func statusService(service string) {
     sshOut, err := cmdExecutor.PerformCmd(fmt.Sprintf("sudo systemctl status %s -l", service))
 
-    printer.Print(fmt.Sprintf("Result on node %s:", util.ToNodeLabel(node)))
+    printer.Print(fmt.Sprintf("Result on node %s:", util.ToNodeLabel(cmdExecutor.GetNode())))
 	if err != nil {
         printer.PrintErr("Error checking status of service %s: %s", service, err)
 	} else {

@@ -95,7 +95,7 @@ func scp(target string) {
 		}
 	}
 
-	printer.Print(fmt.Sprintf("Result on node %s:", util.ToNodeLabel(node)))
+	printer.Print(fmt.Sprintf("Result on node %s:", util.ToNodeLabel(cmdExecutor.GetNode())))
 	if scpErr != nil {
 		printer.PrintErr("Scp failed %s %s %s: %s", scpOpts.LocalPath, direction, scpOpts.RemotePath, scpErr)
 	} else if direction != "" {
