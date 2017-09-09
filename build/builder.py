@@ -124,7 +124,7 @@ def get_current_version_tag():
 def get_current_version():
     """Parse version information from git tag output.
     """
-    version_tag = get_current_commit(short=True)
+    version_tag = get_current_version_tag()
     return version_tag
 
 
