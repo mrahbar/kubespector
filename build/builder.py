@@ -331,7 +331,7 @@ def build(version=None, platform=None, arch=None, clean=False, outdir=".", tags=
                 logging.error("Please specify either 'armel', 'armhf', or 'arm64'.")
                 return False
 
-        target = "{}-{}".format(target,version)
+        target = "{}-{}-{}-{}".format(target, version, platform, arch)
         if platform == 'windows':
             target = target + '.exe'
         build_command += "go build -o {} ".format(os.path.join(outdir, target))
