@@ -14,7 +14,7 @@ var versionCmd = &cobra.Command{
 	Long:  `The version is aligned with the SemVer specification, e.q. 1.0.0`,
 	Run: func(cmd *cobra.Command, args []string) {
         integration.PrettyPrint("kubernetes-inspector:")
-        integration.PrettyPrint("-  Version: %s", BuildInfos.Branch)
+        integration.PrettyPrint("-  Version: %s", BuildInfos.Version)
         integration.PrettyPrint("-  Build date: %s", BuildInfos.BuildDate)
         integration.PrettyPrint("-  Branch: %s", BuildInfos.Branch)
         integration.PrettyPrint("-  Commit: %s", BuildInfos.Commit)
