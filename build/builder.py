@@ -1,14 +1,12 @@
 #!/usr/bin/python2.7 -u
 
 import argparse
-import hashlib
 import logging
 import os
 import re
 import shutil
 import subprocess
 import sys
-import tempfile
 from datetime import datetime
 
 # Packaging variables
@@ -332,9 +330,11 @@ def build(version=None, platform=None, arch=None, clean=False, outdir=".", tags=
                 logging.error("Invalid ARM architecture specified: {}".format(arch))
                 logging.error("Please specify either 'armel', 'armhf', or 'arm64'.")
                 return False
+
+        target = "{}-{}".format(target,version)
         if platform == 'windows':
             target = target + '.exe'
-        build_command += "go build -o {}-{} ".format(os.path.join(outdir, target), version)
+        build_command += "go build -o {} ".format(os.path.join(outdir, target))
         if len(tags) > 0:
             build_command += "-tags {} ".format(','.join(tags))
 
