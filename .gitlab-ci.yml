@@ -5,15 +5,16 @@ stages:
 
 before_script:
   - mkdir -p /go/src/github.com/mrahbar
+  - mkdir -p /builds/mrahbar/kubernetes-inspector/out
   - cp -r /builds/mrahbar/kubernetes-inspector /go/src/github.com/mrahbar
   - cd /go/src/github.com/mrahbar/kubernetes-inspector
   
 build-project:
   stage: build
   script:
-    - python build/builder.py --debug --static --outdir /builds/mrahbar/kubernetes-inspector/ --platform all    
+    - python build/builder.py --static --outdir /builds/mrahbar/kubernetes-inspector/out --platform all
   artifacts:
     when: on_success
     paths:
-    - kubespector-*
+    - out/*
     
