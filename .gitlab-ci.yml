@@ -11,8 +11,7 @@ before_script:
 build-project:
   stage: build
   script:
-    - python build/builder.py --debug --static --outdir ./ --platform all
-    - mv kubespector-* /builds/mrahbar/kubernetes-inspector
+    - python build/builder.py --debug --static --outdir /builds/mrahbar/kubernetes-inspector/ --platform all    
   artifacts:
     when: on_success
     paths:
