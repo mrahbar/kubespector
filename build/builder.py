@@ -16,10 +16,11 @@ PACKAGE_URL = "https://github.com/mrahbar/kubernetes-inspector"
 DESCRIPTION = "Management tool for Kubernetes"
 
 prereqs = [ 'git', 'go' ]
-go_vet_command = "go tool vet -composites=true ./"
+go_vet_command = "go tool vet -composites=true"
+go_test_command = "go test -coverprofile -v"
 
 targets = {
-    'kubespector' : './main.go'
+    'kubespector' : {'build': './main.go', 'test': './pkg'}
 }
 
 supported_builds = {
@@ -97,6 +98,18 @@ def go_get(no_uncommitted=False):
     sys.stdout.flush()
     run("dep ensure -v")
     return True
+
+
+def go_vet(package):
+    output = run("{} {}".format(go_vet_command, package))
+    if len(output) > 0:
+        logging.info("Result: "+output.strip())
+        sys.exit(1)
+
+
+def go_test(package):
+    output = run("{} {}".format(go_test_command, package))
+    logging.info("Result: "+output.strip())
 
 
 def increment_minor_version(version):
@@ -298,8 +311,8 @@ def build(version=None, platform=None, arch=None, clean=False, outdir=".", tags=
 
     logging.info("Using version '{}' for build.".format(version))
 
-    for target, path in targets.items():
-        logging.info("Building target: {}".format(target))
+    for key, target in targets.items():
+        logging.info("Building target: {}".format(key))
         build_command = ""
         build_envs = {}
 
@@ -331,10 +344,10 @@ def build(version=None, platform=None, arch=None, clean=False, outdir=".", tags=
                 logging.error("Please specify either 'armel', 'armhf', or 'arm64'.")
                 return False
 
-        target = "{}-{}-{}-{}".format(target, version, platform, arch)
+        key = "{}-{}-{}-{}".format(key, version, platform, arch)
         if platform == 'windows':
-            target = target + '.exe'
-        build_command += "go build -o {} ".format(os.path.join(outdir, target))
+            key = key + '.exe'
+        build_command += "go build -o {} ".format(os.path.join(outdir, key))
         if len(tags) > 0:
             build_command += "-tags {} ".format(','.join(tags))
 
@@ -343,8 +356,13 @@ def build(version=None, platform=None, arch=None, clean=False, outdir=".", tags=
 
         if static:
             build_command += "-a -installsuffix cgo "
-        build_command += path
+        build_command += target['build']
         start_time = datetime.utcnow()
+
+        if not args.skip_test:
+            go_vet(target['test'])
+            go_test(target['test'])
+
         run(build_command, envs=build_envs, shell=True)
         end_time = datetime.utcnow()
         logging.info("Time taken: {}s".format((end_time - start_time).total_seconds()))
@@ -426,6 +444,7 @@ def main(args):
 
     return 0
 
+
 if __name__ == '__main__':
     LOG_LEVEL = logging.INFO
     if '--debug' in sys.argv[1:]:
@@ -485,6 +504,9 @@ if __name__ == '__main__':
     parser.add_argument('--skip-dep',
                         action='store_true',
                         help='Skips retrieval of build dependencies')
+    parser.add_argument('--skip-test',
+                        action='store_true',
+                        help='Skips test and vet')
     parser.add_argument('--build-tags',
                         metavar='<tags>',
                         help='Optional build tags to use for compilation')
