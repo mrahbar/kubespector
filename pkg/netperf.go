@@ -128,8 +128,10 @@ func createNetperfServices() {
 	exists, err := cmdExecutor.CreateService(data)
 	if exists {
         printer.PrintIgnored("Service: %s already exists.", orchestratorName)
-	} else {
+	} else if err != nil {
         printer.PrintCritical("Error adding service %v: %s", orchestratorName, err)
+	} else {
+		printer.PrintOk("Service %s created", orchestratorName)
 	}
 
 	// Create the netperf-w2 service that points a clusterIP at the worker 2 pod
@@ -157,10 +159,13 @@ func createNetperfServices() {
 	exists, err = cmdExecutor.CreateService(data)
 	if exists {
         printer.PrintIgnored("Service: %s already exists.", name)
-	} else {
+	} else if err != nil {
         printer.PrintCritical("Error adding service %v: %s", name, err)
+	} else {
+		printer.PrintOk("Service %s created", name)
 	}
-    printer.PrintNewLine()
+
+	printer.PrintNewLine()
 }
 
 func createNetperfReplicationControllers() {
