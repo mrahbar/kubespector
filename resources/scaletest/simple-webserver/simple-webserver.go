@@ -10,6 +10,7 @@ import (
 	"strings"
     "text/template"
     "time"
+	"net/http/httputil"
 )
 
 var port string
@@ -48,7 +49,11 @@ func main() {
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Request: path %s", r.URL.Path[1:])
+	log.Println("Request:")
+	dump, err := httputil.DumpRequest(r, true)
+	if err == nil {
+		log.Println(string(dump))
+	}
 	data := make(map[string]string)
 	data["Date"] = time.Now().Format(time.RFC822)
 
@@ -63,6 +68,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	responseTmpl.Execute(&response, data)
 
 	resp := response.String()
-	log.Printf("Response: %s", resp)
+	log.Println("Response:")
+	log.Printf("%s", resp)
 	fmt.Fprint(w, resp)
 }
