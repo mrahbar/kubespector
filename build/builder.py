@@ -44,7 +44,7 @@ def print_banner():
 
   Build Script
 """)
-
+# Made with: http://www.kammerl.de/ascii/AsciiSignature.php
 
 def run(command, envs={}, allow_failure=False, shell=False):
     """Run shell command (convenience wrapper around subprocess).

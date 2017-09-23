@@ -2,10 +2,16 @@
 [![coverage report](https://gitlab.com/mrahbar/kubernetes-inspector/badges/master/coverage.svg)](https://gitlab.com/mrahbar/kubernetes-inspector/commits/master)
 # kubespector - A cli tool to inspect your kubernetes cluster from remote
 Kubespector was written out of the need to inspect a running kubernetes cluster remotely. 
-It is packed with a lot of useful commands which make the live of admins easier. 
+It is packed with a lot of useful commands which make the live of Kubernetes admins easier.
 
-Kubespector is opinionated about the type of kubernetes installation but in the most parts it is configurable to your needs.
+Kubespector is opinionated about the type of Kubernetes installation (see Config section) but in the most parts it is configurable to your needs.
 Since the remote connection uses ssh, it should be checked beforehand that the host running Kubespector can ssh into the target hosts.
+
+#### Who should use kubespector?
+- You frequently interact with system services e.g. check the status, restart a service
+- You want to perform the same command on a set of nodes 
+- You want to fetch logs from system services, Kubernetes pods or Docker Container alike
+- You want to run network and scale tests on a new or already running cluster
 
 ## Usage
 Call `kubespector` without any arguments to get an overview on commands. Some usage examples:
@@ -39,3 +45,7 @@ Use "kubespector [command] --help" for more information about a command.
 ````
 
 ##  CLI commands
+
+## Acknowledgement
+- kismatic (kubernetes-inspector idea)
+- packer (communicator.go)
