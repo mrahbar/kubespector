@@ -447,7 +447,7 @@ func fetchResults() ([]loadbotMetrics, error) {
                 continue
             } else {
                 printer.PrintWarn("Failed to get loadbot ips after 3 attempts: %v", err)
-                return []loadbotMetrics{}, e
+                return []loadbotMetrics{}, err
             }
         } else {
             break
