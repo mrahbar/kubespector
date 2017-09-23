@@ -8,3 +8,4 @@ vendor/
 pkg/TestLogs_*
 local/
 build/*.exe
+-v
