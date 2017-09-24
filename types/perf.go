@@ -7,5 +7,6 @@ type NetperfOpts struct {
 
 type ScaleTestOpts struct {
 	OutputDir string
+	MaxReplicas int
 	Cleanup   bool
 }

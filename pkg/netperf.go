@@ -315,7 +315,7 @@ func displayNetperfPods() {
 	if err != nil {
         printer.PrintWarn("Error running kubectl command '%v'", err)
 	} else {
-        printer.Print("Pods are running\n%s", result)
+        printer.Print("Pods are running\n%s", result.Stdout)
     }
 
     printer.PrintNewLine()

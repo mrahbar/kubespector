@@ -27,11 +27,13 @@ const (
     webserverPort = 80
     loadbotsPort  = 8080
 
+    MaxScaleReplicas = 100
+
     fetch_metrics_script = `
 echo '[' > response.json
 for i in {1..10} ; do
     for var in "$@"; do
-        output=$(curl --silent http://$var)
+        output=$(curl --noproxy '*' --silent http://$var)
         echo "${output}" >> response.json
         echo "," >> response.json
     done;
@@ -44,6 +46,34 @@ rm response.json
 exit 0
 `
 )
+
+var scenarios = []replicas{
+    {
+        title:     "Idle",
+        loadbots:  1,
+        webserver: 1,
+    },
+    {
+        title:     "Under load",
+        loadbots:  1,
+        webserver: 10,
+    },
+    {
+        title:     "Equal load",
+        loadbots:  10,
+        webserver: 10,
+    },
+    {
+        title:     "Over load",
+        loadbots:  100,
+        webserver: 10,
+    },
+    {
+        title:     "High load",
+        loadbots:  100,
+        webserver: 100,
+    },
+}
 
 type (
     // Metrics holds metrics computed out of a slice of Results which are used
@@ -342,55 +372,37 @@ func waitForScaleTestServicesToBeRunning(targets int) {
 }
 
 func runScaleTest() {
-    currentLoadbots := 1
-    currentWebservers := 1
+    var currentLoadbots, currentWebservers int
 
-    scenarios := []replicas{
-        {
-            title:     "Idle",
-            loadbots:  1,
-            webserver: 1,
-        },
-        {
-            title:     "Under load",
-            loadbots:  1,
-            webserver: 10,
-        },
-        {
-            title:     "Equal load",
-            loadbots:  10,
-            webserver: 10,
-        },
-        {
-            title:     "Over load",
-            loadbots:  100,
-            webserver: 10,
-        },
-        {
-            title:     "High load",
-            loadbots:  100,
-            webserver: 100,
-        },
-    }
+    for _, s := range scenarios {
+        var queryPerSecond, success float64
+        var latencyMean, latency99th time.Duration
 
-    for k, s := range scenarios {
-        var queryPerSecond float64
-        var success float64
-        var latencyMean time.Duration
-        var latency99th time.Duration
-
-        printer.PrintInfo("Load scenario '%s': %d Loadbots - %d Webservers", s.title, s.loadbots, s.webserver)
-        if k != 0 {
-            time.Sleep(2 * time.Second)
-            if currentLoadbots != s.loadbots {
-                cmdExecutor.ScaleReplicationController(scaleTestNamespace, loadbotsName, s.loadbots)
-                currentLoadbots = s.loadbots
+        loadbotReplicas := s.loadbots * scaleTestOpts.MaxReplicas /100
+        webserverReplicas := s.webserver * scaleTestOpts.MaxReplicas /100
+        if s.loadbots != 1 {
+            time.Sleep(1 * time.Second)
+            if currentLoadbots != loadbotReplicas {
+                cmdExecutor.ScaleReplicationController(scaleTestNamespace, loadbotsName, loadbotReplicas)
+                currentLoadbots = loadbotReplicas
             }
-            if currentWebservers != s.webserver {
-                cmdExecutor.ScaleReplicationController(scaleTestNamespace, webserverName, s.webserver)
-                currentWebservers = s.webserver
-            }
+        } else {
+            currentLoadbots = 1
+            loadbotReplicas = 1
         }
+
+        if s.webserver != 1 {
+            time.Sleep(1 * time.Second)
+            if currentWebservers != webserverReplicas {
+                cmdExecutor.ScaleReplicationController(scaleTestNamespace, webserverName, webserverReplicas)
+                currentWebservers = webserverReplicas
+            }
+        } else {
+            currentWebservers = 1
+            webserverReplicas = 1
+        }
+
+        printer.PrintInfo("Load scenario '%s': %d Loadbots - %d Webservers", s.title, loadbotReplicas, webserverReplicas)
 
         waitForScaleTestServicesToBeRunning(currentWebservers + currentLoadbots)
         time.Sleep(3 * time.Second)
