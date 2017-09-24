@@ -152,6 +152,10 @@ func ScaleTest(cmdParams *types.CommandContext) {
     scaleTestOpts = cmdParams.Opts.(*types.ScaleTestOpts)
     group := util.FindGroupByName(config.ClusterGroups, types.MASTER_GROUPNAME)
 
+    if scaleTestOpts.MaxReplicas <= 1 {
+        printer.PrintCritical("Max replicas must be greater than 1 was %d", scaleTestOpts.MaxReplicas)
+    }
+
     if group.Nodes == nil || len(group.Nodes) == 0 {
         printer.PrintCritical("No host configured for group [%s]", types.MASTER_GROUPNAME)
     }
@@ -439,7 +443,7 @@ func runScaleTest() {
             result: result,
         })
 
-        printer.PrintInfo("Summary of load scenario '%s':\n%s", s.title, result)
+        printer.PrintOk("Summary of load scenario '%s':\n%s", s.title, result)
         printer.PrintNewLine()
     }
 }
@@ -530,9 +534,9 @@ func evaluateData(metrics []loadbotMetrics) (queryPerSecond float64, success flo
 }
 
 func showSummary() {
-    printer.PrintInfo("Summary of load scenarios:")
+    printer.PrintOk("Summary of load scenarios:")
     for k, s := range summary {
-        printer.PrintInfo("%d. %-10s: %s", k, s.title, s.result)
+        printer.Print("%d. %-10s: %s", k, s.title, s.result)
     }
     printer.PrintNewLine()
 }
