@@ -21,7 +21,7 @@ var netperfCmd = &cobra.Command{
 func init() {
 	PerfCmd.AddCommand(netperfCmd)
 	netperfCmd.Flags().StringVarP(&netperfOpts.OutputDir, "outputDir", "o", "./netperf-results", "Full path to the directory for result files to output")
-	netperfCmd.Flags().BoolVarP(&netperfOpts.Cleanup, "cleanup", "c", true, "Delete test pods when done")
+	netperfCmd.Flags().BoolVar(&netperfOpts.Cleanup, "cleanup", true, "Delete test pods when done")
 }
 
 func netperfRun(_ *cobra.Command, _ []string) {

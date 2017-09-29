@@ -134,7 +134,8 @@ func TestLogs_FileOutput(t *testing.T) {
     assert.True(t, called)
     assert.NotContains(t, outBuffer.String(), logsOut)
 
-    b, _ :=ioutil.ReadFile(out.Name())
+    b, _ := ioutil.ReadFile(out.Name())
     assert.Contains(t, string(b), logsOut)
+    out.Close()
 }
 

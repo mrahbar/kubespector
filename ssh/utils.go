@@ -50,7 +50,7 @@ func prepareSSHConfig(sshConfig *types.SSHConfig) []error {
 	}
 
 	if c.HandshakeAttempts == 0 {
-		c.HandshakeAttempts = 10
+		c.HandshakeAttempts = 3
 	}
 
 	if util.IsNodeAddressValid(sshConfig.Bastion.Node) {

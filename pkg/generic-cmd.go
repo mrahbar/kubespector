@@ -11,23 +11,27 @@ type Processor func(target string)
 
 func runGeneric(config types.Config, opts *types.GenericOpts, initializer Initializer, processor Processor) {
 	if opts.NodeArg != "" {
-		node := types.Node{}
+		nodes := strings.Split(opts.NodeArg, ",")
 
-		for _, group := range config.ClusterGroups {
-			for _, n := range group.Nodes {
-				if n.Host == opts.NodeArg || n.IP == opts.NodeArg {
-					node = n
-					break
+		for _,i := range nodes {
+			node := types.Node{}
+
+			for _, group := range config.ClusterGroups {
+				for _, n := range group.Nodes {
+					if n.Host == i || n.IP == i {
+						node = n
+						break
+					}
 				}
 			}
-		}
 
-		if !util.IsNodeAddressValid(node) {
-            printer.PrintCritical("No node found for %v in config", opts.NodeArg)
-		} else {
-			initializer(opts.TargetArg, util.ToNodeLabel(node), "")
-			cmdExecutor.SetNode(node)
-			processor(opts.TargetArg)
+			if !util.IsNodeAddressValid(node) {
+				printer.PrintCritical("No node found for %v in config", i)
+			} else {
+				initializer(opts.TargetArg, util.ToNodeLabel(node), "")
+				cmdExecutor.SetNode(node)
+				processor(opts.TargetArg)
+			}
 		}
 	} else {
 		var groups = []string{}

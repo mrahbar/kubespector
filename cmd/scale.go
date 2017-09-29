@@ -22,7 +22,7 @@ var scaleCmd = &cobra.Command{
 func init() {
 	PerfCmd.AddCommand(scaleCmd)
     scaleCmd.Flags().StringVarP(&scaleTestOpts.OutputDir, "output", "o", "scaletest-results", "Full path to directory for result files")
-    scaleCmd.Flags().IntVarP(&scaleTestOpts.MaxReplicas, "max-replicas", "m", pkg.MaxScaleReplicas, "Maximum replication count per service. Total replicas will be twice as much.")
+    scaleCmd.Flags().IntVar(&scaleTestOpts.MaxReplicas, "max-replicas", pkg.MaxScaleReplicas, "Maximum replication count per service. Total replicas will be twice as much.")
 	scaleCmd.Flags().BoolVarP(&scaleTestOpts.Cleanup, "cleanup", "c", false, "Delete test pods when done")
 }
 

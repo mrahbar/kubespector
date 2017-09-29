@@ -22,12 +22,12 @@ var backupCmd = &cobra.Command{
 func init() {
 	EtcdCmd.AddCommand(backupCmd)
 	backupCmd.Flags().StringVarP(&etcdBackupOpts.Output, "output", "o", "", "The target directory for the resulting ZIP file of the backup")
-	backupCmd.Flags().StringVarP(&etcdBackupOpts.DataDir, "data-dir", "r", ".", "Working directory of the etcd cluster")
-	backupCmd.Flags().StringVarP(&etcdBackupOpts.Endpoint, "endpoint", "e", "http://127.0.0.1:2379", "The URL of the etcd to use")
-	backupCmd.Flags().BoolVarP(&etcdBackupOpts.ClientCertAuth, "secure", "s", false, "Secure etcd communication")
-	backupCmd.Flags().StringVarP(&etcdBackupOpts.ClientCertFile, "client-cert", "c", "", "path to client certificate")
-	backupCmd.Flags().StringVarP(&etcdBackupOpts.ClientKeyFile, "client-cert-key", "k", "", "path to client certificate key")
-	backupCmd.Flags().StringVarP(&etcdBackupOpts.CaFile, "ca-cert", "a", "", "path to certificate authority")
+	backupCmd.Flags().StringVar(&etcdBackupOpts.DataDir, "data-dir", ".", "Working directory of the etcd cluster")
+	backupCmd.Flags().StringVar(&etcdBackupOpts.Endpoint, "endpoint",  "http://127.0.0.1:2379", "The URL of the etcd to use")
+	backupCmd.Flags().BoolVar(&etcdBackupOpts.ClientCertAuth, "secure", false, "Secure etcd communication")
+	backupCmd.Flags().StringVar(&etcdBackupOpts.ClientCertFile, "client-cert",  "", "path to client certificate")
+	backupCmd.Flags().StringVar(&etcdBackupOpts.ClientKeyFile, "client-cert-key",  "", "path to client certificate key")
+	backupCmd.Flags().StringVar(&etcdBackupOpts.CaFile, "ca-cert", "", "path to certificate authority")
 	backupCmd.MarkFlagRequired("endpoint")
 	backupCmd.MarkFlagRequired("data-dir")
 }
