@@ -12,7 +12,7 @@ import (
 func TestLogs_UnknownType(t *testing.T) {
     _, outBuffer, context := defaultContext()
     context.Opts = &types.LogsOpts{
-        Type: "unknown",
+        Type: "fake",
         GenericOpts: types.GenericOpts{
             NodeArg: "host1",
         },
@@ -25,7 +25,7 @@ func TestLogs_UnknownType(t *testing.T) {
     defer patch.Unpatch()
     Logs(context)
     assert.True(t, osExitCalled)
-    assert.Contains(t, outBuffer.String(), "Unknown type unknown")
+    assert.Contains(t, outBuffer.String(), "Unknown type fake")
 }
 
 func TestLogs_Service(t *testing.T) {

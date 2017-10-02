@@ -11,5 +11,6 @@ type EtcdOpts struct {
 type EtcdBackupOpts struct {
 	Output  string
 	DataDir string
+	Sudo       bool
 	EtcdOpts
 }

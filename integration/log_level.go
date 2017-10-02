@@ -71,17 +71,17 @@ func (l *LogLevel) Set(s string) error {
 // ParseLogLevel translates some potential loglevel strings into their corresponding levels.
 func ParseLogLevel(s string) (LogLevel, error) {
     switch s {
-    case "CRITICAL", "C":
+    case "CRITICAL", "critical", "C", "c":
         return CRITICAL, nil
-    case "ERROR", "0", "E":
+    case "ERROR", "error", "0", "E", "e":
         return ERROR, nil
-    case "WARNING", "1", "W":
+    case "WARNING", "warning", "1", "W", "w":
         return WARNING, nil
-    case "INFO", "2", "I":
+    case "INFO", "info", "2", "I", "i":
         return INFO, nil
-    case "DEBUG", "3", "D":
+    case "DEBUG", "debug", "3", "D", "d":
         return DEBUG, nil
-    case "TRACE", "4", "T":
+    case "TRACE", "trace", "4", "T", "t":
         return TRACE, nil
     }
     return CRITICAL, errors.New("couldn't parse log level " + s)

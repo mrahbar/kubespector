@@ -16,15 +16,9 @@ func Exec(cmdParams *types.CommandContext) {
     runGeneric(cmdParams.Config, &execOpts.GenericOpts, initializeExec, exec)
 }
 
-func initializeExec(target string, node string, group string) {
-	if group != "" {
-        printer.PrintHeader(fmt.Sprintf("Executing '%v' in group [%s] ",
-			target, group), '=')
-	}
-
+func initializeExec(target string, node string) {
 	if node != "" {
-        printer.PrintHeader(fmt.Sprintf("Executing '%v' on node %s :\n",
-			target, node), '=')
+        printer.PrintHeader(fmt.Sprintf("Executing %v on node %s:\n", target, node), '=')
 	}
 
 	if execOpts.FileOutput != "" {

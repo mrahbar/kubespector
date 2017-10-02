@@ -49,3 +49,16 @@ func ToNodeLabel(node types.Node) string {
 
 	return label
 }
+
+
+func NodeInArray(array []types.Node, element types.Node) bool {
+	contains := false
+	for _, v := range array {
+		if NodeEquals(v, element) {
+			contains = true
+			break
+		}
+	}
+
+	return contains
+}

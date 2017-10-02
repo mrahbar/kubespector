@@ -175,12 +175,12 @@ func ScaleTest(cmdParams *types.CommandContext) {
         scaleTestOpts.OutputDir = path.Join(exPath, "scaletest-results")
     }
 
-    err := os.MkdirAll(scaleTestOpts.OutputDir, os.ModePerm)
+    err := util.InitializeOutputFile(scaleTestOpts.OutputDir)
     if err != nil {
-        printer.PrintCritical("Failed to open output file for path %s Error: %v", scaleTestOpts.OutputDir, err)
+        printer.PrintCritical("Failed to open output file %s Error: %v", scaleTestOpts.OutputDir, err)
     }
 
-    printer.Print("Running kubectl commands on node %s", util.ToNodeLabel(node))
+    printer.PrintHeader(fmt.Sprintf("Running scale test from node %s", util.ToNodeLabel(node)), '=')
     cmdExecutor.SetNode(node)
 
     checkingScaleTestPreconditions()
@@ -366,7 +366,7 @@ func waitForScaleTestServicesToBeRunning(targets int) {
             }
         }
         if !allRunning {
-            printer.Print("Pods not running. Waiting %v then checking again.", waitTime)
+            printer.Print("Pods are not running. Waiting %v then checking again.", waitTime)
             time.Sleep(waitTime)
             waitTime *= 2
         } else {
@@ -535,8 +535,10 @@ func evaluateData(metrics []loadbotMetrics) (queryPerSecond float64, success flo
 
 func showSummary() {
     printer.PrintOk("Summary of load scenarios:")
+    util.WriteOutputFile(logOpts.FileOutput, "Summary of load scenarios:\n")
     for k, s := range summary {
         printer.Print("%d. %-10s: %s", k, s.title, s.result)
+        util.WriteOutputFile(logOpts.FileOutput, fmt.Sprintf("%d. %-10s: %s\n", k, s.title, s.result))
     }
     printer.PrintNewLine()
 }

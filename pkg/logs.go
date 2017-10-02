@@ -17,12 +17,7 @@ func Logs(cmdParams *types.CommandContext) {
 	runGeneric(cmdParams.Config, &logOpts.GenericOpts, initializeLogs, logs)
 }
 
-func initializeLogs(target string, node string, group string) {
-	if group != "" {
-		printer.PrintHeader(fmt.Sprintf("Retrieving logs for %s %s in group [%s] ",
-			logOpts.Type, target, group), '=')
-	}
-
+func initializeLogs(target string, node string) {
 	if node != "" {
 		printer.PrintHeader(fmt.Sprintf("Retrieving logs for %s %s on node %s :\n",
 			logOpts.Type, target, node), '=')

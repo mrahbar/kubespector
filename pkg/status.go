@@ -14,14 +14,9 @@ func Status(cmdParams *types.CommandContext) {
 	runGeneric(config, opts, initializeStatusService, statusService)
 }
 
-func initializeStatusService(service string, node string, group string) {
-	if group != "" {
-        printer.PrintHeader(fmt.Sprintf("Checking status of service %v in group [%s] ",
-			service, group), '=')
-	}
-
+func initializeStatusService(service string, node string) {
 	if node != "" {
-        printer.PrintHeader(fmt.Sprintf("Checking status of service %v on node %s:",
+        printer.PrintHeader(fmt.Sprintf("Checking status of service %v on node %s",
 			service, node), '=')
 	}
 
@@ -29,7 +24,7 @@ func initializeStatusService(service string, node string, group string) {
 }
 
 func statusService(service string) {
-    sshOut, err := cmdExecutor.PerformCmd(fmt.Sprintf("sudo systemctl status %s -l", service))
+    sshOut, err := cmdExecutor.PerformCmd(fmt.Sprintf("systemctl status %s -l", service))
 
     printer.Print(fmt.Sprintf("Result on node %s:", util.ToNodeLabel(cmdExecutor.GetNode())))
 	if err != nil {

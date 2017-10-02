@@ -28,6 +28,7 @@ func init() {
 	backupCmd.Flags().StringVar(&etcdBackupOpts.ClientCertFile, "client-cert",  "", "path to client certificate")
 	backupCmd.Flags().StringVar(&etcdBackupOpts.ClientKeyFile, "client-cert-key",  "", "path to client certificate key")
 	backupCmd.Flags().StringVar(&etcdBackupOpts.CaFile, "ca-cert", "", "path to certificate authority")
+	backupCmd.Flags().BoolVarP(&etcdBackupOpts.Sudo, "sudo", "s", false, "Run commands as sudo")
 	backupCmd.MarkFlagRequired("endpoint")
 	backupCmd.MarkFlagRequired("data-dir")
 }

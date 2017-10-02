@@ -17,7 +17,7 @@ func TestRestartService_Ok(t *testing.T) {
     called := false
     mockExecutor.MockPerformCmd = func(command string) (*types.SSHOutput, error) {
         called = true
-        assert.Equal(t, "sudo systemctl restart docker", command)
+        assert.Equal(t, "systemctl restart docker", command)
         return &types.SSHOutput{}, nil
     }
 
@@ -36,7 +36,7 @@ func TestRestartServiceMultipleNodes_Ok(t *testing.T) {
     called := false
     mockExecutor.MockPerformCmd = func(command string) (*types.SSHOutput, error) {
         called = true
-        assert.Equal(t, "sudo systemctl restart docker", command)
+        assert.Equal(t, "systemctl restart docker", command)
         return &types.SSHOutput{}, nil
     }
 
@@ -56,7 +56,7 @@ func TestRestartService_Error(t *testing.T) {
     called := false
     mockExecutor.MockPerformCmd = func(command string) (*types.SSHOutput, error) {
         called = true
-        assert.Equal(t, "sudo systemctl restart docker", command)
+        assert.Equal(t, "systemctl restart docker", command)
         return &types.SSHOutput{}, fmt.Errorf("Restart failed")
     }
 

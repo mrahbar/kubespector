@@ -7,6 +7,7 @@ import (
 	"github.com/mrahbar/kubernetes-inspector/types"
 	"github.com/mrahbar/kubernetes-inspector/util"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"text/template"
@@ -26,13 +27,15 @@ func ClusterStatus(cmdParams *types.CommandContext) {
 	clusterStatusOpts = cmdParams.Opts.(*types.ClusterStatusOpts)
 
 	var groups = []string{}
-	if clusterStatusOpts.Groups != "" {
-		groups = strings.Split(clusterStatusOpts.Groups, ",")
-	} else {
+	if strings.EqualFold(clusterStatusOpts.Groups, types.ALL_GROUPNAME) {
 		for _, group := range config.ClusterGroups {
 			groups = append(groups, group.Name)
 		}
 		groups = append(groups, types.KUBERNETES_GROUPNAME)
+	} else if clusterStatusOpts.Groups != "" {
+		groups = strings.Split(clusterStatusOpts.Groups, ",")
+	} else {
+		printer.PrintCritical("No group specified")
 	}
 
 	if clusterStatusOpts.Checks != "" {
@@ -42,12 +45,30 @@ func ClusterStatus(cmdParams *types.CommandContext) {
 	printer.Print("Performing status checks %s for groups: %v",
 		strings.Join(clusterStatusChecks, ","), strings.Join(groups, " "))
 
+	totalNodes := []types.Node{}
+	for _, element := range groups {
+		group := util.FindGroupByName(config.ClusterGroups, element)
+
+		for _, n := range group.Nodes {
+			if util.IsNodeAddressValid(n) && !util.NodeInArray(totalNodes, n) {
+				totalNodes = append(totalNodes, n)
+			}
+		}
+	}
+	sort.Slice(totalNodes, func(i, j int) bool {
+		return util.GetNodeAddress(totalNodes[i]) < util.GetNodeAddress(totalNodes[j])
+	})
+	printer.PrintHeader(fmt.Sprintf("Retrieving node stats"), '=')
+	printer.PrintNewLine()
+	for _, node := range totalNodes {
+		getNodesStats(node)
+	}
+
 	for _, element := range groups {
 		if element != types.KUBERNETES_GROUPNAME {
 			group := util.FindGroupByName(config.ClusterGroups, element)
+			printer.PrintHeader(fmt.Sprintf("Group %s", element), '=')
 			if group.Nodes != nil {
-				getNodesStats(element, group.Nodes)
-
 				if util.ElementInArray(clusterStatusChecks, types.SERVICES_CHECKNAME) {
 					checkServiceStatus(element, group.Services, group.Nodes)
 				}
@@ -73,78 +94,72 @@ func ClusterStatus(cmdParams *types.CommandContext) {
 	}
 }
 
-func getNodesStats(element string, nodes []types.Node) {
-	printer.PrintHeader(fmt.Sprintf("Retrieving node stats of group [%s] ", element), '=')
+func getNodesStats(node types.Node) {
+	if !util.IsNodeAddressValid(node) {
+		printer.PrintErr("Current node %q has no valid address", node)
+		return
+	}
+	printer.Print("On node %s:", util.ToNodeLabel(node))
+	cmdExecutor.SetNode(node)
 
-	for _, node := range nodes {
-		if !util.IsNodeAddressValid(node) {
-			printer.PrintErr("Current node %q has no valid address", node)
-			break
-		}
-
-		printer.PrintNewLine()
-		printer.Print("On node %s:", util.ToNodeLabel(node))
-		cmdExecutor.SetNode(node)
-
-		sshOut, err := cmdExecutor.PerformCmd("cat /proc/uptime")
-		if err != nil {
-			printer.PrintWarn("Could not get uptime for: %s", err)
-		} else {
-			parts := strings.Fields(sshOut.Stdout)
-			if len(parts) == 2 {
-				var upsecs float64
-				upsecs, err = strconv.ParseFloat(parts[0], 64)
-				if err != nil {
-					printer.PrintWarn("Could not parse uptime: %s", err)
-				} else {
-					dur := time.Duration(upsecs * 1e9)
-					dur = dur - (dur % time.Second)
-					var days int
-					for dur.Hours() > 24.0 {
-						days++
-						dur -= 24 * time.Hour
-					}
-					s1 := dur.String()
-					uptimeFormated := ""
-					if days > 0 {
-						uptimeFormated = fmt.Sprintf("%dd ", days)
-					}
-					for _, ch := range s1 {
-						uptimeFormated += string(ch)
-						if ch == 'h' || ch == 'm' {
-							uptimeFormated += " "
-						}
-					}
-					printer.PrintOk("Uptime %s", uptimeFormated)
+	sshOut, err := cmdExecutor.PerformCmd("cat /proc/uptime")
+	if err != nil {
+		printer.PrintWarn("Could not get uptime for: %s", err)
+	} else {
+		parts := strings.Fields(sshOut.Stdout)
+		if len(parts) == 2 {
+			var upsecs float64
+			upsecs, err = strconv.ParseFloat(parts[0], 64)
+			if err != nil {
+				printer.PrintWarn("Could not parse uptime: %s", err)
+			} else {
+				dur := time.Duration(upsecs * 1e9)
+				dur = dur - (dur % time.Second)
+				var days int
+				for dur.Hours() > 24.0 {
+					days++
+					dur -= 24 * time.Hour
 				}
-			}
-		}
-
-		sshOut, err = cmdExecutor.PerformCmd("/bin/cat /proc/loadavg")
-		if err != nil {
-			printer.PrintWarn("Could not get load statistics: %s", err)
-		} else {
-			parts := strings.Fields(sshOut.Stdout)
-			if len(parts) == 5 {
-				loadMsg := fmt.Sprintf("Load periods in minutes - 1: %s - 5: %s - 10: %s\n", parts[0], parts[1], parts[2])
-
-				if i := strings.Index(parts[3], "/"); i != -1 {
-					runningProcs := parts[3][0:i]
-					totalProcs := "-"
-					if i+1 < len(parts[3]) {
-						totalProcs = parts[3][i+1:]
-					}
-					loadMsg = fmt.Sprintf("%sNumber of processes: currently running %s - total %s", loadMsg, runningProcs, totalProcs)
-
-					printer.PrintOk(strings.TrimSpace(loadMsg))
+				s1 := dur.String()
+				uptimeFormated := ""
+				if days > 0 {
+					uptimeFormated = fmt.Sprintf("%dd ", days)
 				}
+				for _, ch := range s1 {
+					uptimeFormated += string(ch)
+					if ch == 'h' || ch == 'm' {
+						uptimeFormated += " "
+					}
+				}
+				printer.Print("Uptime %s", uptimeFormated)
 			}
 		}
 	}
+
+	sshOut, err = cmdExecutor.PerformCmd("/bin/cat /proc/loadavg")
+	if err != nil {
+		printer.PrintWarn("Could not get load statistics: %s", err)
+	} else {
+		parts := strings.Fields(sshOut.Stdout)
+		if len(parts) == 5 {
+			loadMsg := fmt.Sprintf("Load periods 1m: %s - 5m: %s - 10m: %s\n", parts[0], parts[1], parts[2])
+
+			if i := strings.Index(parts[3], "/"); i != -1 {
+				totalProcs := "-"
+				if i+1 < len(parts[3]) {
+					totalProcs = parts[3][i+1:]
+				}
+				loadMsg = fmt.Sprintf("%sNumber of total processes %s", loadMsg, totalProcs)
+
+				printer.PrintOk(strings.TrimSpace(loadMsg))
+			}
+		}
+	}
+	printer.PrintNewLine()
 }
 
 func checkServiceStatus(element string, services []string, nodes []types.Node) {
-	printer.PrintHeader(fmt.Sprintf("Checking service status of group [%s] ", element), '=')
+	printer.PrintHeader(fmt.Sprintf("Checking service status of group [%s]", element), '-')
 	if nodes == nil || len(nodes) == 0 {
 		printer.PrintSkipped("No host configured for [%s]", element)
 		return
@@ -162,6 +177,7 @@ func checkServiceStatus(element string, services []string, nodes []types.Node) {
 
 		printer.PrintNewLine()
 		printer.Print("On node %s:", util.ToNodeLabel(node))
+		cmdExecutor.SetNode(node)
 
 		for _, service := range services {
 			sshOut, err := cmdExecutor.PerformCmd(fmt.Sprintf("systemctl is-active %s", service))
@@ -185,7 +201,7 @@ func checkServiceStatus(element string, services []string, nodes []types.Node) {
 }
 
 func checkContainerStatus(element string, containers []string, nodes []types.Node) {
-	printer.PrintHeader(fmt.Sprintf("Checking container status of group [%s] ", element), '=')
+	printer.PrintHeader(fmt.Sprintf("Checking container status of group [%s]", element), '-')
 	if nodes == nil || len(nodes) == 0 {
 		printer.PrintSkipped("No host configured for [%s]", element)
 		return
@@ -203,9 +219,11 @@ func checkContainerStatus(element string, containers []string, nodes []types.Nod
 
 		printer.PrintNewLine()
 		printer.Print("On node %s:", util.ToNodeLabel(node))
+		cmdExecutor.SetNode(node)
 
 		for _, container := range containers {
-			cmd := fmt.Sprintf("sudo bash -c 'docker ps -a -q --latest -f name=%s* | xargs --no-run-if-empty docker inspect -f '{{.State.Status}}''", container)
+			cmd := fmt.Sprintf("docker ps -a -q --latest -f name=%s* | xargs --no-run-if-empty docker inspect -f '{{.State.Status}}'", container)
+
 			sshOut, err := cmdExecutor.PerformCmd(cmd)
 
 			if err != nil {
@@ -227,7 +245,7 @@ func checkContainerStatus(element string, containers []string, nodes []types.Nod
 }
 
 func checkCertificatesExpiration(element string, certificates []string, nodes []types.Node) {
-	printer.PrintHeader(fmt.Sprintf("Checking certificate status of group [%s] ", element), '=')
+	printer.PrintHeader(fmt.Sprintf("Checking certificate status of group [%s]", element), '-')
 	if nodes == nil || len(nodes) == 0 {
 		printer.PrintSkipped("No host configured for [%s]", element)
 		return
@@ -245,22 +263,16 @@ func checkCertificatesExpiration(element string, certificates []string, nodes []
 
 		printer.PrintNewLine()
 		printer.Print("On node %s:", util.ToNodeLabel(node))
+		cmdExecutor.SetNode(node)
 
 		for _, cert := range certificates {
 			cert = parseTemplate(cert, node)
-			sshOut, err := cmdExecutor.PerformCmd(fmt.Sprintf("sudo bash -c 'openssl x509 -enddate -noout -in %s | cut -d= -f 2'", cert))
+			sshOut, err := cmdExecutor.PerformCmd(fmt.Sprintf("openssl x509 -enddate -noout -in %s", cert))
 
 			if err != nil {
 				printer.PrintErr("Error checking expiration of %s: %s", cert, err)
 			} else {
-				//TODO this is not robust enough
-				_, err = cmdExecutor.PerformCmd(fmt.Sprintf("sudo openssl x509 -checkend 86400 -noout -in %s", cert))
-
-				if err == nil {
-					printer.PrintOk("Certificate %s is valid until %s", cert, sshOut.Stdout)
-				} else {
-					printer.PrintWarn("Certificate %s is only valid until %s", cert, sshOut.Stdout)
-				}
+				printer.PrintOk("Certificate %s is valid until %s", cert, strings.Replace(sshOut.Stdout, "notAfter=", "", 1))
 			}
 		}
 	}
@@ -294,7 +306,7 @@ func parseTemplate(value string, node types.Node) string {
 }
 
 func checkDiskStatus(element string, diskSpace types.DiskUsage, nodes []types.Node) {
-	printer.PrintHeader(fmt.Sprintf("Checking disk status of group [%s] ", element), '-')
+	printer.PrintHeader(fmt.Sprintf("Checking disk status of group [%s]", element), '-')
 	if nodes == nil || len(nodes) == 0 {
 		printer.PrintSkipped("No host configured for [%s]", element)
 		return
@@ -308,11 +320,12 @@ func checkDiskStatus(element string, diskSpace types.DiskUsage, nodes []types.No
 
 		printer.PrintNewLine()
 		printer.Print("On node %s:", util.ToNodeLabel(node))
+		cmdExecutor.SetNode(node)
 
 		spacesRegex := regexp.MustCompile("\\s+")
 		if len(diskSpace.FileSystemUsage) > 0 {
 			for _, fsUsage := range diskSpace.FileSystemUsage {
-				sshOut, err := cmdExecutor.PerformCmd(fmt.Sprintf("sudo df -h | grep %s", fsUsage))
+				sshOut, err := cmdExecutor.PerformCmd(fmt.Sprintf("df -h | grep %s", fsUsage))
 
 				if err != nil {
 					printer.PrintErr("Error estimating file system usage for %s: %s", fsUsage, err)
@@ -343,7 +356,7 @@ func checkDiskStatus(element string, diskSpace types.DiskUsage, nodes []types.No
 
 		if len(diskSpace.DirectoryUsage) > 0 {
 			for _, dirUsage := range diskSpace.DirectoryUsage {
-				cmd := fmt.Sprintf("sudo du -h -d 0 --exclude=/proc --exclude=/run %s | grep %s", dirUsage, dirUsage)
+				cmd := fmt.Sprintf("du -h -d 0 %s", dirUsage)
 				sshOut, err := cmdExecutor.PerformCmd(cmd)
 
 				if err != nil {
@@ -361,7 +374,7 @@ func checkDiskStatus(element string, diskSpace types.DiskUsage, nodes []types.No
 
 func checkKubernetesStatus(element string,
 	resources []types.KubernetesResource, nodes []types.Node) {
-	printer.PrintHeader(fmt.Sprintf("Checking status of [%s] ", element), '=')
+	printer.PrintHeader(fmt.Sprintf("Checking status of [%s]", element), '=')
 
 	if nodes == nil || len(nodes) == 0 {
 		printer.PrintCritical("No host configured for [%s]", element)
@@ -391,6 +404,7 @@ func checkKubernetesStatus(element string,
 		}
 
 		printer.Print(msg + namespace_msg + ":")
+		cmdExecutor.SetNode(node)
 		sshOut, err := cmdExecutor.PerformCmd(command)
 		printer.PrintNewLine()
 

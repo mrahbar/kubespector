@@ -83,7 +83,38 @@ Following options can also be used inside _Connection:_
 - FileTransferMethod: either **scp** or **sftp**
 
 Additionally the ssh configuration supports local and bastion connection.
-On a local connection kubespector assumes it will be on a kubenetes node 
+On a local connection kubespector assumes it will be on a node which is defined in a cluster group. Example:
+ ````
+ Ssh:
+   Connection:
+     Username: <username>
+     PrivateKey: <path to privat key>
+     Port: 22
+     Timeout: 90s
+   LocalOn:   
+     Host: "kube-node1"
+     IP: x.x.x.x 
+ ````
+ 
+For a bastion connection, kubespector tries to tunnel the ssh connections through the bastion server to the cluster.
+The options for the ssh connect to the bastion server are the same as above. A sample configuration looks like this:
+ ````
+ Ssh:
+   Connection:
+     Username: <username>
+     PrivateKey: <path to privat key>
+     Port: 22
+     Timeout: 90s
+   Bastion:   
+     Connection:
+       Username: <username>
+       PrivateKey: <path to privat key>
+       Port: 22
+       Timeout: 90s
+     Node:
+       Host: "kube-node1"
+       IP: x.x.x.x 
+ ````
 ### Cluster group configuration
 ````
   - Name: Etcd

@@ -75,7 +75,8 @@ func initConfig() {
 func setLogLevel() {
     ll, err := integration.ParseLogLevel(logLevelRaw)
     if err != nil {
-        integration.PrettyPrintWarn("Failed to set log level %s fallback to INFO. %+v", logLevelRaw, err)
+        ll = integration.INFO
+        integration.PrettyPrintWarn("Failed to parse log level '%s' fallback to INFO.", logLevelRaw)
     }
 
     if debug && ll < integration.DEBUG {

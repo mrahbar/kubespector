@@ -54,7 +54,7 @@ func prepareSSHConfig(sshConfig *types.SSHConfig) []error {
 	}
 
 	if util.IsNodeAddressValid(sshConfig.Bastion.Node) {
-		bc := sshConfig.Bastion.SSHConnection
+		bc := sshConfig.Bastion.Connection
 		if bc.Port == 0 {
 			bc.Port = 22
 		}
@@ -84,8 +84,8 @@ func prepareSSHConfig(sshConfig *types.SSHConfig) []error {
 		}
 	}
 
-	if util.IsNodeAddressValid(sshConfig.Bastion.Node) && !sshConfig.Bastion.SSHConnection.AgentAuth {
-		if sshConfig.Bastion.SSHConnection.Password == "" && sshConfig.Bastion.SSHConnection.PrivateKey == "" {
+	if util.IsNodeAddressValid(sshConfig.Bastion.Node) && !sshConfig.Bastion.Connection.AgentAuth {
+		if sshConfig.Bastion.Connection.Password == "" && sshConfig.Bastion.Connection.PrivateKey == "" {
 			errs = append(errs, errors.New(
 				"ssh_bastion_password or ssh_bastion_private_key_file must be specified"))
 		}
@@ -153,7 +153,7 @@ func createCommunicationConfig(sshOpts types.SSHConfig, nodeAddress string, prin
 
 	if util.IsNodeAddressValid(sshOpts.Bastion.Node) {
 		// We're using a bastion host, so use the bastion connfunc
-		bAddr := fmt.Sprintf("%s:%d", util.GetNodeAddress(sshOpts.Bastion.Node), sshOpts.Bastion.Port)
+		bAddr := fmt.Sprintf("%s:%d", util.GetNodeAddress(sshOpts.Bastion.Node), sshOpts.Bastion.Connection.Port)
 		bConf, err := sshBastionConfig(&sshOpts.Bastion)
 		if err != nil {
             printer.PrintDebug("BastionConfig failed: %s", err)
@@ -226,15 +226,15 @@ func sshConfigFunc(config *types.SSHConnection) (*ssh.ClientConfig, error) {
 
 func sshBastionConfig(config *types.BastionSSHConnection) (*ssh.ClientConfig, error) {
 	auth := make([]ssh.AuthMethod, 0, 2)
-	if config.Password != "" {
+	if config.Connection.Password != "" {
 		auth = append(auth,
-			ssh.Password(config.Password),
+			ssh.Password(config.Connection.Password),
 			ssh.KeyboardInteractive(
-				communicator.PasswordKeyboardInteractive(config.Password)))
+				communicator.PasswordKeyboardInteractive(config.Connection.Password)))
 	}
 
-	if config.PrivateKey != "" {
-		signer, err := communicator.FileSigner(config.PrivateKey)
+	if config.Connection.PrivateKey != "" {
+		signer, err := communicator.FileSigner(config.Connection.PrivateKey)
 		if err != nil {
 			return nil, err
 		}
@@ -242,7 +242,7 @@ func sshBastionConfig(config *types.BastionSSHConnection) (*ssh.ClientConfig, er
 		auth = append(auth, ssh.PublicKeys(signer))
 	}
 
-	if config.AgentAuth {
+	if config.Connection.AgentAuth {
 		agentAuthMethod, err := getAgentAuth()
 		if err != nil {
 			return nil, err
@@ -252,7 +252,7 @@ func sshBastionConfig(config *types.BastionSSHConnection) (*ssh.ClientConfig, er
 	}
 
 	return &ssh.ClientConfig{
-		User:            config.Username,
+		User:            config.Connection.Username,
 		Auth:            auth,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}, nil

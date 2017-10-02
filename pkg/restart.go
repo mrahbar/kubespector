@@ -13,14 +13,9 @@ func Restart(cmdParams *types.CommandContext) {
 	runGeneric(config, opts, initializeRestartService, restartService)
 }
 
-func initializeRestartService(service string, node string, group string) {
-	if group != "" {
-        printer.PrintHeader(fmt.Sprintf("Restarting service %v in group [%s] ",
-			service, group), '=')
-	}
-
+func initializeRestartService(service string, node string) {
 	if node != "" {
-        printer.PrintHeader(fmt.Sprintf("Restarting service %v on node %s:",
+        printer.PrintHeader(fmt.Sprintf("Restarting service %v on node %s",
 			service, node), '=')
 	}
 
@@ -28,7 +23,7 @@ func initializeRestartService(service string, node string, group string) {
 }
 
 func restartService(service string) {
-    _, err := cmdExecutor.PerformCmd(fmt.Sprintf("sudo systemctl restart %s", service))
+    _, err := cmdExecutor.PerformCmd(fmt.Sprintf("systemctl restart %s", service))
 
     printer.Print(fmt.Sprintf("Result on node %s:", util.ToNodeLabel(cmdExecutor.GetNode())))
 

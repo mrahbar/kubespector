@@ -68,7 +68,7 @@ func New(address string, config *Config, lp func(msg string, a ...interface{})) 
 		address: address,
 	}
 
-    logPrinter("Attempting SSH connection...")
+    logPrinter("Attempting SSH connection to %s ...", address)
 	if err = result.reconnect(); err != nil {
 		result = nil
 		return

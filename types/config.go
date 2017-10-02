@@ -1,6 +1,7 @@
 package types
 
 //TODO make enum of this
+const ALL_GROUPNAME = "ALL"
 const KUBERNETES_GROUPNAME = "Kubernetes"
 const MASTER_GROUPNAME = "Master"
 const ETCD_GROUPNAME = "Etcd"

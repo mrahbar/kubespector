@@ -1,0 +1,107 @@
+Ssh:
+  Connection:
+    Username: ubuntu
+    PrivateKey: D:\Users\maaz1de\.ssh\GitlabTelefonica\id_rsa
+    Port: 22
+    Timeout: 90s
+ClusterGroups:
+  - Name: Etcd
+    Containers:
+    - k8s_etcd
+    Nodes:
+    - Host: "kubenode01"
+      IP: 10.0.1.116
+    DiskUsage:
+      FileSystemUsage:
+      - /dev/vda1
+      DirectoryUsage:
+      - /var/lib/etcd
+      - /var/log
+  - Name: Master
+    Services:
+    - networking
+    - docker
+    - kubelet
+    Containers:
+    - k8s_kube-apiserver
+    - k8s_kube-controller-manager
+    - k8s_kube-scheduler
+    Certificates:
+    - /etc/kubernetes/pki/ca.crt
+    - /etc/kubernetes/pki/apiserver.crt
+    Nodes:
+    - Host: "kubenode01"
+      IP: 10.0.1.116
+    DiskUsage:
+      FileSystemUsage:
+      - /dev/vda1
+      DirectoryUsage:
+      - /etc/kubernetes
+      - /var/log
+  - Name: Registry
+    Services:
+    - networking
+    - docker
+    - kubelet
+    Certificates:
+    - /var/run/kubernetes/kubelet-client.crt
+    Nodes:
+    - Host: "kuberegistry"
+      IP: 10.0.1.144
+    DiskUsage:
+      FileSystemUsage:
+      - /dev/vda1
+      DirectoryUsage:
+      - /etc/kubernetes
+      - /var/log
+  - Name: Loadbalancer
+    Services:
+    - networking
+    - docker
+    - kubelet
+    Certificates:
+    - /var/run/kubernetes/kubelet-client.crt
+    Nodes:
+    - Host: "kubeload01"
+      IP: 10.0.1.142
+    - Host: "kubeload02"
+      IP: 10.0.1.132
+    DiskUsage:
+      FileSystemUsage:
+      - /dev/vda1
+      DirectoryUsage:
+      - /etc/kubernetes
+      - /var/log
+  - Name: Worker
+    Services:
+    - docker
+    - kubelet
+    - networking
+    Containers:
+    - k8s_kube-proxy
+    Nodes:
+    - Host: "kubenode02"
+      IP: 10.0.1.136
+    - Host: "kubenode03"
+      IP: 10.0.1.138
+    - Host: "kubenode04"
+      IP: 10.0.1.143
+    - Host: "kubenode05"
+      IP: 10.0.1.112
+    - Host: "kubenode06"
+      IP: 10.0.1.145
+    Certificates:
+    - /var/run/kubernetes/kubelet-client.crt
+    DiskUsage:
+      FileSystemUsage:
+      - /dev/vda1
+      DirectoryUsage:
+      - /etc/docker
+      - /var/lib/kubelet
+      - /var/log
+Kubernetes:
+  Resources:
+  - Type: nodes
+  - Type: pods
+    Namespace: kube-system
+    Wide: true

@@ -145,7 +145,7 @@ func (p *Printer) PrintNewLine() {
 func (p *Printer) PrintHeader(msg string, padding byte) {
 	w := tabwriter.NewWriter(out, tabWidth, 0, 0, padding, 0)
 	fmt.Fprintln(w, "")
-	format := msg + "\t\n"
+	format := msg + " \t\n"
 	fmt.Fprintf(w, format)
 	w.Flush()
 }

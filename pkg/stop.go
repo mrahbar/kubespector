@@ -13,14 +13,9 @@ func Stop(cmdParams *types.CommandContext) {
 	runGeneric(config, opts, initializeStopService, stopService)
 }
 
-func initializeStopService(service string, node string, group string) {
-	if group != "" {
-        printer.PrintHeader(fmt.Sprintf("Stopping service %v in group [%s] ",
-			service, group), '=')
-	}
-
+func initializeStopService(service string, node string) {
 	if node != "" {
-        printer.PrintHeader(fmt.Sprintf("Stopping service %v on node %s:",
+        printer.PrintHeader(fmt.Sprintf("Stopping service %v on node %s",
 			service, node), '=')
 	}
 
@@ -28,7 +23,7 @@ func initializeStopService(service string, node string, group string) {
 }
 
 func stopService(service string) {
-    _, err := cmdExecutor.PerformCmd(fmt.Sprintf("sudo systemctl stop %s", service))
+    _, err := cmdExecutor.PerformCmd(fmt.Sprintf("systemctl stop %s", service))
 
     printer.Print(fmt.Sprintf("Result on node %s:", util.ToNodeLabel(cmdExecutor.GetNode())))
 	if err != nil {

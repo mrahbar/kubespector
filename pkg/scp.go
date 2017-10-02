@@ -25,13 +25,9 @@ func Scp(cmdParams *types.CommandContext) {
 	runGeneric(config, &scpOpts.GenericOpts, initializeScp, scp)
 }
 
-func initializeScp(target string, node string, group string) {
+func initializeScp(target string, node string) {
 	if !regexp.MustCompile("^(up|u|down|d){1}$").MatchString(target) {
 		printer.PrintCritical("Direction must either be 'up' or 'down' resp. first letter. Provided: '%s'", target)
-	}
-
-	if group != "" {
-		printer.PrintHeader(fmt.Sprintf("Executing scp in group [%s] ", group), '=')
 	}
 
 	if node != "" {

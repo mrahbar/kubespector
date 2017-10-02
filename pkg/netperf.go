@@ -69,8 +69,7 @@ func Netperf(cmdParams *types.CommandContext) {
 	if err != nil {
         printer.PrintCritical("Failed to open output file for path %s Error: %v", netperfOpts.OutputDir, err)
 	}
-
-    printer.Print("Running kubectl commands on node %s", util.ToNodeLabel(node))
+	printer.PrintHeader(fmt.Sprintf("Running network test from node %s", util.ToNodeLabel(node)), '=')
 	cmdExecutor.SetNode(node)
 
 	checkingNetperfPreconditions()

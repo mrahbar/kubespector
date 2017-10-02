@@ -17,7 +17,7 @@ func TestStopService_Ok(t *testing.T) {
     called := false
     mockExecutor.MockPerformCmd = func(command string) (*types.SSHOutput, error) {
         called = true
-        assert.Equal(t, "sudo systemctl stop docker", command)
+        assert.Equal(t, "systemctl stop docker", command)
         return &types.SSHOutput{}, nil
     }
 
@@ -39,7 +39,7 @@ func TestStopService_Error(t *testing.T) {
     called := false
     mockExecutor.MockPerformCmd = func(command string) (*types.SSHOutput, error) {
         called = true
-        assert.Equal(t, "sudo systemctl stop docker", command)
+        assert.Equal(t, "systemctl stop docker", command)
         return &types.SSHOutput{}, fmt.Errorf("Stop failed")
     }
 
