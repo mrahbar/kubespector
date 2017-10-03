@@ -1,367 +1,408 @@
 package main
 
 import (
-    "encoding/json"
-    "flag"
-    "fmt"
-    "io/ioutil"
-    "net/http"
-    "sync"
-    "time"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"sync"
+	"time"
 
-    metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-    "k8s.io/client-go/kubernetes"
-    "k8s.io/client-go/rest"
-    apiv1 "k8s.io/client-go/pkg/api/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	apiv1 "k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 
-    "github.com/tsenart/vegeta/lib"
-    "strings"
-    "log"
-    "os"
+	"github.com/tsenart/vegeta/lib"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 type replicas struct {
-    title     string
-    loadbots  int32
-    webserver int32
+	title     string
+	loadbots  int32
+	webserver int32
 }
 
 type resultEntry struct {
-    title  string
-    result string
+	title  string
+	result string
 }
 
 var scenarios = []replicas{
-    {
-        title:     "Idle",
-        loadbots:  1,
-        webserver: 1,
-    },
-    {
-        title:     "Under load",
-        loadbots:  1,
-        webserver: 10,
-    },
-    {
-        title:     "Equal load",
-        loadbots:  10,
-        webserver: 10,
-    },
-    {
-        title:     "Over load",
-        loadbots:  100,
-        webserver: 10,
-    },
-    {
-        title:     "High load",
-        loadbots:  100,
-        webserver: 100,
-    },
+	{
+		title:     "Idle",
+		loadbots:  1,
+		webserver: 1,
+	},
+	{
+		title:     "Under load",
+		loadbots:  1,
+		webserver: 10,
+	},
+	{
+		title:     "Equal load",
+		loadbots:  10,
+		webserver: 10,
+	},
+	{
+		title:     "Over load",
+		loadbots:  100,
+		webserver: 10,
+	},
+	{
+		title:     "High load",
+		loadbots:  100,
+		webserver: 100,
+	},
 }
 
 var summary []resultEntry
+var kubeconfig *string
+var scaleTestNamespace string
 var clientset *kubernetes.Clientset
 
 const (
-    summaryDataMarker    = "GENERATING SUMMARY OUTPUT"
-    summaryEndDataMarker = "END SUMMARY DATA"
+	summaryDataMarker    = "GENERATING SUMMARY OUTPUT"
+	summaryEndDataMarker = "END SUMMARY DATA"
 
-    loadbotsName  = "loadbots"
-    webserverName = "webserver"
+	loadbotsName  = "loadbots"
+	webserverName = "webserver"
 
-    maxScaleReplicas = 100
-    iterations = 10
+	maxScaleReplicas = 100
+	iterations       = 10
 )
 
 var (
-    scaleTestNamespace = "default"
-
-    selector     = flag.String("selector", "app", "The label key as selector for pods")
-    loadbotsPort = flag.Int("loadbots-port", 8080, "Target port of selected pods")
-    maxReplicas  = int32(flag.Int("max-replicas", maxScaleReplicas, "Maximum replication count per service. Total replicas will be twice as much."))
-    useIP        = flag.Bool("use-ip", true, "Use IP for aggregation")
-    sleep        = flag.Duration("sleep", 1*time.Second, "The sleep period between aggregations")
+	inCluster          = flag.Bool("incluster", true, "Running aggregator inside Kubernetes")
+	selector           = flag.String("selector", "app", "The label key as selector for pods")
+	loadbotsPort       = flag.Int("loadbots-port", 8080, "Target port of selected pods")
+	maxReplicas        = flag.Int("max-replicas", maxScaleReplicas, "Maximum replication count per service. Total replicas will be twice as much.")
+	sleep              = flag.Duration("sleep", 1*time.Second, "The sleep period between aggregations")
 )
 
 func main() {
-    flag.Parse()
-    createKubernetesClient()
-    setNamespace()
+	if home := homeDir(); home != "" {
+		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file when in-cluster false")
+	} else {
+		kubeconfig = flag.String("kubeconfig", "", "(optional) absolute path to the kubeconfig file when in-cluster false")
+	}
 
-    log.Println("Running scale test")
-    runScaleTest()
-    showSummary()
+	flag.Parse()
+	createKubernetesClient()
+	setNamespace()
+
+	log.Println("Running preflight checks")
+	preflightChecks()
+	log.Println("Finished preflight checks")
+
+	log.Println("Running scale test")
+	runScaleTest()
+	showSummary()
 }
 
 func createKubernetesClient() {
-    config, err := rest.InClusterConfig()
-    if err != nil {
-        panic(err.Error())
-    }
+	var clientsetError error
+	if *inCluster {
+		config, err := rest.InClusterConfig()
+		if err == nil {
+			panic(err.Error())
+		}
+		clientset, clientsetError = kubernetes.NewForConfig(config)
+	} else {
+		config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+		if err != nil {
+			panic(err.Error())
+		}
 
-    clientset, err = kubernetes.NewForConfig(config)
-    if err != nil {
-        panic(err.Error())
-    }
+		clientset, clientsetError = kubernetes.NewForConfig(config)
+	}
 
-    v, err := clientset.Discovery().ServerVersion()
-    if err != nil {
-        panic(err.Error())
-    }
+	if clientsetError != nil {
+		panic(clientsetError.Error())
+	}
 
-    log.Printf("Running in Kubernetes Cluster version v%v.%v (%v) - git (%v) commit %v - platform %v",
-        v.Major, v.Minor, v.GitVersion, v.GitTreeState, v.GitCommit, v.Platform)
+	v, err := clientset.Discovery().ServerVersion()
+	if err != nil {
+		panic(err.Error())
+	}
+
+	log.Printf("Running in Kubernetes Cluster version v%v.%v (%v) - git commit %v - platform %v",
+		v.Major, v.Minor, v.GitVersion, v.GitCommit, v.Platform)
 }
 
-func setNamespace()  {
-    if ns := os.Getenv("POD_NAMESPACE"); ns != "" {
-        scaleTestNamespace = ns
+func setNamespace() {
+	if ns := os.Getenv("POD_NAMESPACE"); ns != "" {
+		scaleTestNamespace = ns
+	} else if data, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
+		if ns := strings.TrimSpace(string(data)); len(ns) > 0 {
+			scaleTestNamespace = ns
+		}
+	}
+
+	if scaleTestNamespace == "" {
+	    scaleTestNamespace = "default"
     }
 
-    // Fall back to the namespace associated with the service account token, if available
-    if data, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
-        if ns := strings.TrimSpace(string(data)); len(ns) > 0 {
-            scaleTestNamespace = ns
-        }
-    }
+    log.Printf("Running aggregator in namespace %s", scaleTestNamespace)
+}
 
-    scaleTestNamespace = "default"
+func preflightChecks() {
+	log.Printf("Waiting for initial loadbot and webserver pods to be Running...")
+	waitForScaleTestServicesToBeRunning(2)
 }
 
 func runScaleTest() {
-    var currentLoadbots, currentWebservers int32
+	var currentLoadbots, currentWebservers int32
 
-    for _, s := range scenarios {
-        var queryPerSecond, success float64
-        var latencyMean, latency99th time.Duration
-        var latencyMeans, latency99ths time.Duration
+	for _, s := range scenarios {
+		var queryPerSecond, success float64
+		var latencyMean, latency99th time.Duration
+		var latencyMeans, latency99ths time.Duration
 
-        loadbotReplicas := s.loadbots * maxReplicas / 100
-        webserverReplicas := s.webserver * maxReplicas / 100
-        if s.loadbots != 1 {
-            time.Sleep(1 * time.Second)
-            if currentLoadbots != loadbotReplicas {
-                scaleReplicationController(scaleTestNamespace, loadbotsName, loadbotReplicas)
-                currentLoadbots = loadbotReplicas
-            }
-        } else {
-            currentLoadbots = 1
-            loadbotReplicas = 1
-        }
+		loadbotReplicas := s.loadbots * int32(*maxReplicas) / 100
+		webserverReplicas := s.webserver * int32(*maxReplicas) / 100
+		if s.loadbots != 1 {
+			time.Sleep(1 * time.Second)
+			if currentLoadbots != loadbotReplicas {
+				scaleReplicationController(scaleTestNamespace, loadbotsName, loadbotReplicas)
+				currentLoadbots = loadbotReplicas
+			}
+		} else {
+			currentLoadbots = 1
+			loadbotReplicas = 1
+		}
 
-        if s.webserver != 1 {
-            time.Sleep(1 * time.Second)
-            if currentWebservers != webserverReplicas {
-                scaleReplicationController(scaleTestNamespace, webserverName, webserverReplicas)
-                currentWebservers = webserverReplicas
-            }
-        } else {
-            currentWebservers = 1
-            webserverReplicas = 1
-        }
+		if s.webserver != 1 {
+			time.Sleep(1 * time.Second)
+			if currentWebservers != webserverReplicas {
+				scaleReplicationController(scaleTestNamespace, webserverName, webserverReplicas)
+				currentWebservers = webserverReplicas
+			}
+		} else {
+			currentWebservers = 1
+			webserverReplicas = 1
+		}
 
-        log.Printf("Load scenario '%s': %d Loadbots - %d Webservers", s.title, loadbotReplicas, webserverReplicas)
+		log.Printf("Load scenario '%s': %d Loadbots - %d Webservers", s.title, loadbotReplicas, webserverReplicas)
+		waitForScaleTestServicesToBeRunning(currentWebservers + currentLoadbots)
+		time.Sleep(5 * time.Second)
 
-        waitForScaleTestServicesToBeRunning(currentWebservers + currentLoadbots)
-        time.Sleep(5 * time.Second)
+		parts := []vegeta.Metrics{}
+		loadbots, err := getPods(loadbotsName)
+		if err != nil {
+			log.Printf("Error getting loadbot pods: %s", err)
+		}
 
-        parts := []vegeta.Metrics{}
-        loadbots, err := getPods(loadbotsName)
-        if err != nil {
-            log.Printf("Error getting loadbot pods: %s", err)
-        }
+		for i := 1; i <= iterations; i++ {
+			attempts := 0
+			for {
+				start := time.Now()
+				partsIteration, err := fetchResults(loadbots)
+				if err != nil || len(partsIteration) == 0 {
+					attempts += 1
+					if attempts < 3 {
+						time.Sleep(1 * time.Second)
+						continue
+					} else {
+						log.Printf("Failed to run load scenario '%s' after 3 attempts: %s", s.title, err)
+					}
+				} else {
+					parts = append(parts, partsIteration...)
+					latency := time.Since(start)
+					if latency < *sleep {
+						time.Sleep(*sleep - latency)
+					}
+					break
+				}
+			}
+		}
 
-        for i := 1; i <= iterations; i++ {
-            attempts := 0
-            for {
-                start := time.Now()
-                partsIteration, err := fetchResults(loadbots)
-                if err != nil || len(parts) == 0 {
-                    attempts += 1
-                    if attempts < 3 {
-                        time.Sleep(1 * time.Second)
-                        continue
-                    } else {
-                        log.Printf("Failed to run load scenario '%s' after 3 attempts: %s", s.title, err)
-                    }
-                } else {
-                    parts = append(parts, partsIteration...)
-                    latency := time.Since(start)
-                    if latency < *sleep {
-                        time.Sleep(*sleep - latency)
-                    }
-                    break
-                }
-            }
-        }
+		qps, scs, lm, lp99 := evaluateData(parts)
+		queryPerSecond += qps
+		success += scs
+		latencyMeans += lm
+		latency99ths += lp99
 
-        qps, scs, lm, lp99 := evaluateData(parts)
-        queryPerSecond += qps
-        success += scs
-        latencyMeans += lm
-        latency99ths += lp99
+		success /= float64(iterations)
+		latencyMean = time.Duration(latencyMeans.Nanoseconds() / int64(iterations))
+		latency99th = time.Duration(latency99ths.Nanoseconds() / int64(iterations))
 
-        success /= float64(iterations)
-        latencyMean = time.Duration(latencyMeans.Nanoseconds() / int64(iterations))
-        latency99th = time.Duration(latency99ths.Nanoseconds() / int64(iterations))
+		result := fmt.Sprintf("QPS: %-8.0f Success: %-8.2f%% Latency: %s (mean) %s (99th)",
+			queryPerSecond, success, latencyMean, latency99th)
 
-        result := fmt.Sprintf("QPS: %-8.0f Success: %-8.2f%s Latency: %s (mean) %s (99th)",
-            queryPerSecond, success, "%%", latencyMean, latency99th)
+		summary = append(summary, resultEntry{
+			title:  s.title,
+			result: result,
+		})
 
-        summary = append(summary, resultEntry{
-            title:  s.title,
-            result: result,
-        })
-
-        fmt.Printf("Summary of load scenario '%s':\n%s\n", s.title, result)
-        fmt.Println("")
-    }
+		log.Printf("Summary of load scenario '%s': %s", s.title, result)
+	}
 }
 
 func fetchResults(loadbots []*apiv1.Pod) ([]vegeta.Metrics, error) {
-    parts := []vegeta.Metrics{}
-    lock := sync.Mutex{}
-    wg := sync.WaitGroup{}
-    wg.Add(len(loadbots))
-    for ix := range loadbots {
-        go func(ix int) {
-            defer wg.Done()
-            pod := loadbots[ix]
-            var data []byte
-            if *useIP {
-                url := "http://" + pod.Status.PodIP + ":"+string(loadbotsPort)+"/"
-                resp, err := http.Get(url)
-                if err != nil {
-                    fmt.Printf("Error getting: %v\n", err)
-                    return
-                }
-                defer resp.Body.Close()
-                if data, err = ioutil.ReadAll(resp.Body); err != nil {
-                    fmt.Printf("Error reading: %v\n", err)
-                    return
-                }
-            } else {
-                var err error
+	parts := []vegeta.Metrics{}
+	lock := sync.Mutex{}
+	wg := sync.WaitGroup{}
+	wg.Add(len(loadbots))
+	for ix := range loadbots {
+		go func(ix int) {
+			defer wg.Done()
+			pod := loadbots[ix]
+			var data []byte
+			if *inCluster {
+				url := fmt.Sprintf("http://%s:%d/", pod.Status.PodIP, *loadbotsPort)
+				resp, err := http.Get(url)
+				if err != nil {
+					log.Printf("Error getting %s: %v", url, err)
+					return
+				}
+				defer resp.Body.Close()
+				if data, err = ioutil.ReadAll(resp.Body); err != nil {
+					log.Printf("Error reading response of %s: %v", url, err)
+					return
+				}
+			} else {
+				var err error
 
-                data, err = clientset.Discovery().RESTClient().Get().AbsPath("/api/v1/proxy/namespaces/default/pods/" + pod.Name + ":"+string(loadbotsPort)+"/").DoRaw()
-                if err != nil {
-                    fmt.Printf("Error proxying to pod: %v\n", err)
-                    return
-                }
-            }
-            var metrics vegeta.Metrics
-            if err := json.Unmarshal(data, &metrics); err != nil {
-                fmt.Printf("Error decoding: %v\n", err)
-                return
-            }
-            lock.Lock()
-            defer lock.Unlock()
-            parts = append(parts, metrics)
-        }(ix)
-    }
-    wg.Wait()
-    return parts, nil
+				url := fmt.Sprintf("/api/v1/proxy/namespaces/%s/pods/%s:%d/", scaleTestNamespace, pod.Name, *loadbotsPort)
+				data, err = clientset.Discovery().RESTClient().Get().AbsPath(url).DoRaw()
+				if err != nil {
+					log.Printf("Error proxying to pod %s: %v", url, err)
+					return
+				}
+			}
+			var metrics vegeta.Metrics
+			if err := json.Unmarshal(data, &metrics); err != nil {
+				log.Printf("Error decoding: %v\n", err)
+				return
+			}
+			lock.Lock()
+			defer lock.Unlock()
+			parts = append(parts, metrics)
+		}(ix)
+	}
+	wg.Wait()
+	return parts, nil
 }
 
 func evaluateData(metrics []vegeta.Metrics) (queryPerSecond float64, success float64, latencyMean time.Duration, latency99th time.Duration) {
-    var latencyMeans time.Duration
-    var latency99ths time.Duration
+	var latencyMeans time.Duration
+	var latency99ths time.Duration
 
-    for _, v := range metrics {
-        if v.Rate > 0 {
-            queryPerSecond += v.Rate
-        }
+	for _, v := range metrics {
+		if v.Rate > 0 {
+			queryPerSecond += v.Rate
+		}
 
-        success += v.Success * 100
-        latencyMeans += v.Latencies.Mean
-        latency99ths += v.Latencies.P99
-    }
+		success += v.Success * 100
+		latencyMeans += v.Latencies.Mean
+		latency99ths += v.Latencies.P99
+	}
 
-    success /= float64(len(metrics))
-    latencyMean = time.Duration(latencyMeans.Nanoseconds() / int64(len(metrics)))
-    latency99th = time.Duration(latency99ths.Nanoseconds() / int64(len(metrics)))
+	success /= float64(len(metrics))
+	latencyMean = time.Duration(latencyMeans.Nanoseconds() / int64(len(metrics)))
+	latency99th = time.Duration(latency99ths.Nanoseconds() / int64(len(metrics)))
 
-    fmt.Printf("%s: QPS: %.0f Success: %.2f%s - Latency mean: %s 99th: %s\n",
-        time.Now().Format("2006-01-02T15:04:05"), queryPerSecond, success, "%%", latencyMean, latency99th)
-
-    return queryPerSecond, success, latencyMean, latency99th
+	return queryPerSecond, success, latencyMean, latency99th
 }
 
 func showSummary() {
-    fmt.Printf("Summary of load scenarios: %s\n", summaryDataMarker)
-    for k, s := range summary {
-        log.Printf("%d. %-10s: %s", k, s.title, s.result)
-    }
-    fmt.Printf("%s\n", summaryEndDataMarker)
+	log.Printf("Summary of load scenarios: %s\n", summaryDataMarker)
+	for k, s := range summary {
+		log.Printf("%d. %-10s: %s", k, s.title, s.result)
+	}
+	log.Printf("%s\n", summaryEndDataMarker)
 }
 
 func getPods(appName string) ([]*apiv1.Pod, error) {
-    loadbots := []*apiv1.Pod{}
+	loadbots := []*apiv1.Pod{}
 
-    pods, err := clientset.CoreV1().Pods(scaleTestNamespace).List(metav1.ListOptions{
-        LabelSelector: fmt.Sprintf("%s=%s", *selector, appName),
-    })
-    if err != nil {
-        return loadbots, err
-    }
+	pods, err := clientset.CoreV1().Pods(scaleTestNamespace).List(metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", *selector, appName),
+	})
+	if err != nil {
+		return loadbots, err
+	}
 
-    for ix := range pods.Items {
-        pod := &pods.Items[ix]
-        if pod.Status.PodIP == "" {
-            continue
-        }
-        loadbots = append(loadbots, pod)
-    }
+	for ix := range pods.Items {
+		pod := &pods.Items[ix]
+		if pod.Status.PodIP == "" {
+			continue
+		}
+		loadbots = append(loadbots, pod)
+	}
 
-    return loadbots, nil
+	return loadbots, nil
 }
 
 func waitForScaleTestServicesToBeRunning(target int32) {
-    waitTime := time.Second
-    done := false
-    for !done {
-        loadbotPods, err := clientset.CoreV1().Pods(scaleTestNamespace).List(metav1.ListOptions{
-            LabelSelector: fmt.Sprintf("%s=%s", *selector, loadbotsName),
-        })
-        if err != nil {
-            log.Printf("Error getting list of loadbots: %s", err)
-        }
-        webserverPods, err := clientset.CoreV1().Pods(scaleTestNamespace).List(metav1.ListOptions{
-            LabelSelector: fmt.Sprintf("%s=%s", *selector, webserverName),
-        })
-        if err != nil {
-            log.Printf("Error getting list of webservers: %s", err)
-        }
+	waitTime := time.Second
+	done := false
+	for !done {
+		loadbotPods, err := clientset.CoreV1().Pods(scaleTestNamespace).List(metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", *selector, loadbotsName),
+		})
+		if err != nil {
+			log.Printf("Error getting list of loadbots: %s", err)
+		}
+		webserverPods, err := clientset.CoreV1().Pods(scaleTestNamespace).List(metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", *selector, webserverName),
+		})
+		if err != nil {
+			log.Printf("Error getting list of webservers: %s", err)
+		}
 
-        lines := int32(len(loadbotPods.Items) + len(webserverPods.Items))
-        if lines < target {
-            time.Sleep(waitTime)
-            waitTime *= 2
-            continue
-        }
+		lines := int32(len(loadbotPods.Items) + len(webserverPods.Items))
+		if lines < target {
+			log.Printf("Pods status output too short. Waiting %v then checking again.", waitTime)
+			time.Sleep(waitTime)
+			waitTime *= 2
+			continue
+		}
 
-        allRunning := true
-        for _, p := range append(loadbotPods.Items, webserverPods.Items...) {
-            if p.Status.Phase != apiv1.PodRunning {
-                allRunning = false
-                break
-            }
-        }
-        if !allRunning {
-            time.Sleep(waitTime)
-            waitTime *= 2
-        } else {
-            done = true
-        }
-    }
+		allRunning := true
+		for _, p := range append(loadbotPods.Items, webserverPods.Items...) {
+			if p.Status.Phase != apiv1.PodRunning {
+				allRunning = false
+				break
+			}
+		}
+		if !allRunning {
+			log.Printf("Pods are not running. Waiting %v then checking again.", waitTime)
+			time.Sleep(waitTime)
+			waitTime *= 2
+		} else {
+			done = true
+		}
+	}
 }
 
 func scaleReplicationController(namespace string, name string, replicas int32) error {
-    rc, err := clientset.ReplicationControllers(namespace).Get(name, metav1.GetOptions{})
-    if err != nil {
-        return err
-    }
-    rc.Spec.Replicas = &replicas
-    clientset.ReplicationControllers(namespace).Update(rc)
-    return nil
+	log.Printf("Scaling %s to %d replicas", name, replicas)
+	rc, err := clientset.ReplicationControllers(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		log.Printf("Error scaling %s to %d replicas: %s", name, replicas, err)
+		return err
+	}
+
+	rc.Spec.Replicas = &replicas
+	_, err = clientset.ReplicationControllers(namespace).Update(rc)
+	if err != nil {
+		log.Printf("Error scaling %s to %d replicas: %s", name, replicas, err)
+		return err
+	}
+
+	return nil
+}
+
+func homeDir() string {
+	if h := os.Getenv("HOME"); h != "" {
+		return h
+	}
+	return os.Getenv("USERPROFILE") // windows
 }

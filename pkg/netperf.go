@@ -253,7 +253,7 @@ func createNetperfReplicationControllers() {
 					},
 					{
 						Name:  "orchestratorPodIP",
-						Value: hostIP,
+						Value: orchestratorName,
 					},
 				},
 			}
