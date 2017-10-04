@@ -13,11 +13,6 @@ import (
 	"time"
 )
 
-var (
-	node    types.Node
-	sshOpts types.SSHConfig
-)
-
 const (
 	netperfNamespace = "netperf"
 	orchestratorName = "netperf-orchestrator"
@@ -50,8 +45,7 @@ func Netperf(cmdParams *types.CommandContext) {
         printer.PrintCritical("No host configured for group [%s]", types.MASTER_GROUPNAME)
 	}
 
-	sshOpts = config.Ssh
-    node = ssh.GetFirstAccessibleNode(config.Ssh.LocalOn, cmdExecutor, group.Nodes)
+    node := ssh.GetFirstAccessibleNode(config.Ssh.LocalOn, cmdExecutor, group.Nodes)
 
 	if !util.IsNodeAddressValid(node) {
         printer.PrintCritical("No master available")
@@ -375,14 +369,14 @@ func processCsvData(podName string) bool {
 	_, err := cmdExecutor.RunKubectlCommand([]string{"cp", remote, resultCaptureFile})
 	if err != nil {
         printer.PrintErr("Couldn't copy output CSV datafile %s from remote %s: %s",
-			resultCaptureFile, util.GetNodeAddress(node), err)
+			resultCaptureFile, util.GetNodeAddress(cmdExecutor.GetNode()), err)
 		return false
 	}
 
 	err = cmdExecutor.DownloadFile(resultCaptureFile, filepath.Join(netperfOpts.OutputDir, "result.csv"))
 	if err != nil {
         printer.PrintErr("Couldn't fetch output CSV datafile %s from remote %s: %s",
-			resultCaptureFile, util.GetNodeAddress(node), err)
+			resultCaptureFile, util.GetNodeAddress(cmdExecutor.GetNode()), err)
 		return false
 	}
 
@@ -390,13 +384,13 @@ func processCsvData(podName string) bool {
 	_, err = cmdExecutor.RunKubectlCommand([]string{"cp", remote, outputCaptureFile})
 	if err != nil {
         printer.PrintErr("Couldn't copy output RAW datafile %s from remote %s: %s",
-			outputCaptureFile, util.GetNodeAddress(node), err)
+			outputCaptureFile, util.GetNodeAddress(cmdExecutor.GetNode()), err)
 		return false
 	}
 	err = cmdExecutor.DownloadFile(outputCaptureFile, filepath.Join(netperfOpts.OutputDir, "output.txt"))
 	if err != nil {
         printer.PrintErr("Couldn't fetch output RAW datafile %s from remote %s: %s",
-			outputCaptureFile, util.GetNodeAddress(node), err)
+			outputCaptureFile, util.GetNodeAddress(cmdExecutor.GetNode()), err)
 		return false
 	}
 

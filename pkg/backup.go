@@ -66,19 +66,13 @@ func backup() {
     printer.PrintInfo("Start backup process")
 	cmdExecutor.DeleteRemoteFile(localEtcdBackupDir)
 	backupCmd := fmt.Sprintf("etcdctl %s backup --data-dir %s --backup-dir %s", etcdConnection, etcdBackupOpts.DataDir, localEtcdBackupDir)
-	if etcdBackupOpts.Sudo {
-		backupCmd = fmt.Sprintf("sudo %s", backupCmd)
-	}
-	_, err := cmdExecutor.PerformCmd(backupCmd)
+	_, err := cmdExecutor.PerformCmd(backupCmd, etcdBackupOpts.Sudo )
 
 	if err != nil {
         printer.PrintCritical("Error trying to backup etcd: %s", err)
 	} else {
 		chmodCmd := fmt.Sprintf("chmod -R 777 %s", localEtcdBackupDir)
-		if etcdBackupOpts.Sudo {
-			chmodCmd = fmt.Sprintf("sudo %s", chmodCmd)
-		}
-		cmdExecutor.PerformCmd(chmodCmd)
+		cmdExecutor.PerformCmd(chmodCmd, etcdBackupOpts.Sudo )
         printer.PrintOk("Backup created")
     }
 
@@ -90,7 +84,7 @@ func transferBackup() {
 	backupArchive := path.Join(localBackupDir, archiveName)
 
 	archiveCmd := fmt.Sprintf("tar -czvf %s -C %s .", backupArchive, localEtcdBackupDir)
-    _, err := cmdExecutor.PerformCmd(archiveCmd)
+    _, err := cmdExecutor.PerformCmd(archiveCmd, etcdBackupOpts.Sudo)
 
 	if err != nil {
         printer.PrintCritical("Error trying to archive backup etcd: %s", err)

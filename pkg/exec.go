@@ -17,9 +17,7 @@ func Exec(cmdParams *types.CommandContext) {
 }
 
 func initializeExec(target string, node string) {
-	if node != "" {
-        printer.PrintHeader(fmt.Sprintf("Executing %v on node %s:\n", target, node), '=')
-	}
+	printer.PrintHeader(fmt.Sprintf("Executing %v on node %s:\n", target, node), '=')
 
 	if execOpts.FileOutput != "" {
 		err := util.InitializeOutputFile(execOpts.FileOutput)
@@ -33,13 +31,7 @@ func initializeExec(target string, node string) {
 }
 
 func exec(command string) {
-	if execOpts.Sudo {
-		command = fmt.Sprintf("sudo %s", command)
-	} else {
-		command = fmt.Sprintf("%s", command)
-	}
-
-    sshOut, err := cmdExecutor.PerformCmd(command)
+    sshOut, err := cmdExecutor.PerformCmd(command, execOpts.Sudo)
 
     printer.Print(fmt.Sprintf("Result on node %s:", util.ToNodeLabel(cmdExecutor.GetNode())))
 	if err != nil {

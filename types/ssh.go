@@ -34,7 +34,7 @@ type SSHOutput struct {
 type CommandExecutor interface {
     SetNode(node Node)
     GetNode() Node
-    PerformCmd(command string) (*SSHOutput, error)
+    PerformCmd(command string, sudo bool) (*SSHOutput, error)
 
     DownloadFile(remotePath string, localPath string) error
     DownloadDirectory(remotePath string, localPath string) error

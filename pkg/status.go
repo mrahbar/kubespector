@@ -8,23 +8,22 @@ import (
 	"github.com/mrahbar/kubernetes-inspector/util"
 )
 
+var statusOpts *types.GenericOpts
+
 func Status(cmdParams *types.CommandContext) {
     initParams(cmdParams)
-    opts := cmdParams.Opts.(*types.GenericOpts)
-	runGeneric(config, opts, initializeStatusService, statusService)
+    statusOpts = cmdParams.Opts.(*types.GenericOpts)
+	runGeneric(config, statusOpts, initializeStatusService, statusService)
 }
 
 func initializeStatusService(service string, node string) {
-	if node != "" {
-        printer.PrintHeader(fmt.Sprintf("Checking status of service %v on node %s",
-			service, node), '=')
-	}
-
+    printer.PrintHeader(fmt.Sprintf("Checking status of service %v on node %s",
+        service, node), '=')
     printer.PrintNewLine()
 }
 
 func statusService(service string) {
-    sshOut, err := cmdExecutor.PerformCmd(fmt.Sprintf("systemctl status %s -l", service))
+    sshOut, err := cmdExecutor.PerformCmd(fmt.Sprintf("systemctl status %s -l", service), statusOpts.Sudo)
 
     printer.Print(fmt.Sprintf("Result on node %s:", util.ToNodeLabel(cmdExecutor.GetNode())))
 	if err != nil {

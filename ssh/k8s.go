@@ -15,7 +15,7 @@ import (
 
 func (c *Executor) RunKubectlCommand(args []string) (*types.SSHOutput, error) {
 	a := strings.Join(args, " ")
-    return c.PerformCmd(fmt.Sprintf("kubectl %s", a))
+    return c.PerformCmd(fmt.Sprintf("kubectl %s", a), false)
 }
 
 func (c *Executor) DeployKubernetesResource(tpl string, data interface{}) (*types.SSHOutput, error) {

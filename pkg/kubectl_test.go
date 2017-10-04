@@ -35,7 +35,7 @@ func TestKubectl_SecondNodeAccessible(t *testing.T) {
 
     calledTimes := 0
     kubectlVersion := "kubectl version v1.7.3"
-    mockExecutor.MockPerformCmd = func(command string) (*types.SSHOutput, error) {
+    mockExecutor.MockPerformCmd = func(command string, sudo bool) (*types.SSHOutput, error) {
         if command == "hostname" {
             calledTimes++
             if mockExecutor.Node.Host == "host1" {

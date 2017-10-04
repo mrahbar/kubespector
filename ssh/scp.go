@@ -122,9 +122,9 @@ func (c *Executor) UploadDirectory(remotePath string, localPath string) error {
 }
 
 func (c *Executor) DeleteRemoteFile(remoteFile string) error {
-    _, err := c.PerformCmd(fmt.Sprintf("rm -f %s", remoteFile))
+    _, err := c.PerformCmd(fmt.Sprintf("rm -f %s", remoteFile), false)
 	if err != nil {
-        _, err2 := c.PerformCmd(fmt.Sprintf("sudo rm -f %s", remoteFile))
+        _, err2 := c.PerformCmd(fmt.Sprintf("sudo rm -f %s", remoteFile), false)
 		if err2 != nil {
 			return flattenMultiError([]error{err, err2})
 		} else {

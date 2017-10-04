@@ -7,23 +7,22 @@ import (
 	"github.com/mrahbar/kubernetes-inspector/util"
 )
 
+var restartOpts *types.GenericOpts
+
 func Restart(cmdParams *types.CommandContext) {
     initParams(cmdParams)
-    opts := cmdParams.Opts.(*types.GenericOpts)
-	runGeneric(config, opts, initializeRestartService, restartService)
+    restartOpts = cmdParams.Opts.(*types.GenericOpts)
+	runGeneric(config, restartOpts, initializeRestartService, restartService)
 }
 
 func initializeRestartService(service string, node string) {
-	if node != "" {
-        printer.PrintHeader(fmt.Sprintf("Restarting service %v on node %s",
-			service, node), '=')
-	}
-
+    printer.PrintHeader(fmt.Sprintf("Restarting service %v on node %s",
+        service, node), '=')
     printer.PrintNewLine()
 }
 
 func restartService(service string) {
-    _, err := cmdExecutor.PerformCmd(fmt.Sprintf("systemctl restart %s", service))
+    _, err := cmdExecutor.PerformCmd(fmt.Sprintf("systemctl restart %s", service), restartOpts.Sudo)
 
     printer.Print(fmt.Sprintf("Result on node %s:", util.ToNodeLabel(cmdExecutor.GetNode())))
 

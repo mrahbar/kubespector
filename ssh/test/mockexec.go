@@ -9,7 +9,7 @@ type MockExecutor struct {
     Node types.Node
     MockSetNode    func(node types.Node)
     MockGetNode    func() types.Node
-    MockPerformCmd func(command string) (*types.SSHOutput, error)
+    MockPerformCmd func(command string, sudo bool) (*types.SSHOutput, error)
 
     MockDownloadFile      func(remotePath string, localPath string) error
     MockDownloadDirectory func(remotePath string, localPath string) error
@@ -45,9 +45,9 @@ func (e *MockExecutor) SetNode(node types.Node) {
     }
 }
 
-func (e *MockExecutor) PerformCmd(command string) (*types.SSHOutput, error) {
+func (e *MockExecutor) PerformCmd(command string, sudo bool) (*types.SSHOutput, error) {
     if e.MockPerformCmd != nil {
-        return e.MockPerformCmd(command)
+        return e.MockPerformCmd(command, sudo)
     }
 
     return &types.SSHOutput{}, nil

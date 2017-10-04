@@ -160,8 +160,7 @@ func ScaleTest(cmdParams *types.CommandContext) {
         printer.PrintCritical("No host configured for group [%s]", types.MASTER_GROUPNAME)
     }
 
-    sshOpts = config.Ssh
-    node = ssh.GetFirstAccessibleNode(config.Ssh.LocalOn, cmdExecutor, group.Nodes)
+    node := ssh.GetFirstAccessibleNode(config.Ssh.LocalOn, cmdExecutor, group.Nodes)
 
     if !util.IsNodeAddressValid(node) {
         printer.PrintCritical("No master available")
@@ -332,7 +331,7 @@ func deployScript() {
         printer.PrintCritical("Could not deploy fetch_metrics_script: %s", err)
     }
 
-    if _, err := cmdExecutor.PerformCmd(fmt.Sprintf("chmod +x %s", remoteScriptFile)); err != nil {
+    if _, err := cmdExecutor.PerformCmd(fmt.Sprintf("chmod +x %s", remoteScriptFile), false); err != nil {
         printer.PrintCritical("Could not set remote script file %s to executable: %s", remoteScriptFile, err)
     }
 }
@@ -481,7 +480,7 @@ func fetchResults() ([]loadbotMetrics, error) {
     attempts = 0
 
     for {
-        resp, e := cmdExecutor.PerformCmd(cmd)
+        resp, e := cmdExecutor.PerformCmd(cmd, false)
         if e != nil {
             printer.PrintDebug("Could execute %s: %s", remoteScriptFile, e)
             attempts += 1

@@ -34,8 +34,8 @@ func TestLogs_Service(t *testing.T) {
         Type: "service",
         Since: "10m",
         Tail: 10,
-        Sudo: true,
         GenericOpts: types.GenericOpts{
+            Sudo: true,
             NodeArg: "host1",
             TargetArg: "kubelet",
         },
@@ -43,9 +43,9 @@ func TestLogs_Service(t *testing.T) {
 
     called := false
     logsOut := "Kubelet logs"
-    mockExecutor.MockPerformCmd = func(command string) (*types.SSHOutput, error) {
+    mockExecutor.MockPerformCmd = func(command string, sudo bool) (*types.SSHOutput, error) {
         called = true
-        assert.Equal(t, "sudo journalctl --lines=10 --since=10m --unit=kubelet", command)
+        assert.Equal(t, "journalctl --lines=10 --since=10m --unit=kubelet", command)
         return &types.SSHOutput{Stdout: logsOut}, nil
     }
 
@@ -60,8 +60,8 @@ func TestLogs_Docker(t *testing.T) {
         Type: "container",
         Since: "10m",
         Tail: 10,
-        Sudo: true,
         GenericOpts: types.GenericOpts{
+            Sudo: true,
             NodeArg: "host1",
             TargetArg: "kubelet",
         },
@@ -69,9 +69,9 @@ func TestLogs_Docker(t *testing.T) {
 
     called := false
     logsOut := "Kubelet logs"
-    mockExecutor.MockPerformCmd = func(command string) (*types.SSHOutput, error) {
+    mockExecutor.MockPerformCmd = func(command string, sudo bool) (*types.SSHOutput, error) {
         called = true
-        assert.Equal(t, "sudo docker logs --tail 10 --since 10m kubelet", command)
+        assert.Equal(t, "docker logs --tail 10 --since 10m kubelet", command)
         return &types.SSHOutput{Stdout: logsOut}, nil
     }
 
@@ -86,8 +86,8 @@ func TestLogs_Pod(t *testing.T) {
         Type: "pod",
         Since: "10m",
         Tail: 10,
-        Sudo: false,
         GenericOpts: types.GenericOpts{
+            Sudo: false,
             NodeArg: "host1",
             TargetArg: "kube-dns",
         },
@@ -95,7 +95,7 @@ func TestLogs_Pod(t *testing.T) {
 
     called := false
     logsOut := "kube-dns logs"
-    mockExecutor.MockPerformCmd = func(command string) (*types.SSHOutput, error) {
+    mockExecutor.MockPerformCmd = func(command string, sudo bool) (*types.SSHOutput, error) {
         called = true
         assert.Equal(t, "kubectl logs --tail=10 --since=10m kube-dns", command)
         return &types.SSHOutput{Stdout: logsOut}, nil
@@ -114,9 +114,9 @@ func TestLogs_FileOutput(t *testing.T) {
         Type: "pod",
         Since: "10m",
         Tail: 10,
-        Sudo: false,
         FileOutput: out.Name(),
         GenericOpts: types.GenericOpts{
+            Sudo: false,
             NodeArg: "host1",
             TargetArg: "kube-dns",
         },
@@ -124,7 +124,7 @@ func TestLogs_FileOutput(t *testing.T) {
 
     called := false
     logsOut := "kube-dns logs"
-    mockExecutor.MockPerformCmd = func(command string) (*types.SSHOutput, error) {
+    mockExecutor.MockPerformCmd = func(command string, sudo bool) (*types.SSHOutput, error) {
         called = true
         assert.Equal(t, "kubectl logs --tail=10 --since=10m kube-dns", command)
         return &types.SSHOutput{Stdout: logsOut}, nil

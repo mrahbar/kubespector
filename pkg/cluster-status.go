@@ -102,7 +102,7 @@ func getNodesStats(node types.Node) {
 	printer.Print("On node %s:", util.ToNodeLabel(node))
 	cmdExecutor.SetNode(node)
 
-	sshOut, err := cmdExecutor.PerformCmd("cat /proc/uptime")
+	sshOut, err := cmdExecutor.PerformCmd("/bin/cat /proc/uptime", false)
 	if err != nil {
 		printer.PrintWarn("Could not get uptime for: %s", err)
 	} else {
@@ -136,7 +136,7 @@ func getNodesStats(node types.Node) {
 		}
 	}
 
-	sshOut, err = cmdExecutor.PerformCmd("/bin/cat /proc/loadavg")
+	sshOut, err = cmdExecutor.PerformCmd("/bin/cat /proc/loadavg", false)
 	if err != nil {
 		printer.PrintWarn("Could not get load statistics: %s", err)
 	} else {
@@ -180,7 +180,7 @@ func checkServiceStatus(element string, services []string, nodes []types.Node) {
 		cmdExecutor.SetNode(node)
 
 		for _, service := range services {
-			sshOut, err := cmdExecutor.PerformCmd(fmt.Sprintf("systemctl is-active %s", service))
+			sshOut, err := cmdExecutor.PerformCmd(fmt.Sprintf("systemctl is-active %s", service), clusterStatusOpts.Sudo)
 
 			if err != nil {
 				printer.PrintErr("Error checking status of %s: %s", service, err)
@@ -224,7 +224,7 @@ func checkContainerStatus(element string, containers []string, nodes []types.Nod
 		for _, container := range containers {
 			cmd := fmt.Sprintf("docker ps -a -q --latest -f name=%s* | xargs --no-run-if-empty docker inspect -f '{{.State.Status}}'", container)
 
-			sshOut, err := cmdExecutor.PerformCmd(cmd)
+			sshOut, err := cmdExecutor.PerformCmd(cmd, clusterStatusOpts.Sudo)
 
 			if err != nil {
 				printer.PrintErr("Error checking status of %s: %s", container, err)
@@ -267,7 +267,7 @@ func checkCertificatesExpiration(element string, certificates []string, nodes []
 
 		for _, cert := range certificates {
 			cert = parseTemplate(cert, node)
-			sshOut, err := cmdExecutor.PerformCmd(fmt.Sprintf("openssl x509 -enddate -noout -in %s", cert))
+			sshOut, err := cmdExecutor.PerformCmd(fmt.Sprintf("openssl x509 -enddate -noout -in %s", cert), clusterStatusOpts.Sudo)
 
 			if err != nil {
 				printer.PrintErr("Error checking expiration of %s: %s", cert, err)
@@ -325,7 +325,7 @@ func checkDiskStatus(element string, diskSpace types.DiskUsage, nodes []types.No
 		spacesRegex := regexp.MustCompile("\\s+")
 		if len(diskSpace.FileSystemUsage) > 0 {
 			for _, fsUsage := range diskSpace.FileSystemUsage {
-				sshOut, err := cmdExecutor.PerformCmd(fmt.Sprintf("df -h | grep %s", fsUsage))
+				sshOut, err := cmdExecutor.PerformCmd(fmt.Sprintf("df -h | grep %s", fsUsage), clusterStatusOpts.Sudo)
 
 				if err != nil {
 					printer.PrintErr("Error estimating file system usage for %s: %s", fsUsage, err)
@@ -357,7 +357,7 @@ func checkDiskStatus(element string, diskSpace types.DiskUsage, nodes []types.No
 		if len(diskSpace.DirectoryUsage) > 0 {
 			for _, dirUsage := range diskSpace.DirectoryUsage {
 				cmd := fmt.Sprintf("du -h -d 0 %s", dirUsage)
-				sshOut, err := cmdExecutor.PerformCmd(cmd)
+				sshOut, err := cmdExecutor.PerformCmd(cmd, clusterStatusOpts.Sudo)
 
 				if err != nil {
 					printer.PrintErr("Error estimating directory usage for %s: %s", dirUsage, err)
@@ -405,7 +405,7 @@ func checkKubernetesStatus(element string,
 
 		printer.Print(msg + namespace_msg + ":")
 		cmdExecutor.SetNode(node)
-		sshOut, err := cmdExecutor.PerformCmd(command)
+		sshOut, err := cmdExecutor.PerformCmd(command, clusterStatusOpts.Sudo)
 		printer.PrintNewLine()
 
 		if err != nil {

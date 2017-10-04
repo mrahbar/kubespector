@@ -15,7 +15,7 @@ func TestStatusService_Ok(t *testing.T) {
     }
 
     called := false
-    mockExecutor.MockPerformCmd = func(command string) (*types.SSHOutput, error) {
+    mockExecutor.MockPerformCmd = func(command string, sudo bool) (*types.SSHOutput, error) {
         called = true
         assert.Equal(t, "systemctl status docker -l", command)
         return &types.SSHOutput{Stdout: "TEST OK"}, nil
@@ -34,7 +34,7 @@ func TestStatusService_Error(t *testing.T) {
     }
 
     called := false
-    mockExecutor.MockPerformCmd = func(command string) (*types.SSHOutput, error) {
+    mockExecutor.MockPerformCmd = func(command string, sudo bool) (*types.SSHOutput, error) {
         called = true
         assert.Equal(t, "systemctl status docker -l", command)
         return &types.SSHOutput{}, fmt.Errorf("Status failed")

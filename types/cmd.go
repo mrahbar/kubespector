@@ -11,15 +11,21 @@ type CommandContext struct {
     CommandExecutor CommandExecutor
 }
 
+type ClusterStatusOpts struct {
+    Groups string
+    Checks string
+    Sudo       bool
+}
+
 type GenericOpts struct {
     GroupArg  string
     NodeArg   string
     TargetArg string
+    Sudo       bool
 }
 
 type ExecOpts struct {
     GenericOpts
-    Sudo       bool
     FileOutput string
 }
 
@@ -31,7 +37,6 @@ type ScpOpts struct {
 
 type LogsOpts struct {
     GenericOpts
-    Sudo       bool
     FileOutput string
     Type       string
     Since      string

@@ -26,7 +26,7 @@ func GetFirstAccessibleNode(localOn types.Node, cmdExecutor types.CommandExecuto
 
 	for _, n := range nodes {
 		cmdExecutor.SetNode(n)
-        _, err := cmdExecutor.PerformCmd("hostname")
+        _, err := cmdExecutor.PerformCmd("hostname", false)
 		if err == nil {
 			return n
 		}

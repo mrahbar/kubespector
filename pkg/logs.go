@@ -18,10 +18,8 @@ func Logs(cmdParams *types.CommandContext) {
 }
 
 func initializeLogs(target string, node string) {
-	if node != "" {
-		printer.PrintHeader(fmt.Sprintf("Retrieving logs for %s %s on node %s :\n",
-			logOpts.Type, target, node), '=')
-	}
+	printer.PrintHeader(fmt.Sprintf("Retrieving logs for %s %s on node %s :\n",
+		logOpts.Type, target, node), '=')
 
 	if logOpts.FileOutput != "" {
 		err := util.InitializeOutputFile(logOpts.FileOutput)
@@ -84,12 +82,7 @@ func logs(element string) {
 	}
 
 	cmd := fmt.Sprintf("%s", strings.Join(command, " "))
-
-	if logOpts.Sudo {
-		cmd = fmt.Sprintf("sudo %s", strings.Join(command, " "))
-	}
-
-	sshOut, err := cmdExecutor.PerformCmd(cmd)
+	sshOut, err := cmdExecutor.PerformCmd(cmd, clusterStatusOpts.Sudo)
 
 	printer.Print(fmt.Sprintf("Result on node %s:\n", util.ToNodeLabel(cmdExecutor.GetNode())))
 	if err != nil {

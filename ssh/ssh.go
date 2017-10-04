@@ -28,10 +28,14 @@ func (c *Executor) SetNode(node types.Node) {
     c.Node = node
 }
 
-func (c *Executor) PerformCmd(cmd string) (*types.SSHOutput, error) {
+func (c *Executor) PerformCmd(cmd string, sudo bool) (*types.SSHOutput, error) {
     if util.NodeEquals(c.SshOpts.LocalOn, c.Node) {
         return shell(cmd, c.Printer)
     }
+
+	if sudo {
+		cmd = fmt.Sprintf("sudo %s", cmd)
+	}
 
     comm, err := establishSSHCommunication(c.SshOpts, util.GetNodeAddress(c.Node), c.Printer)
 	if err != nil {

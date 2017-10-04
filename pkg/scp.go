@@ -30,10 +30,7 @@ func initializeScp(target string, node string) {
 		printer.PrintCritical("Direction must either be 'up' or 'down' resp. first letter. Provided: '%s'", target)
 	}
 
-	if node != "" {
-		printer.PrintHeader(fmt.Sprintf("Executing scp on node %s :\n", node), '=')
-	}
-
+	printer.PrintHeader(fmt.Sprintf("Executing scp on node %s :\n", node), '=')
 	printer.PrintNewLine()
 }
 
@@ -58,13 +55,13 @@ func scp(target string) {
 
 		if dirType == localType {
 			if fileType == remoteType {
-				printer.PrintCritical("Can not upload directory %s to remote file %s. Please choose a remote directory", scpOpts.LocalPath, scpOpts.RemotePath)
+				printer.PrintCritical("Can not upload directory %s to remote file %s. Please choose a remote directory.", scpOpts.LocalPath, scpOpts.RemotePath)
 			}
 
 			scpErr = cmdExecutor.UploadDirectory(scpOpts.RemotePath, scpOpts.LocalPath)
 		} else {
 			if fileType == remoteType {
-				printer.PrintCritical("Can not upload local file %s to existing remote file %s. Please choose a remote directory or a new remote filename", scpOpts.LocalPath, scpOpts.RemotePath)
+				printer.PrintCritical("Can not upload local file %s to existing remote file %s. Please choose a remote directory or a new remote filename.", scpOpts.LocalPath, scpOpts.RemotePath)
 			} else if dirType == remoteType {
 				scpOpts.RemotePath = path.Join(scpOpts.RemotePath, filepath.Base(scpOpts.LocalPath))
 			} //noneType means remote file name was specified but file does not exists, ssh.UploadFile will create it
@@ -76,7 +73,7 @@ func scp(target string) {
 
 		if dirType == remoteType {
 			if fileType == localType {
-				printer.PrintCritical("Can not download remote folder %s to local file %s", scpOpts.RemotePath, scpOpts.LocalPath)
+				printer.PrintCritical("Can not download remote folder %s to local file %s. Please choose a local directory.", scpOpts.RemotePath, scpOpts.LocalPath)
 			}
 
 			scpErr = cmdExecutor.DownloadDirectory(scpOpts.RemotePath, scpOpts.LocalPath)
@@ -84,8 +81,8 @@ func scp(target string) {
 			if dirType == localType {
 				scpOpts.LocalPath = filepath.Join(scpOpts.LocalPath, filepath.Base(scpOpts.RemotePath))
 			} else {
-				printer.PrintCritical("Can not download remote file %s to existing local file %s", scpOpts.RemotePath, scpOpts.LocalPath)
-			}
+				printer.PrintCritical("Can not download remote file %s to existing local file %s. Please choose a local directory or a new local filename.", scpOpts.RemotePath, scpOpts.LocalPath)
+			} //noneType means local file name was specified but file does not exists, ssh.DownloadFile will create it
 
 			scpErr = cmdExecutor.DownloadFile(scpOpts.RemotePath, scpOpts.LocalPath)
 		}
@@ -104,7 +101,7 @@ func scp(target string) {
 func typeOfRemotePath() (string, error) {
 	command := fmt.Sprintf(`if [ -d %s ] ; then echo "%s" ; elif [ -f %s ] ; then echo "%s"; else echo "%s"; fi;`,
 		scpOpts.RemotePath, dirType, scpOpts.RemotePath, fileType, noneType)
-	sshOut, err := cmdExecutor.PerformCmd(command)
+	sshOut, err := cmdExecutor.PerformCmd(command, false)
 
 	if err != nil {
 		return "", err
