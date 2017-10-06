@@ -5,6 +5,8 @@ import (
     "github.com/mrahbar/kubernetes-inspector/types"
     "github.com/stretchr/testify/assert"
     "fmt"
+    "github.com/bouk/monkey"
+    "os"
 )
 
 func TestRestartService_Ok(t *testing.T) {
@@ -66,4 +68,24 @@ func TestRestartService_Error(t *testing.T) {
     assert.True(t, called)
     assert.NotEmpty(t, out)
     assert.Contains(t, out, "Error restarting service docker: Restart failed", )
+}
+
+func TestRestartService_TargetMissing(t *testing.T) {
+    _, outBuffer, context := defaultContext()
+    context.Opts = &types.GenericOpts{
+        NodeArg: "host1",
+    }
+
+    osExitCalled := false
+    patch := monkey.Patch(os.Exit, func(int) {
+        osExitCalled = true
+    })
+    defer patch.Unpatch()
+
+    Restart(context)
+
+    out := outBuffer.String()
+    assert.True(t, osExitCalled)
+    assert.NotEmpty(t, out)
+    assert.Contains(t, out, "Invalid options. Parameter missing.")
 }

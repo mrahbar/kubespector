@@ -11,6 +11,10 @@ type Initializer func(target string, node string)
 type Processor func(target string)
 
 func runGeneric(config types.Config, opts *types.GenericOpts, initializer Initializer, processor Processor) {
+	if opts.TargetArg == "" {
+		printer.PrintCritical("Invalid options. Parameter missing.")
+	}
+
 	totalNodes := []types.Node{}
 
 	if opts.NodeArg != "" {
