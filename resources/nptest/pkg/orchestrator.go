@@ -28,6 +28,8 @@ var currentJobIndex = 0
 var globalLock sync.Mutex
 var workerStateMap = make(map[string]*types.WorkerState)
 
+const csvSeparator = ";"
+const defaultBandwithFailed = "-1"
 type NetPerfRpc int
 
 // Blocking RPC server start - only runs on the orchestrator
@@ -224,9 +226,9 @@ func flushDataPointsToCsv() {
 		if len(points) == 1 {
 			continue
 		}
-		buffer = fmt.Sprintf("%-45s, Maximum,", "MSS")
+		buffer = fmt.Sprintf("%-45s%s Maximum%s", "MSS", csvSeparator, csvSeparator)
 		for _, p := range points {
-			buffer = buffer + fmt.Sprintf(" %d,", p.Mss)
+			buffer = buffer + fmt.Sprintf(" %d%s", p.Mss, csvSeparator)
 		}
 		break
 	}
@@ -234,11 +236,11 @@ func flushDataPointsToCsv() {
 
 	resultsBuffer := fmt.Sprintf("%s\n", buffer)
 	for _, label := range dataPointKeys {
-		buffer = fmt.Sprintf("%-45s,", label)
+		buffer = fmt.Sprintf("%-45s%s", label, csvSeparator)
 		points := dataPoints[label]
-		buffer = buffer + fmt.Sprintf("%f,", getMax(points))
+		buffer = buffer + fmt.Sprintf("%f%s", getMax(points), csvSeparator)
 		for _, p := range points {
-			buffer = buffer + fmt.Sprintf("%s,", p.Bandwidth)
+			buffer = buffer + fmt.Sprintf("%s%s", p.Bandwidth, csvSeparator)
 		}
 		integration.PrettyPrint(buffer)
 		resultsBuffer += fmt.Sprintf("%s\n", buffer)
@@ -309,7 +311,7 @@ func parseIperfTcpBandwidth(output string) string {
 	if match != nil && len(match) > 1 {
 		return match[1]
 	}
-	return "0"
+	return defaultBandwithFailed
 }
 
 func parseIperfUdpBandwidth(output string) string {
@@ -318,7 +320,7 @@ func parseIperfUdpBandwidth(output string) string {
 	if match != nil && len(match) > 1 {
 		return match[1]
 	}
-	return "0"
+	return defaultBandwithFailed
 }
 
 func parseNetperfBandwidth(output string) string {
@@ -327,5 +329,5 @@ func parseNetperfBandwidth(output string) string {
 	if match != nil && len(match) > 1 {
 		return match[1]
 	}
-	return "0"
+	return defaultBandwithFailed
 }
