@@ -1,4 +1,4 @@
-DOCKERREPO       := endianogino/scaletest-aggregator:1.0
+DOCKERREPO       := endianogino/aggregator:1.0
 GOLANG_CONTAINER = endianogino/golang-glide:1.9-dep
 DOCKER_RUN = docker run --rm -e CGO_ENABLED=0 -v $(shell pwd):/go/src/github.com/mrahbar/kubernetes-inspector/resources/scaletest/aggregator -w /go/src/github.com/mrahbar/kubernetes-inspector/resources/scaletest/aggregator
 all: push

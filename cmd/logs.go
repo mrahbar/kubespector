@@ -28,7 +28,7 @@ func init() {
 	logsCmd.Flags().StringVar(&logOpts.Since, "since",  "", "Only return logs after a specific timestamp or relative time")
 	logsCmd.Flags().IntVarP(&logOpts.Tail, "tail", "t", -1, "Lines of recent log file to display. Defaults to -1 with no selector, showing all log lines")
 	logsCmd.Flags().StringArrayVar(&logOpts.ExtraArgs, "extra-arg", []string{}, "Additional command line args to execute")
-	logsCmd.Flags().BoolVarP(&logOpts.Sudo, "sudo", "s", false, "Run as sudo")
+	logsCmd.Flags().BoolVar(&logOpts.Sudo, "sudo",false, "Run as sudo")
 
 	logsCmd.MarkFlagRequired("element")
 	logsCmd.MarkFlagRequired("type")

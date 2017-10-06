@@ -25,6 +25,7 @@ func init() {
 	restartCmd.Flags().StringVarP(&restartOpts.GroupArg, "group", "g", "", "Comma-separated list of group names")
 	restartCmd.Flags().StringVarP(&restartOpts.NodeArg, "node", "n", "", "Name of target node")
 	restartCmd.Flags().StringVarP(&restartOpts.TargetArg, "service", "s", "", "Name of target service")
+	restartCmd.Flags().BoolVar(&restartOpts.Sudo, "sudo", false, "Run commands as sudo")
 	restartCmd.MarkFlagRequired("service")
 }
 

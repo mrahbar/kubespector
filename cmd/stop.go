@@ -25,6 +25,7 @@ func init() {
 	stopCmd.Flags().StringVarP(&stopOpts.GroupArg, "group", "g", "", "Comma-separated list of group names")
 	stopCmd.Flags().StringVarP(&stopOpts.NodeArg, "node", "n", "", "Name of target node")
 	stopCmd.Flags().StringVarP(&stopOpts.TargetArg, "service", "s", "", "Name of target service")
+	stopCmd.Flags().BoolVar(&stopOpts.Sudo, "sudo", false, "Run commands as sudo")
 	stopCmd.MarkFlagRequired("service")
 }
 

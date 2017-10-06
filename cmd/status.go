@@ -25,6 +25,7 @@ func init() {
 	statusCmd.Flags().StringVarP(&statusOpts.GroupArg, "group", "g", "", "Comma-separated list of group names")
 	statusCmd.Flags().StringVarP(&statusOpts.NodeArg, "node", "n", "", "Name of target node")
 	statusCmd.Flags().StringVarP(&statusOpts.TargetArg, "service", "s", "", "Name of target service")
+	statusCmd.Flags().BoolVar(&statusOpts.Sudo, "sudo", false, "Run commands as sudo")
 	statusCmd.MarkFlagRequired("service")
 }
 

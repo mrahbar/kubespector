@@ -26,7 +26,7 @@ func init() {
 	execCmd.Flags().StringVarP(&execOpts.NodeArg, "node", "n", "", "Name of target node")
 	execCmd.Flags().StringVarP(&execOpts.TargetArg, "cmd", "c", "", "Command to execute")
 	execCmd.Flags().StringVarP(&execOpts.FileOutput, "file", "o", "", "File to save results of command. Screen output is suppressed")
-	execCmd.Flags().BoolVarP(&execOpts.Sudo, "sudo", "s", false, "Run as sudo")
+	execCmd.Flags().BoolVar(&execOpts.Sudo, "sudo", false, "Run as sudo")
 
 	execCmd.MarkFlagRequired("cmd")
 }
