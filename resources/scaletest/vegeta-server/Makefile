@@ -19,8 +19,8 @@ vegeta-server: deps
 
 container: vegeta-server
 	mkdir -p Dockerbuild && \
-	mv -f Dockerfile Dockerbuild/ &&\
-	mv -f vegeta-server Dockerbuild/ &&\
+	cp -f Dockerfile Dockerbuild/ &&\
+	cp -f vegeta-server Dockerbuild/ &&\
 	docker build -t $(DOCKERREPO) Dockerbuild/
 
 push: container

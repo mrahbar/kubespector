@@ -19,8 +19,8 @@ aggregator: deps
 
 container: aggregator
 	mkdir -p Dockerbuild && \
-	mv -f Dockerfile Dockerbuild/ &&\
-	mv -f aggregator Dockerbuild/ &&\
+	cp -f Dockerfile Dockerbuild/ &&\
+	cp -f aggregator Dockerbuild/ &&\
 	docker build -t $(DOCKERREPO) Dockerbuild/
 
 push: container
