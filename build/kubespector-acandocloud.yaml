@@ -10,7 +10,7 @@ ClusterGroups:
     - k8s_etcd
     Nodes:
     - Host: "kubenode01"
-      IP: 10.0.1.116
+      IP: 10.0.1.137
     DiskUsage:
       FileSystemUsage:
       - /dev/vda1
@@ -31,7 +31,7 @@ ClusterGroups:
     - /etc/kubernetes/pki/apiserver.crt
     Nodes:
     - Host: "kubenode01"
-      IP: 10.0.1.116
+      IP: 10.0.1.137
     DiskUsage:
       FileSystemUsage:
       - /dev/vda1
@@ -44,22 +44,6 @@ ClusterGroups:
       - Type: pods
         Namespace: kube-system
         Wide: true
-  - Name: Registry
-    Services:
-    - networking
-    - docker
-    - kubelet
-    Certificates:
-    - /var/run/kubernetes/kubelet-client.crt
-    Nodes:
-    - Host: "kuberegistry"
-      IP: 10.0.1.144
-    DiskUsage:
-      FileSystemUsage:
-      - /dev/vda1
-      DirectoryUsage:
-      - /etc/kubernetes
-      - /var/log
   - Name: Loadbalancer
     Services:
     - networking
@@ -69,7 +53,7 @@ ClusterGroups:
     - /var/run/kubernetes/kubelet-client.crt
     Nodes:
     - Host: "kubeload01"
-      IP: 10.0.1.142
+      IP: 10.0.1.130
     - Host: "kubeload02"
       IP: 10.0.1.132
     DiskUsage:
@@ -87,15 +71,17 @@ ClusterGroups:
     - k8s_kube-proxy
     Nodes:
     - Host: "kubenode02"
-      IP: 10.0.1.136
-    - Host: "kubenode03"
       IP: 10.0.1.138
+    - Host: "kubenode03"
+      IP: 10.0.1.139
     - Host: "kubenode04"
-      IP: 10.0.1.143
+      IP: 10.0.1.141
     - Host: "kubenode05"
       IP: 10.0.1.112
     - Host: "kubenode06"
-      IP: 10.0.1.145
+      IP: 10.0.1.129
+    - Host: "kubenode07"
+      IP: 10.0.1.134
     Certificates:
     - /var/run/kubernetes/kubelet-client.crt
     DiskUsage:

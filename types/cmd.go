@@ -15,6 +15,7 @@ type ClusterStatusOpts struct {
     Groups string
     Checks string
     Sudo       bool
+    SkipStats       bool
 }
 
 type GenericOpts struct {

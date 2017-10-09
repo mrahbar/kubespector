@@ -57,10 +57,13 @@ func ClusterStatus(cmdParams *types.CommandContext) {
     sort.Slice(totalNodes, func(i, j int) bool { //TODO fix ordering
         return util.GetNodeAddress(totalNodes[i]) < util.GetNodeAddress(totalNodes[j])
     })
-    printer.PrintHeader(fmt.Sprintf("Retrieving node stats"), '=')
-    printer.PrintNewLine()
-    for _, node := range totalNodes {
-        getNodesStats(node)
+
+    if !clusterStatusOpts.SkipStats {
+        printer.PrintHeader(fmt.Sprintf("Retrieving node stats"), '=')
+        printer.PrintNewLine()
+        for _, node := range totalNodes {
+            getNodesStats(node)
+        }
     }
 
     for _, g := range groups {
