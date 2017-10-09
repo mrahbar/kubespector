@@ -235,7 +235,7 @@ func createNetperfReplicationControllers() {
 				Envs: []types.Env{
 					{
 						Name:  "workerName",
-						FieldValue: "metadata.name",
+						Value: name,
 					},
 					{
 						Name:       "workerPodIP",

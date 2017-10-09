@@ -2,7 +2,6 @@ package types
 
 //TODO make enum of this
 const ALL_GROUPNAME = "ALL"
-const KUBERNETES_GROUPNAME = "Kubernetes"
 const MASTER_GROUPNAME = "Master"
 const ETCD_GROUPNAME = "Etcd"
 
@@ -10,13 +9,11 @@ const SERVICES_CHECKNAME = "Services"
 const CONTAINERS_CHECKNAME = "Containers"
 const CERTIFICATES_CHECKNAME = "Certificates"
 const DISKUSAGE_CHECKNAME = "DiskUsage"
+const KUBERNETES_CHECKNAME = "Kubernetes"
 
 type Config struct {
 	Ssh           SSHConfig
 	ClusterGroups []ClusterGroup
-    Kubernetes struct {
-		Resources []KubernetesResource
-	}
 }
 
 type ClusterGroup struct {
@@ -26,6 +23,7 @@ type ClusterGroup struct {
 	Containers   []string
 	Certificates []string
 	DiskUsage    DiskUsage
+	Kubernetes   Kubernetes
 }
 
 type DiskUsage struct {
@@ -36,6 +34,10 @@ type DiskUsage struct {
 type Node struct {
 	Host string
 	IP   string
+}
+
+type Kubernetes struct {
+	Resources []KubernetesResource
 }
 
 type KubernetesResource struct {

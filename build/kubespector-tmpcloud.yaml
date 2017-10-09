@@ -24,6 +24,12 @@ ClusterGroups:
       DirectoryUsage:
       - /etc/etcd
       - /var/log
+    Kubernetes:
+      Resources:
+      - Type: nodes
+      - Type: pods
+        Namespace: kube-system
+        Wide: true
   - Name: Master
     Services:
     - networking
@@ -78,9 +84,3 @@ ClusterGroups:
       - /etc/docker
       - /var/lib/kubelet
       - /var/log
-Kubernetes:
-  Resources:
-  - Type: nodes
-  - Type: pods
-    Namespace: kube-system
-    Wide: true

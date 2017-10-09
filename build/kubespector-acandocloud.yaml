@@ -38,6 +38,12 @@ ClusterGroups:
       DirectoryUsage:
       - /etc/kubernetes
       - /var/log
+    Kubernetes:
+      Resources:
+      - Type: nodes
+      - Type: pods
+        Namespace: kube-system
+        Wide: true
   - Name: Registry
     Services:
     - networking
@@ -99,9 +105,3 @@ ClusterGroups:
       - /etc/docker
       - /var/lib/kubelet
       - /var/log
-Kubernetes:
-  Resources:
-  - Type: nodes
-  - Type: pods
-    Namespace: kube-system
-    Wide: true

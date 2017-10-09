@@ -21,7 +21,7 @@ var clusterStatusCmd = &cobra.Command{
 func init() {
 	RootCmd.AddCommand(clusterStatusCmd)
 	clusterStatusCmd.Flags().StringVarP(&clusterStatusOpts.Groups, "groups", "g", "", "Comma-separated list of group names")
-	clusterStatusCmd.Flags().StringVarP(&clusterStatusOpts.Checks, "checks", "c", "", "Comma-separated list of checks. E.g. Services,Containers,Certificates,DiskUsage")
+	clusterStatusCmd.Flags().StringVarP(&clusterStatusOpts.Checks, "checks", "c", "", "Comma-separated list of checks. E.g. Services,Containers,Certificates,DiskUsage or Kubernetes")
 	clusterStatusCmd.Flags().BoolVar(&clusterStatusOpts.Sudo, "sudo", false, "Run commands as sudo")
 }
 
