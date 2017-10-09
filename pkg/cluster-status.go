@@ -70,7 +70,7 @@ func ClusterStatus(cmdParams *types.CommandContext) {
             if util.ElementInArray(clusterStatusChecks, types.SERVICES_CHECKNAME) {
                 checkServiceStatus(g, group.Services, group.Nodes)
             }
-0
+
             if util.ElementInArray(clusterStatusChecks, types.CONTAINERS_CHECKNAME) {
                 checkContainerStatus(g, group.Containers, group.Nodes)
             }
