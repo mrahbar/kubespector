@@ -58,8 +58,8 @@ func runGeneric(config types.Config, opts *types.GenericOpts, initializer Initia
 	if len(totalNodes) == 0 {
 		printer.PrintCritical("No node in current selection")
 	} else {
-		sort.Slice(totalNodes, func(i, j int) bool {//TODO fix ordering
-			return util.GetNodeAddress(totalNodes[i]) < util.GetNodeAddress(totalNodes[j])
+		sort.Slice(totalNodes, func(i, j int) bool {
+			return totalNodes[i].Host < totalNodes[j].Host
 		})
 		for _, node := range totalNodes {// TODO maybe paralle loop http://www.golangpatterns.info/concurrency/parallel-for-loop
 			initializer(opts.TargetArg, util.ToNodeLabel(node))

@@ -54,8 +54,8 @@ func ClusterStatus(cmdParams *types.CommandContext) {
             }
         }
     }
-    sort.Slice(totalNodes, func(i, j int) bool { //TODO fix ordering
-        return util.GetNodeAddress(totalNodes[i]) < util.GetNodeAddress(totalNodes[j])
+    sort.Slice(totalNodes, func(i, j int) bool {
+        return totalNodes[i].Host < totalNodes[j].Host
     })
 
     if !clusterStatusOpts.SkipStats {

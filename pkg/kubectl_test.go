@@ -61,7 +61,7 @@ func TestKubectl_SecondNodeAccessible(t *testing.T) {
     out := outBuffer.String()
     assert.Equal(t, calledTimes, 3)
     assert.NotEmpty(t, out)
-    assert.Equal(t, "host2", mockExecutor.Node.Host)
+    assert.Equal(t, "host3", mockExecutor.Node.Host)
     assert.Contains(t, out, kubectlVersion)
 }
 

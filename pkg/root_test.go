@@ -28,8 +28,9 @@ func defaultContext() (*sshTest.MockExecutor, *bytes.Buffer, *types.CommandConte
                 {
                     Name: types.MASTER_GROUPNAME,
                     Nodes: []types.Node{
-                        {Host: "host1",},
-                        {Host: "host2",},
+                        {Host: "host1", IP:"3"},
+                        {Host: "host3", IP:"2"},
+                        {Host: "host2", IP:"1"},
                     },
                     Certificates: []string{"/etc/kubernetes/certs/ca.pem"},
                     Containers:   []string{"k8s_kube-apiserver", "k8s_kube-controller-manager", "k8s_kube-scheduler"},
@@ -37,6 +38,17 @@ func defaultContext() (*sshTest.MockExecutor, *bytes.Buffer, *types.CommandConte
                     DiskUsage: types.DiskUsage{
                         DirectoryUsage:  []string{"/var/log"},
                         FileSystemUsage: []string{"/dev/sda1"},
+                    },
+                    Kubernetes: types.Kubernetes{
+                        Resources: []types.KubernetesResource {
+                            {
+                              Type:"nodes",
+                            },
+                            {
+                              Type:"pods",
+                              Namespace:"kube-system",
+                            },
+                        },
                     },
                 },
             },
