@@ -7,5 +7,7 @@
 vendor/
 pkg/TestLogs_*
 local/
+tmp/
 build/*.exe
+build/kubespector-*.yaml
 -v
