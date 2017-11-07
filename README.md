@@ -1,5 +1,3 @@
-[![pipeline status](https://gitlab.com/mrahbar/kubernetes-inspector/badges/master/pipeline.svg)](https://gitlab.com/mrahbar/kubernetes-inspector/commits/master)
-[![coverage report](https://gitlab.com/mrahbar/kubernetes-inspector/badges/master/coverage.svg)](https://gitlab.com/mrahbar/kubernetes-inspector/commits/master)
 # kubespector - A cli tool to inspect your kubernetes cluster from remote
 Kubespector was written out of the need to inspect a running kubernetes cluster remotely. 
 It is packed with a lot of useful commands which make the live of Kubernetes admins easier.
@@ -55,11 +53,8 @@ Use "kubespector [command] --help" for more information about a command.
 3. Create an etcd backup with client-certificate
    - ``./kubespector etcd backup --secure --data-dir /opt/etcd --ca-cert /etc/etcd/certs/ca.crt --client-cert /etc/etcd/certs/server.crt --client-cert-key /etc/etcd/certs/server.key --endpoint https://128.0.64.211:2379 -o ./backup``  
 4. Check the status of you Kubernetes cluster
-    - ``./kubespector cluster-status``
-5. Run network and scale tests
-    - ``./kubespector performance network-test``    
-    - ``./kubespector performance scale-test``    
-6. Fetch logs from Docker daemon 
+    - ``./kubespector cluster-status`` 
+5. Fetch logs from Docker daemon 
     - ``./kubespector logs -n kubernetesnode2 --element docker --type service --tail 5 -s -o ./docker.log``
 
 ## The Kubespector config file
@@ -138,18 +133,13 @@ The options for the ssh connect to the bastion server are the same as above. A s
       - /var/log
 ````
 
-### Kubernetes section
-````
-Kubernetes:
-  Resources:
-  - Type: nodes
-  - Type: pods
-    Namespace: kube-system
-    Wide: true
-````
-
 ## Performance tests
+A suite of network tests is included in kubespector which is based on [k8s-testsuite](https://github.com/mrahbar/k8s-testsuite). 
+Please read the repository for details. Examples: 
+- Network bandwith test: ``./kubespector perf net -c``
+- Load testing: ``./kubespector perf scale -c``
+
 
 ## Acknowledgement
-- kismatic (kubernetes-inspector idea)
-- packer (communicator.go)
+- kismatic (For the general idea of kubernetes-inspector)
+- packer (For communicator.go package)

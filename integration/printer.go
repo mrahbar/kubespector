@@ -181,6 +181,7 @@ func printMsg(msg, status string, a ...interface{}) {
 
 	var msgBuffer bytes.Buffer
 	fmt.Fprintf(&msgBuffer, msg, a...)
+	//TODO remove % only
 	carriageReturnSplits := strings.Split(msgBuffer.String(), "\n")
 	msg = ""
 	for _, cr := range carriageReturnSplits {
