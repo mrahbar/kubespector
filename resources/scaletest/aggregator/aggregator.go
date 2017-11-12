@@ -21,6 +21,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"os/signal"
 )
 
 type replicas struct {
@@ -108,6 +110,11 @@ func main() {
 	showSummary()
 	scaleReplicationController(scaleTestNamespace, loadbotsName, 0)
 	scaleReplicationController(scaleTestNamespace, webserverName, 0)
+
+	glog.Info("Aggregator finished work")
+	exitSignal := make(chan os.Signal)
+	signal.Notify(exitSignal, syscall.SIGINT, syscall.SIGTERM)
+	<-exitSignal
 }
 
 func createKubernetesClient() {
