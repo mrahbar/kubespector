@@ -337,7 +337,6 @@ def build(version=None, platform=None, arch=None, clean=False, outdir=".", tags=
             elif arch == "armhf" or arch == "arm":
                 build_envs["GOARM"] = "6"
             elif arch == "arm64":
-                # TODO(rossmcdonald) - Verify this is the correct setting for arm64
                 build_envs["GOARM"] = "7"
             else:
                 logging.error("Invalid ARM architecture specified: {}".format(arch))

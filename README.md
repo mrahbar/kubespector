@@ -14,6 +14,9 @@ Since the remote connection uses ssh, it should be checked beforehand that the h
 - You want to fetch logs from system services, Kubernetes pods or Docker Container alike
 - You want to perform tasks from a Linux, Windows or Mac  
 
+## Status
+`kubespector` is already ready used internally and is concidered stable in most if its commands. Experimentall commands are currently etcd, logs
+
 ## Usage
 Call `kubespector` without any arguments to get an overview on commands. Some usage examples:
 

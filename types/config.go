@@ -1,6 +1,5 @@
 package types
 
-//TODO make enum of this
 const ALL_GROUPNAME = "ALL"
 const MASTER_GROUPNAME = "Master"
 const ETCD_GROUPNAME = "Etcd"
